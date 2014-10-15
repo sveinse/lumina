@@ -1,0 +1,4 @@
+#!/usr/bin/python
+
+from lysstyring import styring
+styring.main()
