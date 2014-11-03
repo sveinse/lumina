@@ -31,7 +31,7 @@ case "$1" in
         fi
         ;;
     *)
-        echo "Usage: /etc/init.d/lysstyring start|stop"
+        echo "Usage: /etc/init.d/lys start|stop"
         exit 1
         ;;
 esac
