@@ -1,0 +1,4 @@
+#!/bin/sh -x
+
+scp -r * pi@lys:~/lumina/
+ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && exec python lumina.py"'
