@@ -1,0 +1,13 @@
+Source: lumina
+Maintainer: Svein Seldal <sveinse@seldal.com>
+Section: python
+Priority: optional
+Build-Depends: python-all (>= 2.6.6-3), debhelper (>= 7)
+Standards-Version: 3.9.1
+
+Package: python-lumina
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}
+Description: Home cinema automation controller
+
+

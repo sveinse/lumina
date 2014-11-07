@@ -1,3 +1,6 @@
 *.pyc
 *~
-
+*.deb
+*.changes
+*.dsc
+*.tar.gz
