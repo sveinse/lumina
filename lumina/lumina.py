@@ -1,10 +1,13 @@
 import os,sys
 
-import telldus
+from telldus import Telldus
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.python.log import startLogging
 
+
+def handle_telldus_ready(reason):
+    log.msg("TELLDUS READY:",reason)
 
 
 def handle_telldus_error(reason):
@@ -79,9 +82,10 @@ def handle_telldus_event(result):
 def main():
     startLogging(sys.stdout)
 
-    d = telldus.setupEvents()
-    d.addCallback(handle_telldus_event)
-    d.addErrback(handle_telldus_error)
+    td = Telldus()
+    td.addCBReady(handle_telldus_ready)
+    td.addCBEvent(handle_telldus_event)
+    td.addCBError(handle_telldus_error)
 
     print 'Server PID: %s' %(os.getpid())
     reactor.run()

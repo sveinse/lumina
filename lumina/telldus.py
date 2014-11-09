@@ -3,17 +3,44 @@ import os,sys
 
 from twisted.internet import reactor
 from twisted.python import log
-from twisted.internet.protocol import ClientFactory
-from twisted.internet.protocol import Protocol
+from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.internet.defer import Deferred
-#from twisted.internet.endpoints import connectProtocol, UNIXClientEndpoint
-from deferred import MyDeferred
+from callback import Callback
 
+# Can be tested with
+#    socat UNIX-LISTEN:/tmp/TelldusEvents -
+#    socat UNIX-LISTEN:/tmp/TelldusClient -
+#
+# On target communicting with Telldus:
+#     socat UNIX-connect:/tmp/TelldusEvents -
+#     socat UNIX-connect:/tmp/TelldusClient -
 
 
 class TelldusProtocol(Protocol):
-    data = ''
-    elements = [ ]
+    name = ''
+
+    def __init__(self,parent):
+        self.parent = parent
+        self.data = ''
+        self.elements = [ ]
+        self.connected = False
+
+    def connectionMade(self):
+        log.msg("%s connected" %(self.name))
+        self.connected = True
+        self.parent.connected(self)
+
+    def connectionLost(self, reason):
+        log.msg("%s connection lost" %(self.name), reason)
+        if self.connected:
+            self.connected = False
+            self.parent.error(self,reason)
+
+    def disconnect(self):
+        if self.connected:
+            self.connected = False
+            self.transport.loseConnection()
+
 
     def parsestream(self, data):
         ''' Parse self.data byte stream into list of elements in self.elements '''
@@ -96,6 +123,33 @@ class TelldusProtocol(Protocol):
         return (events, elements)
 
 
+    def generate(self, args):
+        s=''
+        for a in args:
+            if type(a) is str:
+                s+='%s:%s' %(len(a),a)
+            elif type(a) is int:
+                s+='i%ds' %(a)
+        return s
+
+
+
+class TelldusEvents(TelldusProtocol):
+    name = 'Event'
+
+    def dataReceived(self, data):
+        log.msg("     >>>  (%s)'%s'" %(len(data),data))
+
+        data = self.data + data
+
+        (elements, data) = self.parsestream(data)
+        (events, elements) = self.parseelements(elements)
+        self.handleevents(events)
+
+        self.data = data
+        self.elements = elements
+
+
     def handleevents(self, events):
         ''' Handle events '''
         for event in events:
@@ -116,24 +170,18 @@ class TelldusProtocol(Protocol):
                     continue
 
                 # Pass on to factory to call the callback
-                self.factory.receivedEvent(cmd, args)
+                #self.factory.receivedEvent(cmd, args)
+                self.parent.event(cmd, args)
 
             # Ignore the other events
             #log.msg("Ignoring unhandled command '%s', dropping" %(cmd))
 
 
-    def generate(self, args):
-        s=''
-        for a in args:
-            if type(a) is str:
-                s+='%s:%s' %(len(a),a)
-            elif type(a) is int:
-                s+='i%ds' %(a)
-        return s
 
-
-
-class TelldusEvents(TelldusProtocol):
+class TelldusClient(TelldusProtocol):
+    name = 'Client'
+    queue = [ ]
+    active = None
 
     def dataReceived(self, data):
         log.msg("     >>>  (%s)'%s'" %(len(data),data))
@@ -141,85 +189,189 @@ class TelldusEvents(TelldusProtocol):
         data = self.data + data
 
         (elements, data) = self.parsestream(data)
-        (events, elements) = self.parseelements(elements)
-        self.handleevents(events)
-
-        self.data = data
-        self.elements = elements
+        self.receivedResponse(elements)
 
 
+    def receivedResponse(self, data):
+        log.msg("     ---  %s" %(data))
+        if not self.active:
+            log.msg("Received unexpected data");
+            self.sendNext()
+        else:
+            (m,d) = self.active
+            self.active = None
+            self.sendNext()
+            d.callback(data)
+
+
+    def sendEvent(self, cmd):
+        data = self.generate(cmd)
+        d = Deferred()
+        self.queue.append( (data, d) )
+
+        if not self.active:
+            self.sendNext()
+
+        return d
+
+
+    def sendNext(self):
+        if not self.queue:
+            return
+        self.active = self.queue.pop(0)
+        (data,d) = self.active
+        log.msg("     <<<  (%s)'%s'" %(len(data),data))
+        self.transport.write(data)
+
+
+
+
+
+class TelldusFactory(ClientFactory):
+    def __init__(self, protocol, parent):
+        self.protocol = protocol
+        self.parent = parent
+    def buildProtocol(self, addr):
+        return self.protocol
+    def clientConnectionFailed(self, connector, reason):
+        self.parent.error(self, reason)
+
+
+
+class Telldus:
+
+    def __init__(self):
+        self.cbevent = Callback()
+        self.cberror = Callback()
+        self.cbready = Callback()
+
+        reactor.addSystemEventTrigger('before','shutdown',self.close)
+
+
+    def setup(self):
+        events = TelldusEvents(self)
+        factory = TelldusFactory(events, self)
+        reactor.connectUNIX('/tmp/TelldusEvents', factory)
+        self.events = events
+        self.eventfactory = factory
+
+        client = TelldusClient(self)
+        factory = TelldusFactory(client, self)
+        reactor.connectUNIX('/tmp/TelldusClient', factory)
+        self.client = client
+        self.clientfactory = factory
+
+
+    def close(self):
+        log.msg("Close called")
+        if self.events:
+            self.events.disconnect()
+        if self.client:
+            self.client.disconnect()
+
+
+    # Protocol and factory entry points
+    def error(self, who, reason):
+        if not self.cberror.fired:
+            self.cberror.callback(reason)
+
+    def connected(self, who):
+        self.cbready.callback(None, condition=self.events.connected and self.client.connected)
+
+    def event(self,cmd,args):
+        self.cbevent.callback( (cmd,args) )
+
+
+    # Observer callbacks
+    def addCallbackReady(self, callback, *args, **kw):
+        self.cbready.addCallback(callback, *args, **kw)
+    def addCallbackError(self, callback, *args, **kw):
+        self.cberror.addCallback(callback, *args, **kw)
+    def addCallbackEvent(self, callback, *args, **kw):
+        self.cbevent.addCallback(callback, *args, **kw)
+
+
+    # Actions
+    def turnOn(self,num):
+        cmd = ( 'tdTurnOn', num )
+        return self.client.sendEvent(cmd)
+
+    def turnOff(self,num):
+        cmd = ( 'tdTurnOff', num )
+        return self.client.sendEvent(cmd)
+
+    def dim(self,num, val):
+        cmd = ( 'tdDim', num, val )
+        return self.client.sendEvent(cmd)
+
+
+
+if __name__ == "__main__":
+    from twisted.python.log import startLogging
+    startLogging(sys.stdout)
+
+    def error(reason,td):
+        log.msg("ERROR",reason)
+        reactor.stop()
+
+    def ready(result,td):
+        log.msg("READY",result)
+        d = td.turnOn(1)
+        d = td.turnOn(2)
+        d = td.turnOn(3)
+
+    def event(result,td):
+        log.msg("EVENT",result)
+
+    td = Telldus()
+    d = td.setup()
+    td.addCallbackReady(ready,td)
+    td.addCallbackError(error,td)
+    td.addCallbackEvent(event,td)
+
+    reactor.run()
+
+
+
+'''
 class TelldusEventFactory(ClientFactory):
-    protocol = TelldusEvents
 
-    def __init__(self, deferred):
+    def __init__(self, deferred, cbevent):
         self.deferred = deferred
+        self.cbevent = cbevent
+
+    def buildProtocol(self, addr):
+        return TelldusEvent(self.cbconnected, self.cbevent)
 
     def clientConnectionFailed(self, connector, reason):
         if self.deferred is not None:
             d, self.deferred = self.deferred, None
             d.errback(reason)
 
+    #def clientConnectionLost(self, connector, reason):
+    #    pass
+
     def receivedEvent(self, cmd, args):
         if self.deferred is not None:
             d = self.deferred
             d.callback((cmd,args))
+'''
 
 
-class TelldusAction(TelldusProtocol):
-
-    #def connectionMade(self):
-    #    data = self.generate(self.factory.cmd)
-    #    log.msg("     <<<  (%s)'%s'" %(len(data),data))
-    #    self.transport.write(data)
-
-    def dataReceived(self, data):
-        log.msg("     >>>  (%s)'%s'" %(len(data),data))
-
-        data = self.data + data
-
-        (elements, data) = self.parsestream(data)
-        log.msg(elements)
-
-
+'''
 class TelldusActionFactory(ClientFactory):
     protocol = TelldusAction
 
-    def __init__(self, deferred, cmd):
-        self.deferred = deferred
-        self.cmd = cmd
+    def __init__(self):
+        self.active = None
+        self.queue = [ ]
 
     #def clientConnectionFailed(self, connector, reason):
     #    if self.deferred is not None:
     #        d, self.deferred = self.deferred, None
     #        d.errback(reason)
 
-    
+    #def clientConnectionLost(self, connector, reason):
+    #    pass
 
-
-def setupEvents():
-    d = MyDeferred()
-    factory = TelldusEventFactory(d)
-    reactor.connectUNIX('/tmp/TelldusEvents', factory)
-    return d
-
-
-def sendEvent(cmd):
-    d = Deferred()
-    factory = TelldusActionFactory(d, cmd)
-    reactor.connectUNIX('/tmp/TelldusClient', factory)
-    return d
-
-
-def turnOn(num):
-    cmd = ( 'tdTurnOn', num )
-    return sendEvent(cmd)
-
-
-def turnOff(num):
-    cmd = ( 'tdTurnOff', num )
-    return sendEvent(cmd)
-
-
-def dim(num,val):
-    cmd = ( 'tdDim', num, val )
-    return sendEvent(cmd)
+'''
