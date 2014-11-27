@@ -4,3 +4,7 @@
 *.changes
 *.dsc
 *.tar.gz
+bootstrap/
+telldus/
+lumina/twisted*.py
+www/*.old

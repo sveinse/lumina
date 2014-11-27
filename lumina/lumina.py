@@ -1,20 +1,35 @@
 import os,sys
 
 from telldus import Telldus
+import web
+
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.python.log import startLogging
 
 
-def handle_telldus_ready(reason):
-    log.msg("TELLDUS READY:",reason)
+telldusRunning = False
 
 
-def handle_telldus_error(reason):
-    log.msg("TELLDUS ERROR:",reason)
+def handle_telldus_ready(result,td):
+    ''' Called when telldus is ready to receive commands '''
+
+    global telldusRunning
+    telldusRunning = True
+    log.msg("TELLDUS READY:",result)
 
 
-def handle_telldus_event(result):
+def handle_telldus_error(reason,td):
+    ''' Handle telldus failures '''
+
+    global telldusRunning
+    telldusRunning = False
+    log.msg("TELLDUS ERROR: FAILED TO START")
+
+
+def handle_telldus_event(result,td):
+    ''' Handle incoming event from Telldus devices controls '''
+
     cmd, args = result
 
     house=args['house']
@@ -26,20 +41,20 @@ def handle_telldus_event(result):
 
     def lightson():
         log.msg("Turning on all lights")
-        telldus.turnOn(4)
+        td.turnOn(4)
 
     def lightsoff():
         log.msg("Turning off all lights")
-        telldus.turnOff(4)
+        td.turnOff(4)
 
     def dimlights():
         log.msg("Dimming all")
-        telldus.dim(4,30)
+        td.dim(4,30)
 
     def onlytable():
         log.msg("Dim table, roof off")
-        telldus.turnOff(5)
-        telldus.dim(1,30)
+        td.turnOff(5)
+        td.dim(1,30)
 
     def onoroff(method,onfn,offfn):
         if method == 'turnon':
@@ -79,13 +94,24 @@ def handle_telldus_event(result):
 
 
 
+#
+# ***  MAIN  ***
+#
 def main():
+    ''' Lumina entry point '''
+
     startLogging(sys.stdout)
 
+    # Start Telldus integration
     td = Telldus()
-    td.addCBReady(handle_telldus_ready)
-    td.addCBEvent(handle_telldus_event)
-    td.addCBError(handle_telldus_error)
+    td.setup()
+    td.addCallbackReady(handle_telldus_ready,td)
+    td.addCallbackError(handle_telldus_error,td)
+    td.addCallbackEvent(handle_telldus_event,td)
 
+    # Start WEB interface
+    web.setup()
+
+    # Start everything
     print 'Server PID: %s' %(os.getpid())
     reactor.run()

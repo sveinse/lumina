@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Hello, world</title>
+    <title>Lumina Automation</title>
 
     <!-- Bootstrap -->
     <link href="css/bootstrap.css" rel="stylesheet">
@@ -48,14 +48,15 @@
                 Hjem</a></li>
             <li id="nav_lights"><a href="#" onclick="showpart(this)">
                 <span class="glyphicon glyphicon-asterisk" aria-hidden="true"></span>
-                Lys</a></li>
+                Lys
+                <span class="label label-danger"><span class="glyphicon glyphicon-warning-sign" aria-hidden="true"></span></span></a></li>
             <li id="nav_power"><a href="#" onclick="showpart(this)">
                 <span class="glyphicon glyphicon-asterisk" aria-hidden="true"></span>
                 Strøm</a></li>
             <li id="nav_projector"><a href="#" onclick="showpart(this)">
                 <span class="glyphicon glyphicon-facetime-video" aria-hidden="true"></span>
                 Prosjektor
-                <span class="label label-success"><span class="glyphicon glyphicon-off" aria-hidden="true"></span> PÅ</span></a></li>
+                <span class="label label-success"><span class="glyphicon glyphicon-off" aria-hidden="true"></span></span></a></li>
             <li id="nav_player"><a href="#" onclick="showpart(this)">
                 <span class="glyphicon glyphicon-play" aria-hidden="true"></span>
                 Spiller</a></li>
@@ -96,6 +97,14 @@
 
 
    <div class="container">
+
+     <div class="alert alert-danger" role="alert">
+       <strong>
+         <span class="glyphicon glyphicon-warning-sign" aria-hidden="true"></span>
+         Advarsel!
+       </strong>
+       Ingen forbindelse med Telldus.
+     </div>
 
       <!--<div class="page-header">
         <h1>Hello, world!</h1>
@@ -241,11 +250,11 @@
 
     </div>
 
-    <!--<footer class="footer">
+    <footer class="footer">
       <div class="container">
-        <p class="text-muted">Place sticky footer content here.</p>
+        <p class="text-muted">{foo}</p>
       </div>
-    </footer>-->
+    </footer>
 
     <!-- Bootstrap core JavaScript
     ================================================== -->

@@ -16,6 +16,7 @@ from callback import Callback
 #     socat UNIX-connect:/tmp/TelldusClient -
 
 
+
 def getnextelement(data):
     ''' Return the (next,remain) raw data element from data.
 
@@ -35,6 +36,7 @@ def getnextelement(data):
         return (None,data)
 
 
+
 def parsestream(data):
     ''' Parse self.data byte stream into list of elements in self.elements '''
     el = [ ]
@@ -45,6 +47,7 @@ def parsestream(data):
         if element is None:
             return el,data
         el.append(element)
+
 
 
 def parseelements(elements):
@@ -85,6 +88,7 @@ def parseelements(elements):
     return (events, elements)
 
 
+
 def parserawargs(args):
     ''' Split the 'key1:data1;key2:data2;...' string syntax into a dictionary '''
 
@@ -97,6 +101,7 @@ def parserawargs(args):
     return adict
 
 
+
 def generate(args):
     s=''
     for a in args:
@@ -105,42 +110,6 @@ def generate(args):
         elif type(a) is int:
             s+='i%ds' %(a)
     return s
-
-
-
-
-'''class TelldusProtocol(Protocol):
-    name = ''
-
-    def __init__(self,parent):
-        self.parent = parent
-        self.data = ''
-        self.elements = [ ]
-        self.connected = False
-
-    def buildFactory(self):
-        factory = TelldusFactory(self, self.parent)
-        reactor.connectUNIX(self.path, factory)
-        self.factory = factory
-
-    #def connectionMade(self):
-    #    log.msg("%s connected" %(self.name))
-    #    self.connected = True
-    #    #self.parent.connected(self)
-
-    #def connectionLost(self, reason):
-    #    log.msg("%s connection lost" %(self.name), reason)
-    #    if self.connected:
-    #        self.connected = False
-    #        self.parent.error(self,reason)
-
-    def disconnect(self):
-        if self.connected:
-            self.connected = False
-            self.transport.loseConnection()
-
-    #---------------
-'''
 
 
 
@@ -292,7 +261,6 @@ class TelldusClient(Protocol):
 
 
 
-
 class Telldus:
     queue = [ ]
     active = None
@@ -408,48 +376,3 @@ if __name__ == "__main__":
     d = td.turnOn(3)
 
     reactor.run()
-
-
-
-'''
-class TelldusEventFactory(ClientFactory):
-
-    def __init__(self, deferred, cbevent):
-        self.deferred = deferred
-        self.cbevent = cbevent
-
-    def buildProtocol(self, addr):
-        return TelldusEvent(self.cbconnected, self.cbevent)
-
-    def clientConnectionFailed(self, connector, reason):
-        if self.deferred is not None:
-            d, self.deferred = self.deferred, None
-            d.errback(reason)
-
-    #def clientConnectionLost(self, connector, reason):
-    #    pass
-
-    def receivedEvent(self, cmd, args):
-        if self.deferred is not None:
-            d = self.deferred
-            d.callback((cmd,args))
-'''
-
-
-'''
-class TelldusActionFactory(ClientFactory):
-    protocol = TelldusAction
-
-    def __init__(self):
-        self.active = None
-        self.queue = [ ]
-
-    #def clientConnectionFailed(self, connector, reason):
-    #    if self.deferred is not None:
-    #        d, self.deferred = self.deferred, None
-    #        d.errback(reason)
-
-    #def clientConnectionLost(self, connector, reason):
-    #    pass
-
-'''
