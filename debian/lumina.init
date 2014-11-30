@@ -15,9 +15,9 @@
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="lumina"
 NAME=lumina
-DAEMON=/usr/sbin/lumina
-DAEMON_ARGS=""
+DAEMON=/usr/bin/luminad
 PIDFILE=/var/run/$NAME.pid
+DAEMON_ARGS="--daemon --pidfile=$PIDFILE --syslog"
 SCRIPTNAME=/etc/init.d/$NAME
 
 # Exit if the package is not installed
@@ -28,6 +28,7 @@ SCRIPTNAME=/etc/init.d/$NAME
 
 # Load the VERBOSE setting and other rcS variables
 . /lib/init/vars.sh
+VERBOSE=yes
 
 # Define LSB log_* functions.
 # Depend on lsb-base (>= 3.2-14) to ensure that this file is present
@@ -72,7 +73,7 @@ do_stop()
 	#   1 if daemon was already stopped
 	#   2 if daemon could not be stopped
 	#   other if a failure occurred
-	start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE --name $NAME
+	start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE
 	RETVAL="$?"
 	[ "$RETVAL" = 2 ] && return 2
 	# Wait for children to finish too if this is a daemon that forks
@@ -91,15 +92,15 @@ do_stop()
 #
 # Function that sends a SIGHUP to the daemon/service
 #
-do_reload() {
+#do_reload() {
 	#
 	# If the daemon can reload its configuration without
 	# restarting (for example, when it is sent a SIGHUP),
 	# then implement that here.
 	#
-	start-stop-daemon --stop --signal 1 --quiet --pidfile $PIDFILE --name $NAME
-	return 0
-}
+#	start-stop-daemon --stop --signal 1 --quiet --pidfile $PIDFILE --name $NAME
+#	return 0
+#}
 
 case "$1" in
   start)

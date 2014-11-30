@@ -1,3 +1,9 @@
+lumina (0.2) unstable; urgency=low
+
+  * Initial telldus and oppo working
+
+ -- Svein Seldal <sveinse@seldal.com>  Sat, 30 Nov 2014 05:25:16 +0100
+
 lumina (0.1-1) unstable; urgency=low
 
   * Created debian package

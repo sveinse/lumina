@@ -6,5 +6,5 @@
 *.tar.gz
 bootstrap/
 telldus/
-lumina/twisted*.py
+python/
 www/*.old

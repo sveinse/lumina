@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="no">
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -49,7 +49,8 @@
             <li id="nav_lights"><a href="#" onclick="showpart(this)">
                 <span class="glyphicon glyphicon-asterisk" aria-hidden="true"></span>
                 Lys
-                <span class="label label-danger"><span class="glyphicon glyphicon-warning-sign" aria-hidden="true"></span></span></a></li>
+                <span class="label label-danger hidden" id="no_telldus"><span class="glyphicon glyphicon-warning-sign" aria-hidden="true"></span></span>
+            </a></li>
             <li id="nav_power"><a href="#" onclick="showpart(this)">
                 <span class="glyphicon glyphicon-asterisk" aria-hidden="true"></span>
                 Strøm</a></li>
@@ -98,7 +99,7 @@
 
    <div class="container">
 
-     <div class="alert alert-danger" role="alert">
+     <div class="alert alert-danger" id="no_telldus" role="alert">
        <strong>
          <span class="glyphicon glyphicon-warning-sign" aria-hidden="true"></span>
          Advarsel!

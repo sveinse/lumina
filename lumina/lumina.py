@@ -1,116 +1,138 @@
 import os,sys
 
 from telldus import Telldus
+from oppo import Oppo
+from event import Action, Event, ActionList
 import web
 
 from twisted.internet import reactor
-from twisted.python import log
-from twisted.python.log import startLogging
+from twisted.python import log, syslog
 
 
-telldusRunning = False
+# Lazy...
+A = Action
+E = Event
+
+#
+# Mapping of incoming events to outgoing actions.
+# Actions can be string, Action() objects, or tuples with strings or Action() objects
+#
+connections = {
+    # Event -> Action(s)
+
+    # Telldus connections
+    'td/starting' : None,
+    'td/connected' : None,
+    'td/error': None,
+
+    # Nexa fjernkontroll
+    'td/remote/g/on' : 'td/lights/on',
+    'td/remote/g/off': 'td/lights/off',
+    'td/remote/4/on' : A('td/lights/dim', 30),
+    'td/remote/4/off': ( 'td/roof/off',
+                         A('td/table/dim', 30) ),
+
+    'td/remote/1/on' : 'oppo/play',
+    'td/remote/1/off': 'oppo/pause',
+
+    # Veggbryter overst hjemmekino
+    'td/wallsw1/on'  : 'td/lights/on',
+    'td/wallsw1/off' : 'td/lights/off',
+
+    # Veggbryter nederst kino
+    'td/wallsw2/on'  : A('td/lights/dim', 30),
+    'td/wallsw2/off' : ( 'td/roof/off',
+                         A('td/table/dim', 30) ),
+
+    # Oppo regler
+    'oppo/pause' : A('td/lights/dim', 30),
+    'oppo/play'  : 'td/lights/off',
+}
 
 
-def handle_telldus_ready(result,td):
-    ''' Called when telldus is ready to receive commands '''
-
-    global telldusRunning
-    telldusRunning = True
-    log.msg("TELLDUS READY:",result)
+#
+# (Dynamic) list of all actions
+#
+actions = ActionList()
 
 
-def handle_telldus_error(reason,td):
-    ''' Handle telldus failures '''
 
-    global telldusRunning
-    telldusRunning = False
-    log.msg("TELLDUS ERROR: FAILED TO START")
+def handle_event(event):
+    ''' Event dispatcher '''
+
+    if not event:
+        return
+
+    if isinstance(event,str):
+        event=Event(event)
+
+    log.msg("%s" %(event), system='EVENT ')
+
+    # Known event?
+    if event.name not in connections:
+        log.msg("   Unknown event '%s', ignoring" %(event.name), system='EVENT ')
+        return
+
+    # Turn into list
+    actions = connections[event.name]
+    if actions is None:
+        actions = ( )
+    elif not isinstance(actions, tuple) and not isinstance(actions, list):
+        actions = ( actions, )
+    log.msg("   -> %s" %(actions,), system='EVENT ')
+
+    # Execute actions
+    for action in actions:
+        execute_action(action)
 
 
-def handle_telldus_event(result,td):
-    ''' Handle incoming event from Telldus devices controls '''
 
-    cmd, args = result
+def execute_action(action):
+    ''' Action handler '''
 
-    house=args['house']
-    method=args['method']
-    group=args['group']
-    unit=args['unit']
+    if not action:
+        return
 
-    log.msg("    >>>> DEBUG:  house=%s  group=%s  unit=%s  method=%s " %(house,group,unit,method))
+    if isinstance(action,str):
+        action=Action(action)
 
-    def lightson():
-        log.msg("Turning on all lights")
-        td.turnOn(4)
+    log.msg("%s" %(action), system='ACTION')
 
-    def lightsoff():
-        log.msg("Turning off all lights")
-        td.turnOff(4)
+    # Known action?
+    if action.name not in actions:
+        log.msg("   Unknown action '%s', ignoring" %(action.name), system='ACTION')
+        return
 
-    def dimlights():
-        log.msg("Dimming all")
-        td.dim(4,30)
-
-    def onlytable():
-        log.msg("Dim table, roof off")
-        td.turnOff(5)
-        td.dim(1,30)
-
-    def onoroff(method,onfn,offfn):
-        if method == 'turnon':
-            onfn()
-        elif method == 'turnoff':
-            offfn()
-
-    if house == '14244686':
-        ## Nexa fjernkontroll
-        #
-        # Control codes are group 0, unit 1-16, method turnon/turnoff
-        # Global (at the bottom) is group 1, unit 1
-        log.msg("Event from remote control: %s, %s, %s" %(group,unit,method))
-        if group == '1' and unit == '1':
-            onoroff(method, lightson, lightsoff)
-        elif group == '0' and unit == '4':
-            onoroff(method, dimlights, onlytable)
-
-    elif house == '366702':
-        ## Veggknapp overst kinorom
-        #
-        # group 0, unit 1, method turnon/turnoff
-        log.msg("Event from upper wall switch: %s, %s, %s" %(group,unit,method))
-        if group == '0' and unit == '1':
-            onoroff(method, lightson, lightsoff)
-
-    elif house == '392498':
-        ## Veggknapp nederst kinorom
-        #
-        # group 1, unit 1, method turnon/turnoff
-        log.msg("Event from lower wall switch: %s, %s, %s" %(group,unit,method))
-        if group == '0' and unit == '1':
-            onoroff(method, dimlights, onlytable)
-
-    else:
-        log.msg("Unknown event: %s" %(args))
+    # Call action
+    actions[action.name](action)
 
 
 
 #
 # ***  MAIN  ***
 #
-def main():
+def main(use_syslog=False):
     ''' Lumina entry point '''
 
-    startLogging(sys.stdout)
+    if use_syslog:
+        syslog.startLogging(prefix='Lumina')
+    else:
+        log.startLogging(sys.stdout)
 
     # Start Telldus integration
     td = Telldus()
+    td.add_eventcallback(handle_event)
+    actions.add(td.get_actiondict())
     td.setup()
-    td.addCallbackReady(handle_telldus_ready,td)
-    td.addCallbackError(handle_telldus_error,td)
-    td.addCallbackEvent(handle_telldus_event,td)
+
+    # Start Oppo integration
+    oppo = Oppo('/dev/ttyUSB1')
+    oppo.add_eventcallback(handle_event)
+    actions.add(oppo.get_actiondict())
+    oppo.setup()
 
     # Start WEB interface
-    web.setup()
+    #web.setup()
 
     # Start everything
     print 'Server PID: %s' %(os.getpid())
