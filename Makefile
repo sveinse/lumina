@@ -1,8 +1,11 @@
 #!/usr/bin/make
 
 
+help:
+	@grep '^\S*:' Makefile
+
 build:
-	rm -f ../lumina_*.deb
+	rm -f ../lumina_*.deb ../lumina_*.changes
 	dpkg-buildpackage -b -uc -us -tc
 
 install:
@@ -21,9 +24,6 @@ build-lys: sync-lys
 
 install-lys:
 	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && make install"'
-
-help:
-	@grep '^\S*:' Makefile
 
 # Cleanups
 distclean:

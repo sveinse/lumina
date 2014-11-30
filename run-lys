@@ -1,4 +1,0 @@
-#!/bin/sh -x
-
-rsync -av --del -e ssh ./ pi@lys:/home/pi/lumina/
-ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && exec ./luminad"'

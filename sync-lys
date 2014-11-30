@@ -1,3 +1,0 @@
-#!/bin/sh -x
-
-rsync -av --del -e ssh ./ pi@lys:/home/pi/lumina/
