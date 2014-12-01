@@ -13,16 +13,16 @@ install:
 
 
 # Convenience for developing on 'lys'
-sync-lys::
+lys-sync::
 	rsync -av --del -e ssh ./ pi@lys:/home/pi/lumina/ --exclude="/debian/lumina" --exclude="/build" --exclude="/lumina.egg-info" --exclude="*.pyc"
 
-run-lys: sync-lys
+lys-run: lys-sync
 	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && exec ./luminad"'
 
-build-lys: sync-lys
+lys-build: lys-sync
 	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && make build"'
 
-install-lys:
+lys-install:
 	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && make install"'
 
 # Cleanups
