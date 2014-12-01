@@ -194,7 +194,7 @@ class TelldusEvents(Protocol):
         for event in events:
             cmd = event[0]
 
-            log.msg("     >>>  %s  %s" %(cmd,event[1:]), system='Telldus')
+            #log.msg("     >>>  %s  %s" %(cmd,event[1:]), system='Telldus')
 
             if cmd == 'TDRawDeviceEvent':
 

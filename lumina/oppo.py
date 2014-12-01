@@ -11,8 +11,12 @@ from event import Action, Event
 
 
 eventlist = (
-    dict(name='oppo/play', cmd='UPL', arg='PLAY'),
+    dict(name='oppo/play',  cmd='UPL', arg='PLAY'),
     dict(name='oppo/pause', cmd='UPL', arg='PAUS'),
+    dict(name='oppo/stop',  cmd='UPL', arg='STOP'),
+    dict(name='oppo/home',  cmd='UPL', arg='HOME'),
+    dict(name='oppo/off',   cmd='UPW', arg='0'),
+    dict(name='oppo/on',    cmd='UPW', arg='1'),
 )
 
 
@@ -28,7 +32,7 @@ class OppoProtocol(LineReceiver):
         #log.msg("     >>>  (%s)'%s'" %(len(data),data), system='Oppo')
 
         if data[0]!='@':
-            log.msg("Invalid key, skipping", system='Oppo')
+            log.msg("Invalid key, skipping ('%s')" %(data), system='Oppo')
             return
         args = data[1:].split(' ')
         cmd = args.pop(0)
@@ -84,6 +88,9 @@ class Oppo:
 
     def get_actiondict(self):
         return {
-            'oppo/play': lambda a : self.protocol.command('PLA'),
+            'oppo/play' : lambda a : self.protocol.command('PLA'),
             'oppo/pause': lambda a : self.protocol.command('PAU'),
-        }
+            'oppo/stop' : lambda a : self.protocol.command('STP'),
+            'oppo/on'   : lambda a : self.protocol.command('PON'),
+            'oppo/off'  : lambda a : self.protocol.command('POF'),
+         }

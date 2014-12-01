@@ -26,27 +26,29 @@ connections = {
     'td/error': None,
 
     # Nexa fjernkontroll
-    'td/remote/g/on' : 'td/lights/on',
-    'td/remote/g/off': 'td/lights/off',
-    'td/remote/4/on' : A('td/lights/dim', 30),
-    'td/remote/4/off': ( 'td/roof/off',
+    'td/remote/g/on' :   A('td/lights/on'),
+    'td/remote/g/off':   A('td/lights/off'),
+    'td/remote/4/on' :   A('td/lights/dim', 30),
+    'td/remote/4/off': ( A('td/roof/off'),
                          A('td/table/dim', 30) ),
 
-    'td/remote/1/on' : 'oppo/play',
-    'td/remote/1/off': 'oppo/pause',
+    #'td/remote/1/on' :   A('oppo/play'),
+    'td/remote/1/off': ( A('td/lights/off'),
+                         A('oppo/off') ),
 
     # Veggbryter overst hjemmekino
-    'td/wallsw1/on'  : 'td/lights/on',
-    'td/wallsw1/off' : 'td/lights/off',
+    'td/wallsw1/on'  :   A('td/lights/on'),
+    'td/wallsw1/off' :   A('td/lights/off'),
 
     # Veggbryter nederst kino
-    'td/wallsw2/on'  : A('td/lights/dim', 30),
-    'td/wallsw2/off' : ( 'td/roof/off',
+    'td/wallsw2/on'  :   A('td/lights/dim', 30),
+    'td/wallsw2/off' : ( A('td/roof/off'),
                          A('td/table/dim', 30) ),
 
     # Oppo regler
-    'oppo/pause' : A('td/lights/dim', 30),
-    'oppo/play'  : 'td/lights/off',
+    'oppo/pause'     :   A('td/lights/dim', 30),
+    'oppo/play'      :   A('td/lights/off'),
+    'oppo/stop'      :   A('td/lights/on'),
 }
 
 
