@@ -128,7 +128,7 @@ def main(use_syslog=False):
     td.setup()
 
     # Start Oppo integration
-    oppo = Oppo('/dev/ttyUSB1')
+    oppo = Oppo('/dev/ttyUSB0')
     oppo.add_eventcallback(handle_event)
     actions.add(oppo.get_actiondict())
     oppo.setup()
