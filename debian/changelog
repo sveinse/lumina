@@ -1,3 +1,9 @@
+lumina (0.2.1) unstable; urgency=low
+
+  * See @2b9a95e
+
+ -- Svein Seldal <sveinse@seldal.com>  Mon, 08 Dec 2014 19:07:23 +0100
+
 lumina (0.2) unstable; urgency=low
 
   * Initial telldus and oppo working
