@@ -6,7 +6,7 @@ from twisted.python import log
 from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.internet.defer import Deferred
 from callback import Callback
-from event import Action, Event
+from core import Event
 
 # Can be tested with
 #    socat UNIX-LISTEN:/tmp/TelldusEvents -
@@ -326,7 +326,7 @@ class Telldus:
 
 
     # Return list of actions this class supports
-    def get_actiondict(self):
+    def get_actions(self):
         return {
             'td/lights/on'  : lambda a : self.turnOn(4),
             'td/lights/off' : lambda a : self.turnOff(4),

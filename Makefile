@@ -1,14 +1,14 @@
 #!/usr/bin/make
 
 
-help:
+help::
 	@grep '^\S*:' Makefile
 
-build:
+build::
 	rm -f ../lumina_*.deb ../lumina_*.changes
-	dpkg-buildpackage -b -uc -us -tc
+	dpkg-buildpackage -b -uc -us
 
-install:
+install::
 	sudo dpkg -i ../lumina_*.deb
 
 
@@ -22,13 +22,16 @@ lys-run: lys-sync
 lys-build: lys-sync
 	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && make build"'
 
-lys-install:
+lys-install::
 	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && make install"'
 
+
 # Cleanups
-distclean:
+clean::
 	dh_clean
-	rm -rf build lumina.egg-info
+	rm -rf *.egg-info build
+
+distclean:: clean
 	rm -rf ../lumina_*.changes
 	rm -rf ../lumina_*.dsc
 	rm -rf ../lumina_*.tar.gz

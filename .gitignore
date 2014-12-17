@@ -8,3 +8,10 @@ bootstrap/
 telldus/
 python/
 www/*.old
+build/
+debian/tmp/
+debian/lumina-hw50/
+debian/lumina/
+debian/python-lumina/
+debian/files
+lumina.egg-info/

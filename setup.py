@@ -8,7 +8,7 @@ setup(
     author_email='sveinse@seldal.com',
     license='GPL2',
 
-    scripts = [ 'luminad' ],
+    scripts = [ 'luminad','lumina-hw50' ],
     packages = [ 'lumina' ],
 
     #entry_points={

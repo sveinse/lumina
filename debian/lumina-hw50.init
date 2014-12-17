@@ -1,11 +1,11 @@
 #!/bin/sh
 ### BEGIN INIT INFO
-# Provides:          lumina
+# Provides:          lumina-hw50
 # Required-Start:    $local_fs $network $remote_fs $syslog
 # Required-Stop:     $local_fs $network $remote_fs $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Home Theater Controller
+# Short-Description: Home Theater Controller HW50
 ### END INIT INFO
 
 # Author: Svein Seldal <sveinse@seldal.com>
@@ -14,8 +14,8 @@
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="lumina"
-NAME=lumina
-DAEMON=/usr/bin/lumina
+NAME=lumina-hw50
+DAEMON=/usr/bin/lumina-hw50
 PIDFILE=/var/run/$NAME.pid
 DAEMON_ARGS="--daemon --pidfile=$PIDFILE --syslog"
 SCRIPTNAME=/etc/init.d/$NAME

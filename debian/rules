@@ -1,11 +1,13 @@
 #!/usr/bin/make -f
 
+#export DH_VERBOSE:=1
+
 %:
 	dh $@ --with python2 --buildsystem=python_distutils
 
 override_dh_install:
-	dh $@ --with python2 --buildsystem=python_distutils
-	rm -rf debian/lumina/usr/lib/python*/*-packages/*.egg-info
+	dh_install -O--buildsystem=python_distutils
+	mv debian/lumina/usr/bin/luminad debian/lumina/usr/bin/lumina
 
 override_dh_clean:
 	dh_clean

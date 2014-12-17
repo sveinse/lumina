@@ -6,10 +6,13 @@ from twisted.python import log
 from twisted.internet.protocol import Protocol
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.serialport import SerialPort, EIGHTBITS, PARITY_NONE, STOPBITS_ONE
+from serial.serialutil import SerialException
+
 from callback import Callback
-from event import Action, Event
+from core import Event
 
 
+# Translation from Oppo commands to event commands
 eventlist = (
     dict(name='oppo/play',  cmd='UPL', arg='PLAY'),
     dict(name='oppo/pause', cmd='UPL', arg='PAUS'),
@@ -71,22 +74,25 @@ class Oppo:
         self.protocol = OppoProtocol(self)
 
     def setup(self):
-        SerialPort(self.protocol, self.port, reactor,
-                   baudrate=9600,
-                   bytesize=EIGHTBITS,
-                   parity=PARITY_NONE,
-                   stopbits=STOPBITS_ONE,
-                   xonxoff=0,
-                   rtscts=0)
-        log.msg('STARTING', system='Oppo')
-        self.event('oppo/starting')
+        try:
+            SerialPort(self.protocol, self.port, reactor,
+                       baudrate=9600,
+                       bytesize=EIGHTBITS,
+                       parity=PARITY_NONE,
+                       stopbits=STOPBITS_ONE,
+                       xonxoff=0,
+                       rtscts=0)
+            log.msg('STARTING', system='Oppo')
+            self.event('oppo/starting')
+        except SerialException as e:
+            self.event('oppo/error',e)
 
     def add_eventcallback(self, callback, *args, **kw):
         self.cbevent.addCallback(callback, *args, **kw)
     def event(self,event,*args):
         self.cbevent.callback(Event(event,*args))
 
-    def get_actiondict(self):
+    def get_actions(self):
         return {
             'oppo/play' : lambda a : self.protocol.command('PLA'),
             'oppo/pause': lambda a : self.protocol.command('PAU'),

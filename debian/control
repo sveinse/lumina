@@ -7,11 +7,25 @@ Build-Depends: python-all (>= 2.6.6-3),
                python-setuptools
 Standards-Version: 3.9.1
 
-Package: lumina
+Package: python-lumina
 Architecture: all
 Depends: ${misc:Depends},
          ${python:Depends},
          python-twisted-core,
          python-twisted-web,
          telldus-core
-Description: Home cinema automation controller
+Description: Python library for home cinema automation controller
+
+Package: lumina
+Architecture: all
+Depends: ${misc:Depends},
+         ${python:Depends},
+         python-lumina
+Description: Home cinema automation controller main daemon
+
+Package: lumina-hw50
+Architecture: all
+Depends: ${misc:Depends},
+         ${python:Depends},
+         python-lumina
+Description: Home cinema automation controller hw50 proxy
