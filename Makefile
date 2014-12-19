@@ -5,7 +5,7 @@ help::
 	@grep '^\S*:' Makefile
 
 build::
-	rm -f ../lumina_*.deb ../lumina_*.changes
+	rm -f ../lumina*.deb ../python-lumina*.deb ../lumina_*.changes
 	dpkg-buildpackage -b -uc -us
 
 install::
@@ -17,7 +17,7 @@ lys-sync::
 	rsync -av --del -e ssh ./ pi@lys:/home/pi/lumina/ --exclude="/debian/lumina" --exclude="/build" --exclude="/lumina.egg-info" --exclude="*.pyc"
 
 lys-run: lys-sync
-	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && exec ./luminad"'
+	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && exec ./lumina-lys"'
 
 lys-build: lys-sync
 	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && make build"'
@@ -35,4 +35,4 @@ distclean:: clean
 	rm -rf ../lumina_*.changes
 	rm -rf ../lumina_*.dsc
 	rm -rf ../lumina_*.tar.gz
-	rm -rf ../lumina_*.deb
+	rm -rf ../lumina*.deb ../python-lumina*.deb

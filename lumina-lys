@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*-python-*-
-from lumina.main import daemonize,lumina
+from lumina.main import daemonize,lys
 import argparse
 
 ap = argparse.ArgumentParser()
@@ -13,4 +13,4 @@ if opts.daemon:
     daemonize(pidfile=opts.pidfile)
 
 # Run main program
-lumina(use_syslog=opts.syslog)
+lys(use_syslog=opts.syslog)

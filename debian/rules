@@ -5,9 +5,13 @@
 %:
 	dh $@ --with python2 --buildsystem=python_distutils
 
-override_dh_install:
-	dh_install -O--buildsystem=python_distutils
-	mv debian/lumina/usr/bin/luminad debian/lumina/usr/bin/lumina
+#override_dh_install:
+#	dh_install -O--buildsystem=python_distutils
+#	mv debian/lumina-lys/etc/init.d/lumina-lys debian/lumina-lys/etc/init.d/lumina
+#	mv debian/lumina-hw50/etc/init.d/lumina-hw50 debian/lumina-hw50/etc/init.d/lumina
+
+override_dh_installinit:
+	dh_installinit --name=lumina
 
 override_dh_clean:
 	dh_clean

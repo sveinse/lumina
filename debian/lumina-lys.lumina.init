@@ -15,7 +15,7 @@
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="lumina"
 NAME=lumina
-DAEMON=/usr/bin/lumina
+DAEMON=/usr/bin/lumina-lys
 PIDFILE=/var/run/$NAME.pid
 DAEMON_ARGS="--daemon --pidfile=$PIDFILE --syslog"
 SCRIPTNAME=/etc/init.d/$NAME

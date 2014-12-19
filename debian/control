@@ -16,16 +16,18 @@ Depends: ${misc:Depends},
          telldus-core
 Description: Python library for home cinema automation controller
 
-Package: lumina
+Package: lumina-lys
 Architecture: all
 Depends: ${misc:Depends},
          ${python:Depends},
          python-lumina
-Description: Home cinema automation controller main daemon
+Conflicts: lumina-hw50
+Description: Home cinema automation controller lys daemon
 
 Package: lumina-hw50
 Architecture: all
 Depends: ${misc:Depends},
          ${python:Depends},
          python-lumina
-Description: Home cinema automation controller hw50 proxy
+Conflicts: lumina-lys
+Description: Home cinema automation controller hw50 daemon

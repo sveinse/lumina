@@ -105,8 +105,8 @@ def daemonize(pidfile):
 #
 # ***  MAIN  ***
 #
-def lumina(use_syslog=False):
-    ''' Lumina entry point '''
+def lys(use_syslog=False):
+    ''' Lumina Lys entry point '''
 
     if use_syslog:
         syslog.startLogging(prefix='Lumina')
