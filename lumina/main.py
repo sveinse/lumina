@@ -47,7 +47,7 @@ rules = {
     # Oppo regler
     'oppo/pause'     :   'td/lights/dim{30}',
     'oppo/play'      :   'td/lights/off',
-    'oppo/stop'      :   'td/lights/on',
+    'oppo/stop'      :   'td/lights/dim{60}',
 }
 
 
