@@ -18,6 +18,7 @@ from core import Event
 
 
 eventlist = (
+    # Remote control
     dict(name='td/remote/g/on',  house=14244686, group=1, unit=1, method='turnon'),
     dict(name='td/remote/g/off', house=14244686, group=1, unit=1, method='turnoff'),
     dict(name='td/remote/1/on',  house=14244686, group=0, unit=1, method='turnon'),
@@ -28,12 +29,49 @@ eventlist = (
     dict(name='td/remote/3/off', house=14244686, group=0, unit=3, method='turnoff'),
     dict(name='td/remote/4/on',  house=14244686, group=0, unit=4, method='turnon'),
     dict(name='td/remote/4/off', house=14244686, group=0, unit=4, method='turnoff'),
+    dict(name='td/remote/5/on',  house=14244686, group=0, unit=5, method='turnon'),
+    dict(name='td/remote/5/off', house=14244686, group=0, unit=5, method='turnoff'),
+    dict(name='td/remote/6/on',  house=14244686, group=0, unit=6, method='turnon'),
+    dict(name='td/remote/6/off', house=14244686, group=0, unit=6, method='turnoff'),
+    dict(name='td/remote/7/on',  house=14244686, group=0, unit=7, method='turnon'),
+    dict(name='td/remote/7/off', house=14244686, group=0, unit=7, method='turnoff'),
+    dict(name='td/remote/8/on',  house=14244686, group=0, unit=8, method='turnon'),
+    dict(name='td/remote/8/off', house=14244686, group=0, unit=8, method='turnoff'),
+    dict(name='td/remote/9/on',  house=14244686, group=0, unit=9, method='turnon'),
+    dict(name='td/remote/9/off', house=14244686, group=0, unit=9, method='turnoff'),
+    dict(name='td/remote/10/on',  house=14244686, group=0, unit=10, method='turnon'),
+    dict(name='td/remote/10/off', house=14244686, group=0, unit=10, method='turnoff'),
+    dict(name='td/remote/11/on',  house=14244686, group=0, unit=11, method='turnon'),
+    dict(name='td/remote/11/off', house=14244686, group=0, unit=11, method='turnoff'),
+    dict(name='td/remote/12/on',  house=14244686, group=0, unit=12, method='turnon'),
+    dict(name='td/remote/12/off', house=14244686, group=0, unit=12, method='turnoff'),
+    dict(name='td/remote/13/on',  house=14244686, group=0, unit=13, method='turnon'),
+    dict(name='td/remote/13/off', house=14244686, group=0, unit=13, method='turnoff'),
+    dict(name='td/remote/14/on',  house=14244686, group=0, unit=14, method='turnon'),
+    dict(name='td/remote/14/off', house=14244686, group=0, unit=14, method='turnoff'),
+    dict(name='td/remote/15/on',  house=14244686, group=0, unit=15, method='turnon'),
+    dict(name='td/remote/15/off', house=14244686, group=0, unit=15, method='turnoff'),
+    dict(name='td/remote/16/on',  house=14244686, group=0, unit=16, method='turnon'),
+    dict(name='td/remote/16/off', house=14244686, group=0, unit=16, method='turnoff'),
 
+    # Loftstue upper
     dict(name='td/wallsw1/on',   house=366702,   group=0, unit=1, method='turnon'),
     dict(name='td/wallsw1/off',  house=366702,   group=0, unit=1, method='turnoff'),
 
+    # Loftstue lower
     dict(name='td/wallsw2/on',   house=392498,   group=0, unit=1, method='turnon'),
     dict(name='td/wallsw2/off',  house=392498,   group=0, unit=1, method='turnoff'),
+)
+
+templist = (
+    # Mandolyn devices
+    dict(name='temp/ute1', id=11),
+    dict(name='temp/kjeller', id=12),
+
+    # Nexa/proove devices
+    dict(name='temp/fryseskap', id=247),
+    dict(name='temp/ute2', id=135),
+    dict(name='temp/loftstue', id=151),
 )
 
 
@@ -193,37 +231,61 @@ class TelldusEvents(Protocol):
         # Iverate over the events
         for event in events:
             cmd = event[0]
+            response = None
 
             #log.msg("     >>>  %s  %s" %(cmd,event[1:]), system='Telldus')
 
-            if cmd == 'TDRawDeviceEvent':
+            if cmd == 'TDSensorEvent':
+                # ignoring sensor events as we handle them as raw device events
+                continue
+
+            elif cmd == 'TDRawDeviceEvent':
 
                 args = parserawargs(event[1])
+                #log.msg("     >>>  %s  %s" %(cmd,args), system='Telldus')
+
                 if 'protocol' not in args:
                     log.msg("Missing protocol from %s, dropping event" %(cmd), system='Telldus')
                     continue
 
-                if args['protocol'] != 'arctech':
-                    #log.msg("Ignoring unknown protocol '%s' in '%s', dropping event" %(args['protocol'],cmd))
-                    continue
+                #if args['protocol'] != 'arctech':
+                #    #log.msg("Ignoring unknown protocol '%s' in '%s', dropping event" %(args['protocol'],cmd))
+                #    continue
 
                 # Check for matches in eventlist
-                for ev in eventlist:
-                    if str(ev['house']) != args['house']:
-                        continue
-                    if str(ev['group']) != args['group']:
-                        continue
-                    if str(ev['unit']) != args['unit']:
-                        continue
-                    if ev['method'] != args['method']:
-                        continue
+                if args['protocol'] == 'arctech':
 
-                    # Pass on to factory to call the callback
-                    self.parent.event(ev['name'])
-                    break
+                    for ev in eventlist:
+                        if str(ev['house']) != args['house']:
+                            continue
+                        if str(ev['group']) != args['group']:
+                            continue
+                        if str(ev['unit']) != args['unit']:
+                            continue
+                        if ev['method'] != args['method']:
+                            continue
 
-            # Ignore the other events
-            #log.msg("Ignoring unhandled command '%s', dropping" %(cmd))
+                        response = ev['name']
+                        break
+
+                elif args['protocol'] == 'mandolyn' or args['protocol'] == 'fineoffset':
+
+                    for ev in templist:
+                        if str(ev['id']) != args['id']:
+                            continue
+
+                        if 'humidity' in args:
+                            response = "%s{%s,%s}" %(ev['name'],args['temp'],args['humidity'])
+                        else:
+                            response = "%s{%s}" %(ev['name'],args['temp'])
+                        break
+
+            # Pass response back to the callback
+            if response:
+                self.parent.event(response)
+            else:
+                # Ignore the other events
+                log.msg("Ignoring unhandled command '%s' %s, dropping" %(cmd,event[1:]))
 
 
 

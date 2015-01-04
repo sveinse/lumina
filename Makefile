@@ -22,8 +22,11 @@ lys-run: lys-sync
 lys-build: lys-sync
 	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && make build"'
 
-lys-install::
-	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && make install"'
+#lys-install::
+#	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && make install"'
+
+lys-install:
+	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina && sudo dpkg -i lumina-lys_*.deb python-lumina_*.deb"'
 
 
 # Cleanups
