@@ -49,7 +49,8 @@ Definerte telldus-enheter:
         protocol:arctech;model:selflearning-dimmer:nexa;house:50026144;unit:2
 
     - 105 kino-bordlampe
-        protocol:arctech;model:selflearning-dimmer:nexa;house:96315743;unit:1
+        protocol:arctech;model:selflearning-dimmer:nexa;house:27361582;unit:1
+	house=96315743 virket ikke, kolliderte med 100
 
 
 Parede enheter:
@@ -63,3 +64,6 @@ Parede enheter:
 
     - Dimmer WMR-252 i taklampe v/reol (2015-04-01)
         paret: 100, 101, 104, NEYCT-705 kanal 13
+
+    - Dimmer EYCR-201, bordlampe (2015-04-02)
+        paret: 100, 105
