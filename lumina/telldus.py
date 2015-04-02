@@ -16,62 +16,63 @@ from core import Event
 #     socat UNIX-connect:/tmp/TelldusEvents -
 #     socat UNIX-connect:/tmp/TelldusClient -
 
+# NOTE: The list of td actions is listed under get_action(), around line 392
 
 eventlist = (
     # Remote control
-    dict(name='td/remote/g/on',  house=14244686, group=1, unit=1, method='turnon'),
-    dict(name='td/remote/g/off', house=14244686, group=1, unit=1, method='turnoff'),
-    dict(name='td/remote/1/on',  house=14244686, group=0, unit=1, method='turnon'),
-    dict(name='td/remote/1/off', house=14244686, group=0, unit=1, method='turnoff'),
-    dict(name='td/remote/2/on',  house=14244686, group=0, unit=2, method='turnon'),
-    dict(name='td/remote/2/off', house=14244686, group=0, unit=2, method='turnoff'),
-    dict(name='td/remote/3/on',  house=14244686, group=0, unit=3, method='turnon'),
-    dict(name='td/remote/3/off', house=14244686, group=0, unit=3, method='turnoff'),
-    dict(name='td/remote/4/on',  house=14244686, group=0, unit=4, method='turnon'),
-    dict(name='td/remote/4/off', house=14244686, group=0, unit=4, method='turnoff'),
-    dict(name='td/remote/5/on',  house=14244686, group=0, unit=5, method='turnon'),
-    dict(name='td/remote/5/off', house=14244686, group=0, unit=5, method='turnoff'),
-    dict(name='td/remote/6/on',  house=14244686, group=0, unit=6, method='turnon'),
-    dict(name='td/remote/6/off', house=14244686, group=0, unit=6, method='turnoff'),
-    dict(name='td/remote/7/on',  house=14244686, group=0, unit=7, method='turnon'),
-    dict(name='td/remote/7/off', house=14244686, group=0, unit=7, method='turnoff'),
-    dict(name='td/remote/8/on',  house=14244686, group=0, unit=8, method='turnon'),
-    dict(name='td/remote/8/off', house=14244686, group=0, unit=8, method='turnoff'),
-    dict(name='td/remote/9/on',  house=14244686, group=0, unit=9, method='turnon'),
-    dict(name='td/remote/9/off', house=14244686, group=0, unit=9, method='turnoff'),
-    dict(name='td/remote/10/on',  house=14244686, group=0, unit=10, method='turnon'),
-    dict(name='td/remote/10/off', house=14244686, group=0, unit=10, method='turnoff'),
-    dict(name='td/remote/11/on',  house=14244686, group=0, unit=11, method='turnon'),
-    dict(name='td/remote/11/off', house=14244686, group=0, unit=11, method='turnoff'),
-    dict(name='td/remote/12/on',  house=14244686, group=0, unit=12, method='turnon'),
-    dict(name='td/remote/12/off', house=14244686, group=0, unit=12, method='turnoff'),
-    dict(name='td/remote/13/on',  house=14244686, group=0, unit=13, method='turnon'),
-    dict(name='td/remote/13/off', house=14244686, group=0, unit=13, method='turnoff'),
-    dict(name='td/remote/14/on',  house=14244686, group=0, unit=14, method='turnon'),
-    dict(name='td/remote/14/off', house=14244686, group=0, unit=14, method='turnoff'),
-    dict(name='td/remote/15/on',  house=14244686, group=0, unit=15, method='turnon'),
-    dict(name='td/remote/15/off', house=14244686, group=0, unit=15, method='turnoff'),
-    dict(name='td/remote/16/on',  house=14244686, group=0, unit=16, method='turnon'),
-    dict(name='td/remote/16/off', house=14244686, group=0, unit=16, method='turnoff'),
+    dict(name='remote/g/on',  house=14244686, group=1, unit=1, method='turnon'),
+    dict(name='remote/g/off', house=14244686, group=1, unit=1, method='turnoff'),
+    dict(name='remote/1/on',  house=14244686, group=0, unit=1, method='turnon'),
+    dict(name='remote/1/off', house=14244686, group=0, unit=1, method='turnoff'),
+    dict(name='remote/2/on',  house=14244686, group=0, unit=2, method='turnon'),
+    dict(name='remote/2/off', house=14244686, group=0, unit=2, method='turnoff'),
+    dict(name='remote/3/on',  house=14244686, group=0, unit=3, method='turnon'),
+    dict(name='remote/3/off', house=14244686, group=0, unit=3, method='turnoff'),
+    dict(name='remote/4/on',  house=14244686, group=0, unit=4, method='turnon'),
+    dict(name='remote/4/off', house=14244686, group=0, unit=4, method='turnoff'),
+    dict(name='remote/5/on',  house=14244686, group=0, unit=5, method='turnon'),
+    dict(name='remote/5/off', house=14244686, group=0, unit=5, method='turnoff'),
+    dict(name='remote/6/on',  house=14244686, group=0, unit=6, method='turnon'),
+    dict(name='remote/6/off', house=14244686, group=0, unit=6, method='turnoff'),
+    dict(name='remote/7/on',  house=14244686, group=0, unit=7, method='turnon'),
+    dict(name='remote/7/off', house=14244686, group=0, unit=7, method='turnoff'),
+    dict(name='remote/8/on',  house=14244686, group=0, unit=8, method='turnon'),
+    dict(name='remote/8/off', house=14244686, group=0, unit=8, method='turnoff'),
+    dict(name='remote/9/on',  house=14244686, group=0, unit=9, method='turnon'),
+    dict(name='remote/9/off', house=14244686, group=0, unit=9, method='turnoff'),
+    dict(name='remote/10/on',  house=14244686, group=0, unit=10, method='turnon'),
+    dict(name='remote/10/off', house=14244686, group=0, unit=10, method='turnoff'),
+    dict(name='remote/11/on',  house=14244686, group=0, unit=11, method='turnon'),
+    dict(name='remote/11/off', house=14244686, group=0, unit=11, method='turnoff'),
+    dict(name='remote/12/on',  house=14244686, group=0, unit=12, method='turnon'),
+    dict(name='remote/12/off', house=14244686, group=0, unit=12, method='turnoff'),
+    dict(name='remote/13/on',  house=14244686, group=0, unit=13, method='turnon'),
+    dict(name='remote/13/off', house=14244686, group=0, unit=13, method='turnoff'),
+    dict(name='remote/14/on',  house=14244686, group=0, unit=14, method='turnon'),
+    dict(name='remote/14/off', house=14244686, group=0, unit=14, method='turnoff'),
+    dict(name='remote/15/on',  house=14244686, group=0, unit=15, method='turnon'),
+    dict(name='remote/15/off', house=14244686, group=0, unit=15, method='turnoff'),
+    dict(name='remote/16/on',  house=14244686, group=0, unit=16, method='turnon'),
+    dict(name='remote/16/off', house=14244686, group=0, unit=16, method='turnoff'),
 
     # Loftstue upper
-    dict(name='td/wallsw1/on',   house=366702,   group=0, unit=1, method='turnon'),
-    dict(name='td/wallsw1/off',  house=366702,   group=0, unit=1, method='turnoff'),
+    dict(name='wallsw1/on',   house=366702,   group=0, unit=1, method='turnon'),
+    dict(name='wallsw1/off',  house=366702,   group=0, unit=1, method='turnoff'),
 
     # Loftstue lower
-    dict(name='td/wallsw2/on',   house=392498,   group=0, unit=1, method='turnon'),
-    dict(name='td/wallsw2/off',  house=392498,   group=0, unit=1, method='turnoff'),
+    dict(name='wallsw2/on',   house=392498,   group=0, unit=1, method='turnon'),
+    dict(name='wallsw2/off',  house=392498,   group=0, unit=1, method='turnoff'),
 )
 
 templist = (
     # Mandolyn devices
-    dict(name='temp/ute1', id=11),
+    dict(name='temp/ute', id=11),
     dict(name='temp/kjeller', id=12),
 
     # Nexa/proove devices
     dict(name='temp/fryseskap', id=247),
-    dict(name='temp/ute2', id=135),
-    dict(name='temp/loftstue', id=151),
+    dict(name='temp/loftute', id=135),
+    dict(name='temp/kino', id=151),
 )
 
 
@@ -390,11 +391,15 @@ class Telldus:
     # Return list of actions this class supports
     def get_actions(self):
         return {
-            'td/lights/on'  : lambda a : self.turnOn(4),
-            'td/lights/off' : lambda a : self.turnOff(4),
-            'td/lights/dim' : lambda a : self.dim(4, a.args[0]),
-            'td/roof/off'   : lambda a : self.turnOff(5),
-            'td/table/dim'  : lambda a : self.dim(1, a.args[0]),
+            'kino/lys/on'   : lambda a : self.turnOn(100),
+            'kino/lys/off'  : lambda a : self.turnOff(100),
+            'kino/lys/dim'  : lambda a : self.dim(100, a.args[0]),
+            'kino/tak/on'   : lambda a : self.turnOn(101),
+            'kino/tak/off'  : lambda a : self.turnOff(101),
+            'kino/tak/dim'  : lambda a : self.dim(101, a.args[0]),
+            'kino/bord/on'  : lambda a : self.turnOn(105),
+            'kino/bord/off' : lambda a : self.turnOff(105),
+            'kino/bord/dim' : lambda a : self.dim(105, a.args[0]),
         }
 
 

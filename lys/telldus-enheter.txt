@@ -1,0 +1,65 @@
+Listen over kjente telldus kontroll og sensorenheter:
+=====================================================
+
+    - 1 kanals veggbryter WTE1, merket 1
+        class:command;protocol:arctech;model:selflearning;house:366702;unit:1;group:0
+
+    - 1 kanals veggbryter WTE1, merket 2
+        class:command;protocol:arctech;model:selflearning;house:392498;unit:1;group:0
+
+    - 16 kanals fjernkontroll NEYCT-705
+        class:command;protocol:arctech;model:selflearning;house:14244686;unit:1-16;group:0
+	class:command;protocol:arctech;model:selflearning;house:14244686;unit:1;group:1
+
+    - Bevegelsesdetektor, LMDT-609
+        class:command;protocol:arctech;model:selflearning;house:13616034;unit:10;group:0
+
+    - Frysersensor, TSS380, kanal 8
+        class:sensor;protocol:fineoffset;id:247;model:temperature;temp:-19.2;
+
+    - Tempsensor, TSS320, kanal 1?, plassert ute veranda
+        class:sensor;protocol:fineoffset;id:135;model:temperaturehumidity;humidity:77;temp:5.3;
+
+    - Innesensor, TSS320, kanal 2, plassert kinorom
+        class:sensor;protocol:fineoffset;id:151;model:temperaturehumidity;humidity:24;temp:21.8;
+
+    - Vaerstasjon sensor, kanal 1?, plassert ute v/kjokken
+        class:sensor;protocol:mandolyn;id:11;model:temperaturehumidity;temp:5.3;humidity:72
+
+    - Vaerstasjon sensor, kanal 2?, plassert krypkjeller
+        class:sensor;protocol:mandolyn;id:12;model:temperaturehumidity;temp:8.4;humidity:67
+
+
+Definerte telldus-enheter:
+==========================
+
+    - 100 kino-lys
+        protocol:arctech;model:selflearning-dimmer:nexa;house:04785058;unit:1
+
+    - 101 kino-tak
+        protocol:arctech;model:selflearning-dimmer:nexa;house:83621799;unit:1
+
+    - 102 kino-tak-pj
+        protocol:arctech;model:selflearning-dimmer:nexa;house:86669189;unit:2
+
+    - 103 kino-tak-lerret
+        protocol:arctech;model:selflearning-dimmer:nexa;house:11630920;unit:2
+
+    - 104 kino-tak-reol
+        protocol:arctech;model:selflearning-dimmer:nexa;house:50026144;unit:2
+
+    - 105 kino-bordlampe
+        protocol:arctech;model:selflearning-dimmer:nexa;house:96315743;unit:1
+
+
+Parede enheter:
+===============
+
+    - Dimmer WMR-252 i taklampe v/prosjektor (2015-04-01)
+        paret: 100, 101, 102, NEYCT-705 kanal 13
+
+    - Dimmer WMR-252 i taklampe v/lerret (2015-04-01)
+        paret: 100, 101, 103, NEYCT-705 kanal 13
+
+    - Dimmer WMR-252 i taklampe v/reol (2015-04-01)
+        paret: 100, 101, 104, NEYCT-705 kanal 13

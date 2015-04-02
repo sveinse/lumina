@@ -1,0 +1,9 @@
+#!/bin/sh -ex
+
+mkdir -p ~/bin
+cp td.py ~/bin
+cp tdtool.py ~/bin/td
+chmod +x ~/bin/td
+
+sudo cp tellstick.conf /etc/tellstick.conf
+sudo service telldusd restart

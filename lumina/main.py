@@ -18,42 +18,49 @@ rules = {
     # Event -> Action(s)
 
     # Telldus connections
-    'td/starting' : None,
-    'td/connected' : None,
-    'td/error': None,
+    'td/starting'    : None,
+    'td/connected'   : None,
+    'td/error'       : None,
 
     # Oppo connections
-    'oppo/starting': None,
-    'oppo/connected': None,
-    'oppo/error': None,
+    'oppo/starting'  : None,
+    'oppo/connected' : None,
+    'oppo/error'     : None,
 
     # Nexa fjernkontroll
-    'td/remote/g/on' :   'td/lights/on',
-    'td/remote/g/off':   'td/lights/off',
-    'td/remote/4/on' :   'td/lights/dim{30}',
-    'td/remote/4/off': ( 'td/roof/off', 'td/table/dim{30}' ),
+    'remote/g/on'    :   'kino/lys/on',
+    'remote/g/off'   :   'kino/lys/off',
+    'remote/4/on'    :   'kino/lys/dim{30}',
+    'remote/4/off'   : ( 'kino/tak/off', 'kino/bord/dim{30}' ),
 
-    #'td/remote/1/on' :   'oppo/play',
-    'td/remote/1/off': ( 'td/lights/off', 'oppo/off' ),
+    #'remote/1/on'   :   'oppo/play',
+    'remote/1/off'   : ( 'kino/lys/off', 'oppo/off' ),
 
     # Veggbryter overst hjemmekino
-    'td/wallsw1/on'  :   'td/lights/on',
-    'td/wallsw1/off' :   'td/lights/off',
+    'wallsw1/on'     :   'kino/lys/on',
+    'wallsw1/off'    :   'kino/lys/off',
 
     # Veggbryter nederst kino
-    'td/wallsw2/on'  :   'td/lights/dim{30}',
-    'td/wallsw2/off' : ( 'td/roof/off', 'td/table/dim{30}' ),
+    'wallsw2/on'     :   'kino/lys/dim{30}',
+    'wallsw2/off'    : ( 'kino/tak/off', 'kino/bord/dim{30}' ),
 
     # Oppo regler
-    'oppo/pause'     :   'td/lights/dim{30}',
-    'oppo/play'      :   'td/lights/off',
-    'oppo/stop'      :   'td/lights/dim{60}',
+    'oppo/pause'     :   'kino/lys/dim{30}',
+    'oppo/play'      :   'kino/lys/off',
+    'oppo/stop'      :   'kino/lys/dim{60}',
+
+    # Temperatur
+    'temp/ute'       : None,
+    'temp/kjeller'   : None,
+    'temp/loftute'   : None,
+    'temp/kino'      : None,
+    'temp/fryseskap' : None,
 }
 
 
 
 #
-# ***  BECOME DAEMON  ***
+# ***  Become DAEMON  ***
 #
 def daemonize(pidfile):
 

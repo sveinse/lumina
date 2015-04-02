@@ -11,7 +11,11 @@ www/*.old
 build/
 debian/tmp/
 debian/lumina-hw50/
+debian/lumina-lys/
 debian/lumina/
 debian/python-lumina/
 debian/files
+debian/*.debhelper
+debian/*.log
+debian/*.substvars
 lumina.egg-info/
