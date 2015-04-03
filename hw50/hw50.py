@@ -317,9 +317,9 @@ def close():
     if ser:
         ser.close()
 
-#full_info()
-#ser.close()
-
+open()
+full_info()
+ser.close()
 
 
 # TODO:

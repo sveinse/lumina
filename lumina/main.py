@@ -1,10 +1,5 @@
 import os,sys,atexit
 
-from core import Core
-from telldus import Telldus
-from oppo import Oppo
-import web
-
 from twisted.internet import reactor
 from twisted.python import log, syslog
 
@@ -115,6 +110,12 @@ def daemonize(pidfile):
 def lys(use_syslog=False):
     ''' Lumina Lys entry point '''
 
+    # Imports
+    from core import Core
+    from telldus import Telldus
+    from oppo import Oppo
+    import web
+
     if use_syslog:
         syslog.startLogging(prefix='Lumina')
     else:
@@ -150,6 +151,12 @@ def lys(use_syslog=False):
 #
 def hw50(use_syslog=False):
     ''' Luminia HW50 entry point '''
+
+    # Imports
+    #from core import Core
+    #from telldus import Telldus
+    #from oppo import Oppo
+    #import web
 
     if use_syslog:
         syslog.startLogging(prefix='Lumina')
