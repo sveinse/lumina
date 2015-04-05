@@ -286,7 +286,7 @@ class TelldusEvents(Protocol):
                 self.parent.event(response)
             else:
                 # Ignore the other events
-                log.msg("Ignoring unhandled command '%s' %s, dropping" %(cmd,event[1:]))
+                log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system='Telldus')
 
 
 
@@ -310,7 +310,7 @@ class TelldusClient(Protocol):
         #self.factory = factory
 
     def connectionMade(self):
-        log.msg("%s connected" %(self.name), system='Telldus')
+        #log.msg("%s connected" %(self.name), system='Telldus')
         self.data = ''
         self.elements = [ ]
         self.connected = True
@@ -319,7 +319,7 @@ class TelldusClient(Protocol):
         self.transport.write(data)
 
     def connectionLost(self, reason):
-        log.msg("%s connection closed" %(self.name), system='Telldus')
+        #log.msg("%s connection closed" %(self.name), system='Telldus')
         self.connected = False
         self.active = None
         self.sendNextCommand()
@@ -329,7 +329,7 @@ class TelldusClient(Protocol):
             self.transport.loseConnection()
 
     def dataReceived(self, data):
-        #log.msg("     >>>  (%s)'%s'" %(len(data),data), system='Telldus')
+        log.msg("     >>>  (%s)'%s'" %(len(data),data), system='Telldus')
         data = self.data + data
         (elements, data) = parsestream(data)
         #log.msg("          %s" %(elements), system='Telldus')

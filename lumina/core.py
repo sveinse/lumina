@@ -83,7 +83,6 @@ class Action(Event):
         return result
 
     def execute(self):
-        log.msg("Run   %s" %(self), system='ACTION')
         result = self.fn(self)
         if isinstance(result, Deferred):
             result.addCallback(self._store_result)
@@ -102,11 +101,11 @@ class Job(JobBase):
 
     def __init__(self, actions, name=None):
         self.name = name
-        self.actions = [ ]
-        if not isinstance(actions, list) and not isinstance(actions, tuple):
-            self.actions = (actions,)
-        else:
+        self.actions = tuple()
+        if isinstance(actions, list) or isinstance(actions, tuple):
             self.actions = tuple(actions)
+        elif actions is not None:
+            self.actions = (actions,)
 
     def __repr__(self):
         (s,n) = ('','')
@@ -116,6 +115,9 @@ class Job(JobBase):
         if self.name:
             n = ':%s' %(self.name)
         return "<JOB%s%s>" %(n,s)
+
+    def isempty(self):
+        return len(self.actions) == 0
 
     def __iter__(self):
         self.running = self.actions.__iter__()
@@ -170,6 +172,9 @@ class JobFn(JobBase):
         if self.name:
             n = ':%s' %(self.name)
         return "<JOB%s %s>" %(n,self.fn)
+
+    def isempty(self):
+        return False
 
     def __iter__(self):
         self.running = None
@@ -238,7 +243,7 @@ class Core(object):
     def add_events(self,events):
         ''' Add to the list of known events'''
 
-        log.msg("Registering events: %s" %(tuple(events),), system='EVENT ')
+        log.msg("Registering events: %s" %(tuple(events),), system='EVENT')
         for name in events:
             if name in self.events:
                 raise TypeError("Event '%s' already exists" %(name))
@@ -258,7 +263,7 @@ class Core(object):
     def add_jobs(self,jobs):
         ''' Add list of jobs '''
 
-        log.msg("Registering jobs: %s" %(tuple(jobs.keys()),), system='JOB   ')
+        log.msg("Registering jobs: %s" %(tuple(jobs.keys()),), system='JOB')
         for (name,actions) in jobs.items():
             if name not in self.events:
                 raise TypeError("Job '%s' is not an known event" %(name))
@@ -279,15 +284,16 @@ class Core(object):
         if not isinstance(event,Event):
             event=Event(event)
 
-        log.msg("%s" %(event), system='EVENT ')
+        #log.msg("%s" %(event), system='EVENT')
 
         # Is this a registered event?
         if event.name not in self.events:
-            log.msg("   Unregistered event '%s'" %(event.name), system='EVENT ')
+            log.msg("   Unregistered event '%s'" %(event.name), system='EVENT')
 
         # Known event?
         if event.name not in self.jobs:
-            log.msg("   No job for event '%s', ignoring" %(event.name), system='EVENT ')
+            log.msg("%s  --  No job" %(event), system='EVENT')
+            #log.msg("   No job for event '%s', ignoring" %(event.name), system='EVENT')
             return None
 
         # Get the job
@@ -300,11 +306,13 @@ class Core(object):
         ''' Run the given job '''
 
         # If a job is running, put the new one in a queue
-        if not job:
-            log.msg("   -- DONE", system='JOB   ')
+        if job.isempty():
+            log.msg("%s  --  Empty job" %(job.event), system='EVENT')
+            #log.msg("   Empty job, skipping", system='JOB')
             return
         self.queue.append(job)
-        log.msg("   -- %s" %(job), system='JOB   ')
+        log.msg("%s  --  %s" %(job.event,job), system='EVENT')
+        #log.msg("   -- %s" %(job), system='JOB')
         if not self.inprogress:
             return self._run_next_action()
 
@@ -341,6 +349,7 @@ class Core(object):
 
                 # Execute the given action object (if valid)
                 if action:
+                    log.msg("   --- RUN %s" %(action), system='JOB')
                     action.event = self.currentjob.event
                     result = action.execute()
 
@@ -355,7 +364,7 @@ class Core(object):
                 # to do.
                 self.currentjob = None
                 self.currentaction = None
-                log.msg("   -- DONE", system='JOB   ')
+                log.msg("   -- DONE", system='JOB')
 
 
     def get_action(self,name):

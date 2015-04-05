@@ -61,7 +61,7 @@ class OppoProtocol(LineReceiver):
             a = ' ' + a
         data='#%s%s\x0d' %(command,a)
         log.msg("     <<<  (%s)'%s'" %(len(data),data), system='Oppo')
-        log.msg("%s" %(dir(self)))
+        #log.msg("%s" %(dir(self)), system='Oppo')
         self.transport.write(data)
 
 
