@@ -1,22 +1,9 @@
 
 # 2015.04.05
-# Svein pickup:
-#
-#   - Test h fungerer ikke skikkelig under. Job( ) bør kunne brukes med tekst-argumenter:
-#        Job( ('a','b','c{42}'), name='somejob')
-#
-#   - Test g fungerer ikke, fordi event parameteren er ikke tilgjengelig i actionobjektene
-#     Forslaget er å legge eventen inn i Job(), og da må eventen også legges inn i Action()
-#     objektene.
-#
-#   - Bør man klone Job() og/eller Action() objektene når de kjøres? Fordi kjørestatus (result),
-#     linking til event, etc. gjelder det tilfellet av den eventen, ikke generelt
-#
-#   - Bør man implementere linking til parent/mother objektet, slik at man f.eks. kan holde
+# Notater:
+#   - Bor man implementere linking til parent/mother objektet, slik at man f.eks. kan holde
 #     metrics, som hvor mange ganger et event har blitt fyrt av?
 #
-
-
 from twisted.internet.defer import Deferred
 from twisted.python import log
 #from callback import Callback
@@ -25,13 +12,6 @@ import re
 from types import *
 
 
-#class Event(object):
-#    def __init__(self,event,*args):
-#        self.event = event
-#        self.args = args
-#
-#    def __repr__(self):
-#        return "<EVENT %s>" %(self.event)
 
 class Event(object):
     ''' Event object.
@@ -51,8 +31,8 @@ class Event(object):
         for (k,v) in self.kw.items():
             s.append("%s=%s" %(k,v))
         if s:
-            t=' ' + ' '.join(s)
-        return "<EVENT %s%s>" %(self.name,t)
+            t=' {' + ','.join(s) + '}'
+        return "<EVENT:%s%s>" %(self.name,t)
 
     def parse(self, name, *args, **kw):
         m = re.match(r'^([^{}]+)({(.*)})?$', name)
@@ -78,35 +58,48 @@ class Event(object):
 
 
 class Action(Event):
-    ''' Action object. Inherited from Event(), but has added functionality
-        for keeping track of '''
+    ''' Action handler object. '''
 
-    def __init__(self, name, *args, **kw):
+    def __init__(self, name, fn, *args, **kw):
         self.parse(name,*args,**kw)
         self.executed = False
         self.result = None
+        self.fn = fn
+        self.event = None
 
     def __repr__(self):
         (s,t,r) = ([str(a) for a in self.args],'','')
         for (k,v) in self.kw.items():
             s.append("%s=%s" %(k,v))
         if s:
-            t=' ' + ','.join(s)
+            t=' {' + ','.join(s) + '}'
         if self.executed:
             r=' :%s' %(self.result)
-        return "<ACTION %s%s%s>" %(self.name,t,r)
+        return "<ACTION:%s%s%s>" %(self.name,t,r)
 
-    def delresult(self):
-        self.executed = False
-        self.result = None
-
-    def setresult(self, result):
-        self.executed = True
+    def _store_result(self,result):
         self.result = result
+        self.executed = True
+        return result
+
+    def execute(self):
+        log.msg("Run   %s" %(self), system='ACTION')
+        result = self.fn(self)
+        if isinstance(result, Deferred):
+            result.addCallback(self._store_result)
+        else:
+            self._store_result(result)
+        return result
 
 
 
-class Job(object):
+class JobBase(object):
+    pass
+
+
+class Job(JobBase):
+    ''' Job collection class. Accepts a list of actions to execute. '''
+
     def __init__(self, actions, name=None):
         self.name = name
         self.actions = [ ]
@@ -116,15 +109,18 @@ class Job(object):
             self.actions = tuple(actions)
 
     def __repr__(self):
-        s = ''
+        (s,n) = ('','')
         if self.actions:
             sl = [ str(s) for s in self.actions ]
-            s=' ' + ','.join(sl)
-        return "<JOB %s%s>" %(self.name or '',s)
+            s=' {' + ','.join(sl) + '}'
+        if self.name:
+            n = ':%s' %(self.name)
+        return "<JOB%s%s>" %(n,s)
 
     def __iter__(self):
         self.running = self.actions.__iter__()
         self.subjob = None
+        self.prevresult = None
         return self
 
     def next(self):
@@ -136,6 +132,8 @@ class Job(object):
             # jobs/actions.
             if self.subjob:
                 try:
+                    # Send the prevresult down to the subjob (prevresult is updated by Core._run_next_action())
+                    self.subjob.prevresult = self.prevresult
                     return self.subjob.next()
                 except StopIteration:
                     self.subjob = None
@@ -144,34 +142,39 @@ class Job(object):
                 # Get the next item. It is done when StopIteration is raised
                 item = self.running.next()
 
-                # If it is action or string, return it.
-                if isinstance(item, Action) or isinstance(item, str):
+                # If the item is a Job class, then it represents a subjob which must be
+                # traversed accordingly. Else the item can be returned as the next object
+                if isinstance(item, JobBase):
+                    self.subjob = item.__iter__()
+                else:
                     return item
-
-                # ..else it is a sub-job which must be traversed accordingly
-                self.subjob = item.__iter__()
-                # continue while loop after this
 
             # DONE. If there are no more jobs left in list, raise StopIteration to indicate completion.
             except StopIteration:
                 self.running = None
                 self.subjob = None
+                self.prevresult = None
                 raise
 
 
 
-class JobF(object):
+class JobFn(JobBase):
+    ''' Job collection class for running a generator function. '''
+
     def __init__(self, fn, name=None):
         self.name = name
         self.fn = fn
 
     def __repr__(self):
-        return "<JOB %s%s>" %(self.name or '',self.fn)
+        n=''
+        if self.name:
+            n = ':%s' %(self.name)
+        return "<JOB%s %s>" %(n,self.fn)
 
     def __iter__(self):
         self.running = None
         self.subjob = None
-        self.lastaction = None
+        self.prevresult = None
         return self
 
     def next(self):
@@ -183,7 +186,8 @@ class JobF(object):
             # jobs/actions.
             if self.subjob:
                 try:
-                    self.lastaction = None
+                    # Send the prevresult down to the subjob (prevresult is updated by Core._run_next_action())
+                    self.subjob.prevresult = self.prevresult
                     return self.subjob.next()
                 except StopIteration:
                     self.subjob = None
@@ -198,33 +202,23 @@ class JobF(object):
                     self.running = self.fn()
                     item = self.running.next()
                 else:
-                    # Send the results from the previous action
-                    item = self.running.send(self.lastaction.result)
+                    # Send the results from the previous action. prevresult is updated by
+                    # Core._run_next_action(), which is somewhat a hack. IMHO have to be this way as
+                    # this class don't know anything about Action() objects here.
+                    item = self.running.send(self.prevresult)
 
-                # Special treatment: If a string, promote it to Action() because its result is needed in the
-                # next iteration. If this promotion is omitted, the generator must yield Action() objects.
-                # Not sure which is best or worst.
-                #if isinstance(item, str):
-                #    item = Action( item )
-
-                # Save item because it is needed to send the back the results on the next yield.
-                # This is somewhat of a hack, as this function does not really produce any result from
-                # Actions() object, it just serializes them.
-                self.lastaction = item
-
-                # If it is action or string, return it.
-                if isinstance(item, Action) or isinstance(item, str):
+                # If the item is a Job class, then it represents a subjob which must be
+                # traversed accordingly. Else the item can be returned as the next object
+                if isinstance(item, JobBase):
+                    self.subjob = item.__iter__()
+                else:
                     return item
-
-                # ..else it is a sub-job which must be traversed accordingly
-                self.subjob = item.__iter__()
-                # continue while loop after this
 
             # DONE. If there are no more jobs left in list, raise StopIteration to indicate completion.
             except StopIteration:
                 self.running = None
                 self.subjob = None
-                self.lastaction = None
+                self.prevresult = None
                 raise
 
 
@@ -232,19 +226,19 @@ class JobF(object):
 class Core(object):
 
     def __init__(self):
+        self.inprogress = False
         self.currentjob = None
+        self.currentaction = None
         self.queue = []
-        self.pending = False
-
-        # NEO
         self.events = []
         self.actions = {}
-        self.rules = {}
+        self.jobs = {}
 
 
     def add_events(self,events):
         ''' Add to the list of known events'''
 
+        log.msg("Registering events: %s" %(tuple(events),), system='EVENT ')
         for name in events:
             if name in self.events:
                 raise TypeError("Event '%s' already exists" %(name))
@@ -254,58 +248,52 @@ class Core(object):
     def add_actions(self,actions):
         ''' Add to the dict of known action and register their callback fns '''
 
+        log.msg("Registering actions: %s" %(tuple(actions.keys()),), system='ACTION')
         for (name,fn) in actions.items():
             if name in self.actions:
                 raise TypeError("Action '%s' already exists" %(name))
             self.actions[name] = fn
 
 
-    def add_rules(self,rules):
-        ''' Add list of rules '''
+    def add_jobs(self,jobs):
+        ''' Add list of jobs '''
 
-        for (name,actions) in rules.items():
+        log.msg("Registering jobs: %s" %(tuple(jobs.keys()),), system='JOB   ')
+        for (name,actions) in jobs.items():
             if name not in self.events:
-                raise TypeError("Rule '%s' is not an known event" %(name))
-            if name in self.rules:
-                raise TypeError("Rule for '%s' already exists" %(name))
-            if actions is None:
-                job = None
-            elif isinstance(actions, str):
-                job = Job( Action(actions) )
-            elif isinstance(actions, tuple) or isinstance(actions, list):
-                job = Job( [ Action(a) for a in actions ] )
-            elif not isinstance(actions, Job):
+                raise TypeError("Job '%s' is not an known event" %(name))
+            if name in self.jobs:
+                raise TypeError("Job '%s' already exists" %(name))
+            if isinstance(actions, JobBase):
+                job = actions
+            else:
                 job = Job( actions )
-            self.rules[name] = job
+            self.jobs[name] = job
 
 
     def handle_event(self,event):
         ''' Event dispatcher '''
 
         if not event:
-            return
-        if isinstance(event,str):
+            return None
+        if not isinstance(event,Event):
             event=Event(event)
 
         log.msg("%s" %(event), system='EVENT ')
 
-        # Stop if we don't know this event
+        # Is this a registered event?
         if event.name not in self.events:
-            log.msg("   Unregistered event '%s', ignoring" %(event.name), system='EVENT ')
-            return
+            log.msg("   Unregistered event '%s'" %(event.name), system='EVENT ')
 
         # Known event?
-        if event.name not in self.rules:
-            log.msg("   No rule for event '%s', ignoring" %(event.name), system='EVENT ')
-            return
+        if event.name not in self.jobs:
+            log.msg("   No job for event '%s', ignoring" %(event.name), system='EVENT ')
+            return None
 
-        # Execute job
-        job = self.rules[event.name]
-        #log.msg("   -> %s" %(job), system='EVENT ')
-        self.run_job(job)
-
-
-    # ----- NEO -----
+        # Get the job
+        job = self.jobs[event.name]
+        job.event = event
+        return self.run_job(job)
 
 
     def run_job(self,job):
@@ -313,19 +301,19 @@ class Core(object):
 
         # If a job is running, put the new one in a queue
         if not job:
-            log.msg("   -- DONE", system='EVENT ')
+            log.msg("   -- DONE", system='JOB   ')
             return
         self.queue.append(job)
-        log.msg("   -- %s" %(job), system='EVENT ')
-        if not self.pending:
-            self._run_next_action()
+        log.msg("   -- %s" %(job), system='JOB   ')
+        if not self.inprogress:
+            return self._run_next_action()
 
 
     def _run_next_action(self,result=None):
         ''' Internal handler for processing actions in a job '''
         #print "core::run_next_action(result=%s)" %(result)
 
-        self.pending = True
+        self.inprogress = True
         while True:
 
             # Start the job if no jobs are running
@@ -333,59 +321,60 @@ class Core(object):
 
                 # No more jobs. Stop
                 if len(self.queue) == 0:
-                    self.pending = False
-                    return
+                    self.inprogress = False
+                    return result
 
-                # Start the job
+                # Start the job by getting the next object's iterator instance
                 self.currentjob = self.queue.pop(0).__iter__()
+                self.currentaction = None
 
             try:
+                # Save the previous result (JobFn needs this for yield/send)
+                prevresult = None
+                if self.currentaction:
+                    prevresult = self.currentaction.result
+                self.currentjob.prevresult = prevresult
+
                 # Get the next action object
-                action = self.currentjob.next()
+                action = self.get_action(self.currentjob.next())
+                self.currentaction = action
 
-                # Execute the given action object
-                result = self.execute_action(action)
+                # Execute the given action object (if valid)
+                if action:
+                    action.event = self.currentjob.event
+                    result = action.execute()
 
-                # If a Deferred object is returned, we set to call this function when the
-                # results from the operation is ready
-                if isinstance(result, Deferred):
-                    result.addCallback(self._run_next_action)
-                    return result
+                    # If a Deferred object is returned, we set to call this function when the
+                    # results from the operation is ready
+                    if isinstance(result, Deferred):
+                        result.addCallback(self._run_next_action)
+                        return result
 
             except StopIteration:
                 # This will cause the function to evaluate the queue and start over if more
                 # to do.
                 self.currentjob = None
-                log.msg("   -- DONE", system='EVENT ')
+                self.currentaction = None
+                log.msg("   -- DONE", system='JOB   ')
 
 
-    def execute_action(self,action):
-        ''' Event dispatcher (called by the Action object) '''
+    def get_action(self,name):
+        ''' Get action object from name and set its function callback '''
 
-        if not action:
-            return
-        if isinstance(action,str):
-            action=Action(action)
+        if not name:
+            return None
 
-        log.msg("%s" %(action), system='ACTION')
+        # Make an action object of the specified name
+        action = Action(name=name, fn=None)
 
         # Known action?
         if action.name not in self.actions:
-            log.msg("   Unknown action '%s', ignoring" %(action.name), system='ACTION')
-            return
+            log.msg("Unknown action '%s', ignoring" %(action.name), system='ACTION')
+            return None
 
-        # Call action
-        def save(result):
-            action.setresult(result)
-            log.msg("%s" %(action), system='ACTION')
-
-        result = self.actions[action.name](action)
-        if isinstance(result, Deferred):
-            result.addCallback(save)
-        else:
-            save(result)
-        return result
-
+        # Set the function handler
+        action.fn = self.actions[action.name]
+        return action
 
 
 
@@ -399,56 +388,6 @@ class Core(object):
 ################################################################
 if __name__ == "__main__":
 
-
-    # -----------------------------------------------
-    def test_job():
-
-        def done(result):
-            print "CALLBACK: %s" %(result)
-
-        a = Action('a')
-        b = Action('b')
-
-        c = Job( a, name='c' )
-        d = Job( b, name='d' )
-        e = Job( (a,b), name='e' )
-        f = Job( (a,b,b,a), name='f' )
-        g = Job( (a,a,a,a), name='g' )
-        h = Job( tuple(), name='h' )
-
-        a1 = Job( (a,a), name='a1' )
-        b1 = Job( (b,b), name='b1' )
-        i  = Job( (a1,b1), name='i' )
-
-        def gen():
-            print "PRE"
-            result = yield Action('a')
-            print "STEP1=%s" %(result,)
-            if result:
-                print "STEP2"
-                yield Action('b{12}')
-                print "STEP3"
-                yield Action('c')
-
-        a2 = JobF( gen, name='a2' )
-        b2 = Job( (i, a2, f), name='b2' )
-
-        do = [ c, d, e, f, g, h, i, a2, b2 ]
-
-        for d in do:
-            print "JOB:: %s" %(d)
-            ol = []
-            for o in d:
-                print "   ACTION:: %s" %(o)
-                o.setresult(True)  # Set this because else the JobF() generator above will fail
-                ol.append(o)
-
-            # Erase result to prep the list for the next test
-            od = [ o.delresult() for o in ol ]
-            print "========"
-
-
-
     # -----------------------------------------------
     def test_core():
         from twisted.internet import reactor
@@ -459,58 +398,86 @@ if __name__ == "__main__":
 
         log.startLogging(sys.stdout)
 
-        def tick(d):
-            print "\t\t\t\t** TICK **",d
-            d.callback('LATER')
-            print "**DONE**"
+        def later(args):
+            d = 'LATER'
+            args.callback('REPLY')
+
+        def fa_done(args):
+            d = 'DONE'
+            print "\t\tFA DONE: ",args,d
+            return d
 
         def fa(args):
-            print "FA: ",args
+            # Create a deferred response which will occur 0.2 seconds later
+            print "\t\tFA DFER: ",args
             d = Deferred()
-            task.deferLater(reactor, 0.5, tick, d)
+            d.addCallback(fa_done)
+            task.deferLater(reactor, 0.2, later, d)
             return d
 
         def fb(args):
-            print "FB: ",args
-            return 'NOW'
-            #d = Deferred()
-            #task.deferLater(reactor, 2, tick, d)
-            #return d
+            # Reply immediately
+            d = 'NOW'
+            print "\t\tFB DONE: ",args,d
+            return d
 
-        #def gen():
-        #    print "PRE"
-        #    result = yield Action('a')
-        #    print "STEP1=%s" %(result,)
-        #    if result:
-        #        print "STEP2"
-        #        yield Action('b{12}')
-        #        print "STEP3"
-        #        yield Action('c')
+        def fc(args):
+            # Reply immediately
+            d = 'OK'
+            print "\t\tFC DONE: ",args,args.event,d
+            return d
 
-        #a2 = JobF( gen, name='a2' )
+        def gen():
+            print "GEN PRE"
+            result = yield 'fa'
+            print "GEN STEP1=%s" %(result,)
+            if result:
+                print "GEN STEP2"
+                result = yield 'fb{12}'
+                print "GEN STEP3=%s" %(result,)
+                yield 'fa'
+                print "GEN STEP4=%s" %(result,)
+            print "GEN DONE"
+
+        def gen2():
+            print "GEN2 PRE"
+            result = yield 'fa'
+            print "GEN2 STEP1=%s" %(result,)
+            result = yield Job( ('fa','fa') )
+            print "GEN DONE=%s" %(result)
 
         c = Core()
 
         # Register name of events
-        c.add_events( ( 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h' ) )
+        c.add_events( ( 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm' ) )
 
         # Register actions and their handlers
         c.add_actions( {
             'fa': fa,
             'fb': fb,
+            'fc': fc,
         } )
 
-        # Register rules
-        c.add_rules( {
-            'a' : 'fa',          # Test deferred handling
-            'b' : 'fb',          # Test non-deferred handling
-            'c' : None,          # Test empty rule
-            'd' : ('fa', ),      # Testing list
-            'e' : ('fa', 'fb'),  # Testing list2
-            'f' : ('fb{42}'),    # Testing args in rules
-            'g' : ('fb'),        # Testing args in event
-            'h' : Job( ('fb','fb','fa'), name='h-rule' ),
+        ja = Job( ('fb','fb','fa'), name='h-rule' )
+        jf = JobFn( gen, name='i')
+
+        # Register jobs
+        c.add_jobs( {
+            'a' : 'fa',           # Test deferred handling
+            'b' : 'fb',           # Test non-deferred handling
+            'c' : None,           # Test empty rule
+            'd' : tuple(),        # Test other empty rule
+            'e' : ('fa', ),       # Testing list
+            'f' : ('fa', 'fb'),   # Testing list2
+            'g' : ('fa', 'fa'),   # Testing list3 (two deferreds)
+            'h' : ('fb{42}'),     # Testing args in jobs
+            'i' : ('fc'),         # Testing args in event
+            'j' : ja,             # Testing Job() types
+            'k' : jf,             # Testing generators
+            'l' : Job( ('fa',ja,ja,jf), name='j'),   # Testing recursive jobs
+            'm' : JobFn( gen2 ),  # Testing JobFn() yielding Job()s
         } )
+        testlist = ( 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i{12,arg=34}', 'j', 'k', 'l', 'm' )
 
 
         def start(fn):
@@ -519,18 +486,19 @@ if __name__ == "__main__":
         def stop():
             reactor.stop()
 
-        testlist = ( 'a', 'b', 'c', 'd', 'e', 'f', 'g{12}', 'h' )
         t = 1
         for test in testlist:
             task.deferLater(reactor, t, start, test)
-            t += 3
+            t += 1.5
         task.deferLater(reactor, t, stop)
+
+        print c.events
+        print c.actions
+        print c.jobs
+
         reactor.run()
 
 
-
-
-    #test_job()
     test_core()
 
     import sys

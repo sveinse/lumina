@@ -9,7 +9,7 @@ from twisted.python import log, syslog
 # Mapping of incoming events to outgoing actions.
 # Actions can be string, Action() objects, or tuples with strings or Action() objects
 #
-rules = {
+jobs = {
     # Event -> Action(s)
 
     # Telldus connections
@@ -129,20 +129,20 @@ def lys(use_syslog=False):
     td.add_eventcallback(core.handle_event)
     core.add_events(td.get_events())
     core.add_actions(td.get_actions())
-    td.setup()
 
     # Start Oppo integration
     oppo = Oppo('/dev/ttyUSB0')
     oppo.add_eventcallback(core.handle_event)
     core.add_events(oppo.get_events())
     core.add_actions(oppo.get_actions())
+
+    # Register all the jobs
+    core.add_jobs(jobs)
+
+    # Setup the services
+    td.setup()
     oppo.setup()
-
-    # Start WEB interface
     #web.setup()
-
-    # Register all the rules
-    core.add_rules(rules)
 
     # Start everything
     print 'Server PID: %s' %(os.getpid())

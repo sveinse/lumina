@@ -388,7 +388,13 @@ class Telldus:
             self.client.disconnect()
 
 
-    # Return list of actions this class supports
+    # Get supported list of events (incoming)
+    def get_events(self):
+        return [ 'td/starting',
+                 'td/connected',
+                 'td/error' ] + [ k['name'] for k in eventlist ] + [ k['name'] for k in templist ]
+
+    # Get supported list of actions (outgoing)
     def get_actions(self):
         return {
             'kino/lys/on'   : lambda a : self.turnOn(100),
@@ -430,6 +436,12 @@ class Telldus:
 
 
 
+
+################################################################
+#
+#  TESTING
+#
+################################################################
 if __name__ == "__main__":
     from twisted.python.log import startLogging
     startLogging(sys.stdout)

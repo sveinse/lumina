@@ -97,7 +97,9 @@ class Oppo:
 
     # Get supported list of events (incoming)
     def get_events(self):
-        return [ k['name'] for k in eventlist ]
+        return [ 'oppo/starting',
+                 'oppo/connected',
+                 'oppo/error' ] + [ k['name'] for k in eventlist ]
 
     # Get supported list of actions (outgoing)
     def get_actions(self):
