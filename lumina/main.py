@@ -121,24 +121,28 @@ def lys(use_syslog=False):
     else:
         log.startLogging(sys.stdout)
 
-    # Prepare the event, actions and rules handling
+    # Main server handler
     core = Core()
-    core.addrules(rules)
 
     # Start Telldus integration
     td = Telldus()
     td.add_eventcallback(core.handle_event)
-    core.addactions(td.get_actions())
+    core.add_events(td.get_events())
+    core.add_actions(td.get_actions())
     td.setup()
 
     # Start Oppo integration
     oppo = Oppo('/dev/ttyUSB0')
     oppo.add_eventcallback(core.handle_event)
-    core.addactions(oppo.get_actions())
+    core.add_events(oppo.get_events())
+    core.add_actions(oppo.get_actions())
     oppo.setup()
 
     # Start WEB interface
     #web.setup()
+
+    # Register all the rules
+    core.add_rules(rules)
 
     # Start everything
     print 'Server PID: %s' %(os.getpid())

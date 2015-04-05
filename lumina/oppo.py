@@ -51,7 +51,7 @@ class OppoProtocol(LineReceiver):
                 continue
 
             # Pass on to factory to call the callback
-            self.parent.event(ev['name'])
+            self.parent._event(ev['name'])
             break
 
 
@@ -83,15 +83,23 @@ class Oppo:
                        xonxoff=0,
                        rtscts=0)
             log.msg('STARTING', system='Oppo')
-            self.event('oppo/starting')
+            self._event('oppo/starting')
         except SerialException as e:
-            self.event('oppo/error',e)
+            self._event('oppo/error',e)
 
-    def add_eventcallback(self, callback, *args, **kw):
-        self.cbevent.addCallback(callback, *args, **kw)
-    def event(self,event,*args):
+    # Internal event received, fire external handler
+    def _event(self,event,*args):
         self.cbevent.callback(Event(event,*args))
 
+    # Register event handler
+    def add_eventcallback(self, callback, *args, **kw):
+        self.cbevent.addCallback(callback, *args, **kw)
+
+    # Get supported list of events (incoming)
+    def get_events(self):
+        return [ k['name'] for k in eventlist ]
+
+    # Get supported list of actions (outgoing)
     def get_actions(self):
         return {
             'oppo/play' : lambda a : self.protocol.command('PLA'),
