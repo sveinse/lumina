@@ -5,6 +5,7 @@ from twisted.internet import reactor
 from twisted.python import log
 from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.internet.defer import Deferred
+
 from callback import Callback
 from core import Event
 
@@ -354,7 +355,7 @@ class TelldusClient(Protocol):
 
 
 
-class Telldus:
+class Telldus(object):
 
     def __init__(self):
         self.cbevent = Callback()

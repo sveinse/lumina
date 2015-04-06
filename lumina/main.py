@@ -149,6 +149,9 @@ def lys(use_syslog=False):
     reactor.run()
 
 
+hw50_jobs = {
+    'hw50/connected': ( 'hw50/status','hw50/status','hw50/status' ),
+}
 
 #
 # ***  HW-50 MAIN  ***
@@ -157,15 +160,28 @@ def hw50(use_syslog=False):
     ''' Luminia HW50 entry point '''
 
     # Imports
-    #from core import Core
-    #from telldus import Telldus
-    #from oppo import Oppo
-    #import web
+    from core import Core
+    from hw50 import Hw50
 
     if use_syslog:
         syslog.startLogging(prefix='Lumina')
     else:
         log.startLogging(sys.stdout)
+
+    # Main server handler
+    core = Core()
+
+    # Start HW50 integration
+    hw50 = Hw50('/dev/ttyUSB0')
+    hw50.add_eventcallback(core.handle_event)
+    core.add_events(hw50.get_events())
+    core.add_actions(hw50.get_actions())
+
+    # Register all the jobs
+    core.add_jobs(hw50_jobs)
+
+    # Setup the services
+    hw50.setup()
 
     # Start everything
     print 'Server PID: %s' %(os.getpid())

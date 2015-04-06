@@ -30,6 +30,23 @@ lys-install:
 	ssh -t pi@lys -- /bin/sh -c '"cd /home/pi/lumina-dev/ && sudo dpkg -i lumina-lys_*.deb python-lumina_*.deb"'
 
 
+# Convenience for developing on 'hw50'
+hw50-sync::
+	rsync -av --del -e ssh ./ pi@hw50:/home/pi/lumina-dev/ --exclude="/debian/lumina" --exclude="/build" --exclude="/lumina.egg-info" --exclude="*.pyc"
+
+hw50-run: hw50-sync
+	ssh -t pi@hw50 -- /bin/sh -c '"cd /home/pi/lumina-dev/ && exec ./lumina-hw50"'
+
+hw50-build: hw50-sync
+	ssh -t pi@hw50 -- /bin/sh -c '"cd /home/pi/lumina-dev/ && make build"'
+
+#hw50-install::
+#	ssh -t pi@hw50 -- /bin/sh -c '"cd /home/pi/lumina-dev/ && make install"'
+
+hw50-install:
+	ssh -t pi@hw50 -- /bin/sh -c '"cd /home/pi/lumina-dev/ && sudo dpkg -i lumina-hw50_*.deb python-lumina_*.deb"'
+
+
 # Cleanups
 clean::
 	dh_clean

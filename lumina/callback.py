@@ -1,6 +1,6 @@
 # -*- python -*-
 
-class Callback:
+class Callback(object):
     ''' Small class for implementing callback mechanism. Twisted's Deferred() object does not
         support multi-fire, which this object supports.
     '''

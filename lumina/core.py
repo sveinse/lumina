@@ -1,4 +1,4 @@
-
+#
 # 2015.04.05
 # Notater:
 #   - Bor man implementere linking til parent/mother objektet, slik at man f.eks. kan holde

@@ -1,6 +1,5 @@
 # -*-python-*-
 import os,sys
-
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.internet.protocol import Protocol
@@ -66,7 +65,7 @@ class OppoProtocol(LineReceiver):
 
 
 
-class Oppo:
+class Oppo(object):
 
     def __init__(self, port):
         self.port = port
@@ -84,6 +83,7 @@ class Oppo:
                        rtscts=0)
             log.msg('STARTING', system='Oppo')
             self._event('oppo/starting')
+            self._event('oppo/connected')
         except SerialException as e:
             self._event('oppo/error',e)
 
