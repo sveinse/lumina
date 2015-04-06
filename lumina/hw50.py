@@ -161,6 +161,11 @@ class HW50Protocol(Protocol):
         self.parent = parent
         self.buffer = bytearray()
 
+    def connectionMade(self):
+        self.parent._event('hw50/connected')
+
+    def connectionLost(self,reason):
+        self.parent._event('hw50/disconnected',reason)
 
     def dataReceived(self, data):
         #msg = bytearray([0x01,0x02,0xa9,0x01,0x02,0x02,0x00,0x00,0x03,0x9a,0x03,0x04])
@@ -271,48 +276,49 @@ class HW50Protocol(Protocol):
 
 class Hw50(object):
 
+    # -- Initialization
     def __init__(self, port):
         self.port = port
         self.cbevent = Callback()
         self.protocol = HW50Protocol(self)
+        self.sp = None
 
     def setup(self):
         try:
-            SerialPort(self.protocol, self.port, reactor,
-                       baudrate=38400,
-                       bytesize=EIGHTBITS,
-                       parity=PARITY_EVEN,
-                       stopbits=STOPBITS_ONE,
-                       xonxoff=0,
-                       rtscts=0)
+            self.sp = SerialPort(self.protocol, self.port, reactor,
+                                 baudrate=38400,
+                                 bytesize=EIGHTBITS,
+                                 parity=PARITY_EVEN,
+                                 stopbits=STOPBITS_ONE,
+                                 xonxoff=0,
+                                 rtscts=0)
             log.msg('STARTING', system='HW50')
             self._event('hw50/starting')
-            self._event('hw50/connected')
         except SerialException as e:
             self._event('hw50/error',e)
 
-    # Internal event received, fire external handler
+    def close(self):
+        if self.sp:
+            self.sp.loseConnection()
+        self._event('hw50/stopping')
+
+
+    # -- Event handler
     def _event(self,event,*args):
         self.cbevent.callback(Event(event,*args))
-
-    # Register event handler
     def add_eventcallback(self, callback, *args, **kw):
         self.cbevent.addCallback(callback, *args, **kw)
 
-    # Get supported list of events (incoming)
+
+    # -- Get list of events and actions
     def get_events(self):
         return [ 'hw50/starting',
+                 'hw50/stopping',
                  'hw50/connected',
+                 'hw50/disconnected',
                  'hw50/error' ] # + [ k['name'] for k in eventlist ]
 
-    # Get supported list of actions (outgoing)
     def get_actions(self):
         return {
             'hw50/status' : lambda a : self.protocol.status_power(),
         }
-#            'oppo/play' : lambda a : self.protocol.command('PLA'),
-#            'oppo/pause': lambda a : self.protocol.command('PAU'),
-#            'oppo/stop' : lambda a : self.protocol.command('STP'),
-#            'oppo/on'   : lambda a : self.protocol.command('PON'),
-#            'oppo/off'  : lambda a : self.protocol.command('POF'),
-#         }

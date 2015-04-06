@@ -29,19 +29,24 @@ class OppoProtocol(LineReceiver):
     def __init__(self,parent):
         self.parent = parent
 
+    def connectionMade(self):
+        self.parent._event('oppo/connected')
+
+    def connectionLost(self,reason):
+        self.parent._event('oppo/disconnected',reason)
 
     def lineReceived(self, data):
-        #log.msg("     >>>  (%s)'%s'" %(len(data),data), system='Oppo')
+        #log.msg("     >>>  (%s)'%s'" %(len(data),data), system='OPPO')
 
         if data[0]!='@':
-            log.msg("Invalid key, skipping ('%s')" %(data), system='Oppo')
+            log.msg("Invalid key, skipping ('%s')" %(data), system='OPPO')
             return
         args = data[1:].split(' ')
         cmd = args.pop(0)
 
         # Do not log certain events
         if cmd not in ('UTC', ):
-            log.msg("     >>>  %s %s" %(cmd,args), system='Oppo')
+            log.msg("     >>>  %s %s" %(cmd,args), system='OPPO')
 
         for ev in eventlist:
             if ev['cmd'] != cmd:
@@ -59,49 +64,56 @@ class OppoProtocol(LineReceiver):
         if a:
             a = ' ' + a
         data='#%s%s\x0d' %(command,a)
-        log.msg("     <<<  (%s)'%s'" %(len(data),data), system='Oppo')
-        #log.msg("%s" %(dir(self)), system='Oppo')
+        log.msg("     <<<  (%s)'%s'" %(len(data),data), system='OPPO')
+        #log.msg("%s" %(dir(self)), system='OPPO')
         self.transport.write(data)
 
 
 
 class Oppo(object):
 
+    # -- Initialization
     def __init__(self, port):
         self.port = port
         self.cbevent = Callback()
         self.protocol = OppoProtocol(self)
+        self.sp = None
 
     def setup(self):
         try:
-            SerialPort(self.protocol, self.port, reactor,
-                       baudrate=9600,
-                       bytesize=EIGHTBITS,
-                       parity=PARITY_NONE,
-                       stopbits=STOPBITS_ONE,
-                       xonxoff=0,
-                       rtscts=0)
-            log.msg('STARTING', system='Oppo')
+            self.sp = SerialPort(self.protocol, self.port, reactor,
+                                 baudrate=9600,
+                                 bytesize=EIGHTBITS,
+                                 parity=PARITY_NONE,
+                                 stopbits=STOPBITS_ONE,
+                                 xonxoff=0,
+                                 rtscts=0)
+            log.msg('STARTING', system='OPPO')
             self._event('oppo/starting')
-            self._event('oppo/connected')
         except SerialException as e:
             self._event('oppo/error',e)
 
-    # Internal event received, fire external handler
+    def close(self):
+        if self.sp:
+            self.sp.loseConnection()
+        self._event('oppo/stopping')
+
+
+    # -- Event handler
     def _event(self,event,*args):
         self.cbevent.callback(Event(event,*args))
-
-    # Register event handler
     def add_eventcallback(self, callback, *args, **kw):
         self.cbevent.addCallback(callback, *args, **kw)
 
-    # Get supported list of events (incoming)
+
+    # -- Get list of events and actions
     def get_events(self):
         return [ 'oppo/starting',
+                 'oppo/stopping',
                  'oppo/connected',
+                 'oppo/disconnected',
                  'oppo/error' ] + [ k['name'] for k in eventlist ]
 
-    # Get supported list of actions (outgoing)
     def get_actions(self):
         return {
             'oppo/play' : lambda a : self.protocol.command('PLA'),

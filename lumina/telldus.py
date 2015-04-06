@@ -128,7 +128,7 @@ def parseelements(elements):
         }
 
         if cmd not in cmdsize:
-            log.msg("Unknown command '%s', dropping %s" %(cmd, elements), system='Telldus')
+            log.msg("Unknown command '%s', dropping %s" %(cmd, elements), system='TD')
             elements = [ ]
             break
 
@@ -136,7 +136,7 @@ def parseelements(elements):
 
         if l > len(elements):
             # Does not got enough data for command. Stop and postpone processing
-            log.msg("Missing elements for command '%s', got %s, needs %s args." %(cmd,elements,l), system='Telldus')
+            log.msg("Missing elements for command '%s', got %s, needs %s args." %(cmd,elements,l), system='TD')
             elements = [ ]
             break
 
@@ -200,14 +200,14 @@ class TelldusEvents(Protocol):
         self.factory = factory
 
     def connectionMade(self):
-        log.msg("%s connected" %(self.name), system='Telldus')
+        log.msg("%s connected" %(self.name), system='TD')
         self.data = ''
         self.elements = [ ]
         self.connected = True
         self.parent.connected(self)
 
     def connectionLost(self, reason):
-        log.msg("%s connection lost: %s" %(self.name,reason), system='Telldus')
+        log.msg("%s connection lost: %s" %(self.name,reason), system='TD')
         if self.connected:
             self.connected = False
             self.parent.error(self,reason)
@@ -218,7 +218,7 @@ class TelldusEvents(Protocol):
             self.transport.loseConnection()
 
     def dataReceived(self, data):
-        #log.msg("     >>>  (%s)'%s'" %(len(data),data), system='Telldus')
+        #log.msg("     >>>  (%s)'%s'" %(len(data),data), system='TD')
 
         data = self.data + data
 
@@ -235,7 +235,7 @@ class TelldusEvents(Protocol):
             cmd = event[0]
             response = None
 
-            #log.msg("     >>>  %s  %s" %(cmd,event[1:]), system='Telldus')
+            #log.msg("     >>>  %s  %s" %(cmd,event[1:]), system='TD')
 
             if cmd == 'TDSensorEvent':
                 # ignoring sensor events as we handle them as raw device events
@@ -244,10 +244,10 @@ class TelldusEvents(Protocol):
             elif cmd == 'TDRawDeviceEvent':
 
                 args = parserawargs(event[1])
-                #log.msg("     >>>  %s  %s" %(cmd,args), system='Telldus')
+                #log.msg("     >>>  %s  %s" %(cmd,args), system='TD')
 
                 if 'protocol' not in args:
-                    log.msg("Missing protocol from %s, dropping event" %(cmd), system='Telldus')
+                    log.msg("Missing protocol from %s, dropping event" %(cmd), system='TD')
                     continue
 
                 #if args['protocol'] != 'arctech':
@@ -287,7 +287,7 @@ class TelldusEvents(Protocol):
                 self.parent.event(response)
             else:
                 # Ignore the other events
-                log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system='Telldus')
+                log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system='TD')
 
 
 
@@ -311,16 +311,16 @@ class TelldusClient(Protocol):
         #self.factory = factory
 
     def connectionMade(self):
-        #log.msg("%s connected" %(self.name), system='Telldus')
+        #log.msg("%s connected" %(self.name), system='TD')
         self.data = ''
         self.elements = [ ]
         self.connected = True
         (data,d) = self.active
-        log.msg("     <<<  (%s)'%s'" %(len(data),data), system='Telldus')
+        log.msg("     <<<  (%s)'%s'" %(len(data),data), system='TD')
         self.transport.write(data)
 
     def connectionLost(self, reason):
-        #log.msg("%s connection closed" %(self.name), system='Telldus')
+        #log.msg("%s connection closed" %(self.name), system='TD')
         self.connected = False
         self.active = None
         self.sendNextCommand()
@@ -330,10 +330,10 @@ class TelldusClient(Protocol):
             self.transport.loseConnection()
 
     def dataReceived(self, data):
-        log.msg("     >>>  (%s)'%s'" %(len(data),data), system='Telldus')
+        log.msg("     >>>  (%s)'%s'" %(len(data),data), system='TD')
         data = self.data + data
         (elements, data) = parsestream(data)
-        #log.msg("          %s" %(elements), system='Telldus')
+        #log.msg("          %s" %(elements), system='TD')
         (m,d) = self.active
         self.disconnect()
         d.callback(elements)
@@ -357,45 +357,71 @@ class TelldusClient(Protocol):
 
 class Telldus(object):
 
+    # -- Initialization
     def __init__(self):
         self.cbevent = Callback()
 
         self.events = TelldusEvents(self)
         self.client = TelldusClient(self)
 
-        reactor.addSystemEventTrigger('before','shutdown',self.close)
-
-
-    # Initiate connection (can be run prior to starting the reactor)
     def setup(self):
-        log.msg('STARTING', system='Telldus')
+        log.msg('STARTING', system='TD')
         self.event('td/starting')
         self.events.connect()
 
-
-    # Register event callbacks
-    def add_eventcallback(self, callback, *args, **kw):
-        self.cbevent.addCallback(callback, *args, **kw)
-    def event(self,event,*args):
-        self.cbevent.callback(Event(event,*args))
-
-
-    # Yeah, you know what this is
     def close(self):
-        log.msg("Close called", system='Telldus')
+        log.msg("Close called", system='TD')
         if self.events:
             self.events.disconnect()
         if self.client:
             self.client.disconnect()
 
 
-    # Get supported list of events (incoming)
+    # -- Event handler
+    def add_eventcallback(self, callback, *args, **kw):
+        self.cbevent.addCallback(callback, *args, **kw)
+    def event(self,event,*args):
+        self.cbevent.callback(Event(event,*args))
+
+
+
+    # Yeah, you know what this is
+
+
+
+
+    # Protocol and factory callback points
+    def error(self, who, reason):
+        ''' Called if connections fails '''
+        log.err("Error: %s, %s" %(who,reason), system='TD')
+        self.event('td/error', who, reason)
+
+    def connected(self, who):
+        ''' Called when connection is established '''
+        self.event('td/connected')
+
+
+
+    # --  Telldus Actions
+    def turnOn(self,num):
+        cmd = ( 'tdTurnOn', num )
+        return self.client.sendCommand(cmd)
+
+    def turnOff(self,num):
+        cmd = ( 'tdTurnOff', num )
+        return self.client.sendCommand(cmd)
+
+    def dim(self,num, val):
+        cmd = ( 'tdDim', num, val )
+        return self.client.sendCommand(cmd)
+
+
+    # -- Get list of events and actions
     def get_events(self):
         return [ 'td/starting',
                  'td/connected',
                  'td/error' ] + [ k['name'] for k in eventlist ] + [ k['name'] for k in templist ]
 
-    # Get supported list of actions (outgoing)
     def get_actions(self):
         return {
             'kino/lys/on'   : lambda a : self.turnOn(100),
@@ -408,32 +434,6 @@ class Telldus(object):
             'kino/bord/off' : lambda a : self.turnOff(105),
             'kino/bord/dim' : lambda a : self.dim(105, a.args[0]),
         }
-
-
-    # Protocol and factory callback points
-    def error(self, who, reason):
-        ''' Called if connections fails '''
-        log.err("Error: %s, %s" %(who,reason), system='Telldus')
-        self.event('td/error', who, reason)
-
-    def connected(self, who):
-        ''' Called when connection is established '''
-        self.event('td/connected')
-
-
-
-    # Telldus Actions
-    def turnOn(self,num):
-        cmd = ( 'tdTurnOn', num )
-        return self.client.sendCommand(cmd)
-
-    def turnOff(self,num):
-        cmd = ( 'tdTurnOff', num )
-        return self.client.sendCommand(cmd)
-
-    def dim(self,num, val):
-        cmd = ( 'tdDim', num, val )
-        return self.client.sendCommand(cmd)
 
 
 

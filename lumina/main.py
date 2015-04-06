@@ -12,6 +12,10 @@ from twisted.python import log, syslog
 jobs = {
     # Event -> Action(s)
 
+    # Global events
+    'starting'       : None,
+    'stopping'       : None,
+
     # Telldus connections
     'td/starting'    : None,
     'td/connected'   : None,
@@ -114,6 +118,7 @@ def lys(use_syslog=False):
     from core import Core
     from telldus import Telldus
     from oppo import Oppo
+    from utils import Utils
     import web
 
     if use_syslog:
@@ -123,6 +128,12 @@ def lys(use_syslog=False):
 
     # Main server handler
     core = Core()
+
+    # Get utilities
+    utils = Utils()
+    utils.add_eventcallback(core.handle_event)
+    core.add_events(utils.get_events())
+    core.add_actions(utils.get_actions())
 
     # Start Telldus integration
     td = Telldus()
@@ -140,18 +151,29 @@ def lys(use_syslog=False):
     core.add_jobs(jobs)
 
     # Setup the services
+    utils.setup()
     td.setup()
     oppo.setup()
     #web.setup()
 
+    # Shutdown setup
+    def close():
+        td.close()
+        oppo.close()
+
+    reactor.addSystemEventTrigger('before','shutdown',close)
+
     # Start everything
-    print 'Server PID: %s' %(os.getpid())
+    log.msg('Server PID: %s' %(os.getpid()), system='MAIN')
     reactor.run()
 
 
 hw50_jobs = {
-    'hw50/connected': ( 'hw50/status','hw50/status','hw50/status' ),
+    #'starting' : ( 'pause{2}', 'hw50/close' ),
+    #'stopping' : ( 'log{A}','pause{2}','log{B}' ),
+    'hw50/connected': ( 'pause{2}','hw50/status','pause{2}','hw50/status' ),
 }
+
 
 #
 # ***  HW-50 MAIN  ***
@@ -162,6 +184,7 @@ def hw50(use_syslog=False):
     # Imports
     from core import Core
     from hw50 import Hw50
+    from utils import Utils
 
     if use_syslog:
         syslog.startLogging(prefix='Lumina')
@@ -170,6 +193,12 @@ def hw50(use_syslog=False):
 
     # Main server handler
     core = Core()
+
+    # Get utilities
+    utils = Utils()
+    utils.add_eventcallback(core.handle_event)
+    core.add_events(utils.get_events())
+    core.add_actions(utils.get_actions())
 
     # Start HW50 integration
     hw50 = Hw50('/dev/ttyUSB0')
@@ -181,8 +210,15 @@ def hw50(use_syslog=False):
     core.add_jobs(hw50_jobs)
 
     # Setup the services
+    utils.setup()
     hw50.setup()
 
+    # Shutdown setup
+    def close():
+        hw50.close()
+
+    reactor.addSystemEventTrigger('before','shutdown',close)
+
     # Start everything
-    print 'Server PID: %s' %(os.getpid())
+    log.msg('Server PID: %s' %(os.getpid()), system='MAIN')
     reactor.run()
