@@ -4,9 +4,9 @@ import os,sys
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.internet.protocol import Protocol
-#from twisted.protocols.basic import LineReceiver
 from twisted.internet.serialport import SerialPort, EIGHTBITS, PARITY_EVEN, STOPBITS_ONE
 from serial.serialutil import SerialException
+from twisted.internet.defer import Deferred
 
 from callback import Callback
 from core import Event
@@ -16,30 +16,34 @@ from core import Event
 # 38500, 8 bits, even parity, one stop bit
 # 8 byte packets
 #     B0: SOF 0xA9
-#     B1: COMMAND / RESPONSE
-#     B2: COMMAND / RESPONSE
-#     B3: OPERATION
+#     B1: ITEM
+#     B2: ITEM
+#     B3: TYPE
 #     B4: DATA
 #     B5: DATA
 #     B6: CHECKSUM (OR of B1-B5)
 #     B7: EOF 0x9A
 
-FRAMESIZE=8
 
 # FRAMING
+FRAMESIZE=8
 SOF=0xA9
 EOF=0x9A
 
-# Operations
-SET=0x00
-GET=0x01
-RESPONSE=0x02
-ACKNAK=0x03
+# REQUEST/RESPONSE TYPES
+SET_RQ=0x00
+GET_RQ=0x01
+GET_RS = 0x02
+ACK_RS = 0x03
+TYPES = { SET_RQ: "SET.rq",
+          GET_RQ: "GET.rq",
+          GET_RS: "GET.rs",
+          ACK_RS: "ACK.rs" }
 
 # RESPONSE TYPES
 ACK_OK = 0x0000
 NAK_UNKNOWNCOMMAND = 0x0101
-NAK_SIZEERROR = 0x0104
+NAK_SIZEERR = 0x0104
 NAK_SELECTERR = 0x0105
 NAK_RANGEOVER = 0x0106
 NAK_NA = 0x010A
@@ -50,28 +54,18 @@ NAK_OVERRUN = 0xF040
 NAK_OTHERERR = 0xF050
 RESPONSES = { ACK_OK: "OK",
               NAK_UNKNOWNCOMMAND: "Unknown command",
-              NAK_SIZEERROR: "Frame size error",
+              NAK_SIZEERR: "Frame size error",
               NAK_SELECTERR: "Select error",
               NAK_RANGEOVER: "Range over error",
               NAK_NA: "Not applicable command",
-              NAK_CHECKSUM: "Check sum error",
+              NAK_CHECKSUM: "Checksum error",
               NAK_FRAMINGERR: "Framing error",
               NAK_PARITYERR: "Parity error",
               NAK_OVERRUN: "Overrun error",
               NAK_OTHERERR: "Other error" }
 
-# COMMANDS
+# ITEMS for picture
 CALIB_PRESET = 0x0002
-CALIB_PRESET_CINEMA1 = 0x0000
-CALIB_PRESET_CINEMA2 = 0x0001
-CALIB_PRESET_REF = 0x0002
-CALIB_PRESET_TV = 0x0003
-CALIB_PRESET_PHOTO = 0x0004
-CALIB_PRESET_GAME = 0x0005
-CALIB_PRESET_BRTCINE = 0x0006
-CALIB_PRESET_BRTTV = 0x0007
-CALIB_PRESET_USER = 0x0008
-
 CONTRAST = 0x0010
 BRIGHTNESS = 0x0011
 COLOR = 0x0012
@@ -100,43 +94,36 @@ REALITY_CREATION = 0x0067
 RC_RESOLUTION = 0x0068
 RC_NOISEFILTER = 0x0069
 MPEG_NR = 0x006C
+
+# ITEMS for screen
 ASPECT = 0x0020
 OVERSCAN = 0x0023
-SCREEN_AREAD = 0x0024
+SCREEN_AREA = 0x0024
+
+# ITEMS for setup
 INPUT = 0x0001
 MUTE = 0x0030
+HDMI1_DYNRANGE = 0x006E
+HDMI2_DYNRANGE = 0x006F
+SETTINGS_LOCK = 0x0073
 
+# ITEMS for 3D
+DISPSEL_3D = 0x0060
+FORMAT_3D = 0x0061
+FORMAT_DEPTH = 0x0062
+EFFECT_3D = 0x0063
+GLASS_BRIGHTNESS = 0x0065
+
+# ITEMS for status
 STATUS_ERROR = 0x0101
-STATUS_ERROR_OK = 0x0000
-STATUS_ERROR_LAMP = 0x0001
-STATUS_ERROR_FAN = 0x0002
-STATUS_ERROR_COVER = 0x0004
-STATUS_ERROR_TEMP = 0x0008
-STATUS_ERROR_D5V = 0x0010
-STATUS_ERROR_POWER = 0x0020
-STATUS_ERROR_TEMP = 0x0040
-STATUS_ERROR_NVM = 0x0080
-
 STATUS_POWER = 0x0102
-STATUS_POWER_STANDBY = 0x0000
-STATUS_POWER_STARTUP = 0x0001
-STATUS_POWER_STARTUPLAMP = 0x0002
-STATUS_POWER_POWERON = 0x0003
-STATUS_POWER_COOLING1 = 0x0004
-STATUS_POWER_COOLING2 = 0x0005
-STATUS_POWER_SAVINGCOOLING1 = 0x0006
-STATUS_POWER_SAVINGCOOLING2 = 0x0007
-STATUS_POWER_SAVINGSTANDBY = 0x0008
-
-STATUS_ERROR2 = 0x0125
-STATUS_ERROR2_OK = 0x0000
-STATUS_ERROR2_HIGHLAND = 0x0020
-
 LAMP_TIMER = 0x0113
+STATUS_ERROR2 = 0x0125
 
-IRCMD    = 0x1700
-IRCMD_E  = 0x1900
-IRCMD_EE = 0x1B00
+# ITEMS for IR
+IRCMD  = 0x1700
+IRCMD2 = 0x1900
+IRCMD3 = 0x1B00
 
 IR_PWRON = IRCMD | 0x2E
 IR_PWROFF = IRCMD | 0x2F
@@ -147,19 +134,86 @@ IR_STATUSON = IRCMD | 0x25
 IR_STATUSOFF = IRCMD | 0x26
 
 
+# LIST OF ALL ITEMS
+ITEMS = { STATUS_ERROR: "Status Error",
+          STATUS_POWER: "Status Power",
+          LAMP_TIMER: "Lamp Timer",
+          STATUS_ERROR2: "Status Error(2)",
+    }
+
+
+# DATA FIELDS
+CALIB_PRESET_CINEMA1 = 0x0000
+CALIB_PRESET_CINEMA2 = 0x0001
+CALIB_PRESET_REF = 0x0002
+CALIB_PRESET_TV = 0x0003
+CALIB_PRESET_PHOTO = 0x0004
+CALIB_PRESET_GAME = 0x0005
+CALIB_PRESET_BRTCINE = 0x0006
+CALIB_PRESET_BRTTV = 0x0007
+CALIB_PRESET_USER = 0x0008
+
+STATUS_ERROR_OK = 0x0000
+STATUS_ERROR_LAMP = 0x0001
+STATUS_ERROR_FAN = 0x0002
+STATUS_ERROR_COVER = 0x0004
+STATUS_ERROR_TEMP = 0x0008
+STATUS_ERROR_D5V = 0x0010
+STATUS_ERROR_POWER = 0x0020
+STATUS_ERROR_TEMP = 0x0040
+STATUS_ERROR_NVM = 0x0080
+
+STATUS_POWER_STANDBY = 0x0000
+STATUS_POWER_STARTUP = 0x0001
+STATUS_POWER_STARTUPLAMP = 0x0002
+STATUS_POWER_POWERON = 0x0003
+STATUS_POWER_COOLING1 = 0x0004
+STATUS_POWER_COOLING2 = 0x0005
+STATUS_POWER_SAVINGCOOLING1 = 0x0006
+STATUS_POWER_SAVINGCOOLING2 = 0x0007
+STATUS_POWER_SAVINGSTANDBY = 0x0008
+
+STATUS_ERROR2_OK = 0x0000
+STATUS_ERROR2_HIGHLAND = 0x0020
+
+
+
+
 def dump(data):
-        msg = bytearray(data)
-        s=' '.join([ '%02x' %(x) for x in msg ])
-        return "(%s) %s" %(len(data),s)
+    msg = bytearray(data)
+    s=' '.join([ '%02x' %(x) for x in msg ])
+    return "(%s) %s" %(len(data),s)
+
+def dumptext(data):
+    b = bytearray(data)
+
+    item = b[1]<<8 | b[2]
+    operation = b[3]
+    data = b[4]<<8 | b[5]
+
+    s1=TYPES.get(operation,'???')
+    s2=''
+    s3 = ITEMS.get(item,'???')
+    if operation == GET_RQ:
+        s2 = '%04x "%s"' %(item,s3)
+    elif operation in (SET_RQ, GET_RS):
+        s2 = '%04x "%s" = %04x' %(item,s3,data)
+    elif operation == ACK_RS:
+        s2 = RESPONSES.get(item,'???')
+    return s1 + ' ' + s2
+
+
 
 class FrameException(Exception):
     pass
+
 
 class HW50Protocol(Protocol):
 
     def __init__(self,parent):
         self.parent = parent
         self.buffer = bytearray()
+        self.defer = None
 
     def connectionMade(self):
         self.parent._event('hw50/connected')
@@ -167,10 +221,11 @@ class HW50Protocol(Protocol):
     def connectionLost(self,reason):
         self.parent._event('hw50/disconnected',reason)
 
+
     def dataReceived(self, data):
         #msg = bytearray([0x01,0x02,0xa9,0x01,0x02,0x02,0x00,0x00,0x03,0x9a,0x03,0x04])
         msg = bytearray(data)
-        log.msg("     >>>  %s" %(dump(data)), system='HW50')
+        log.msg("RAW  >>>  %s" %(dump(data)), system='HW50')
         self.buffer += msg
 
         # Search for data frames in the incoming data buffer. Search for SOF and EOF markers.
@@ -184,7 +239,8 @@ class HW50Protocol(Protocol):
                 try:
                     # Decode the response-frame
                     frame = buffer[x:x+FRAMESIZE]
-                    (response,operation,data) = self.decode(frame)
+                    log.msg("     >>>  %s - %s" %(dump(frame),dumptext(frame)), system='HW50')
+                    (item,operation,data) = self.decode(frame)
 
                 except FrameException as e:
 
@@ -200,7 +256,10 @@ class HW50Protocol(Protocol):
                             system='HW50')
 
                 # Process the frame here...
-                print (response,operation,data)
+                if self.defer:
+                    (defer,self.defer) = (self.defer,None)
+                    defer.callback(data)
+
                 return
 
 
@@ -220,37 +279,28 @@ class HW50Protocol(Protocol):
         if b[6] != c:
             raise FrameException("Checksum failure")
 
-        response = b[1]<<8 | b[2]
+        item = b[1]<<8 | b[2]
         operation = b[3]
         data = b[4]<<8 | b[5]
 
-        if operation == ACKNAK:
-            print '     ACKNAK: %04x' %(response)
-            if response not in RESPONSES:
+        if operation == ACK_RS:
+            if item not in RESPONSES:
                 raise FrameException("Unknown ACK/NAK response error")
-            if response != ACK_OK:
-                raise NAKException("Command NAK-ed '%s'" %(RESPONSES[response]))
-
-        elif operation == RESPONSE:
-            print '     RESPONSE: %04x = %04x' %(response, data)
-
+        elif operation == GET_RS:
+            pass
         else:
-            raise FrameException("Unknown response operation/type")
+            raise FrameException("Unknown response type")
 
-        return (response, operation, data)
+        return (item, operation, data)
 
 
-    def encode(self, command, operation=GET, data=0x0):
+    def encode(self, item, operation, data):
         b = bytearray(b"\x00" * FRAMESIZE)
 
-        # B0 - SOF
         b[0] = SOF
-
-        b[1] = (command&0xFF00)>>8
-        b[2] = (command&0xFF)
-
+        b[1] = (item&0xFF00)>>8
+        b[2] = (item&0xFF)
         b[3] = operation
-
         b[4] = (data&0xFF00)>>8
         b[5] = (data&0xFF)
 
@@ -258,20 +308,24 @@ class HW50Protocol(Protocol):
         for x in range(1,6):
             c |= b[x]
         b[6] = c
-
-        # B7 - EOF
         b[7] = EOF
+
         return b
 
 
-    def command(self, command, operation=GET, data=0x0):
-        msg = self.encode(command,operation,data)
-        log.msg("     <<<  %s" %(dump(msg)), system='HW50')
+    def command(self, item, operation=GET_RQ, data=0x0):
+        msg = self.encode(item,operation,data)
+        log.msg("     <<<  %s - %s" %(dump(msg),dumptext(msg)), system='HW50')
         self.transport.write(str(msg))
-
+        self.defer = Deferred()
+        return self.defer
 
     def status_power(self):
-        self.command(STATUS_POWER)
+        return self.command(STATUS_POWER)
+
+    def lamp_timer(self):
+        return self.command(LAMP_TIMER)
+
 
 
 class Hw50(object):
@@ -320,5 +374,6 @@ class Hw50(object):
 
     def get_actions(self):
         return {
-            'hw50/status' : lambda a : self.protocol.status_power(),
+            'hw50/status_power' : lambda a : self.protocol.status_power(),
+            'hw50/lamp_timer' : lambda a : self.protocol.lamp_timer(),
         }

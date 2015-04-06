@@ -2,6 +2,8 @@ import os,sys,atexit
 
 from twisted.internet import reactor
 from twisted.python import log, syslog
+from core import Core, JobFn
+
 
 
 
@@ -115,7 +117,6 @@ def lys(use_syslog=False):
     ''' Lumina Lys entry point '''
 
     # Imports
-    from core import Core
     from telldus import Telldus
     from oppo import Oppo
     from utils import Utils
@@ -168,10 +169,22 @@ def lys(use_syslog=False):
     reactor.run()
 
 
+
+def gen():
+    print 'GENERATOR START'
+    yield 'pause{2}'
+    status = yield 'hw50/status_power'
+    print 'STATUS', status
+    lamp = yield 'hw50/lamp_timer'
+    print 'LAMP', lamp
+    yield 'stop'
+
+
 hw50_jobs = {
     #'starting' : ( 'pause{2}', 'hw50/close' ),
     #'stopping' : ( 'log{A}','pause{2}','log{B}' ),
-    'hw50/connected': ( 'pause{2}','hw50/status','pause{2}','hw50/status' ),
+    #'hw50/connected': ( 'pause{2}','hw50/status','pause{2}','hw50/status' ),
+    'hw50/connected': JobFn(gen),
 }
 
 
@@ -182,7 +195,6 @@ def hw50(use_syslog=False):
     ''' Luminia HW50 entry point '''
 
     # Imports
-    from core import Core
     from hw50 import Hw50
     from utils import Utils
 
