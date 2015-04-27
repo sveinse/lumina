@@ -31,6 +31,8 @@ jobs = {
     # Nexa fjernkontroll
     'remote/g/on'    :   'kino/lys/on',
     'remote/g/off'   :   'kino/lys/off',
+    'remote/3/on'    :   'kino/tak-reol/dim{30}',
+    'remote/3/off'   :   'kino/tak-reol/off',
     'remote/4/on'    :   'kino/lys/dim{30}',
     'remote/4/off'   : ( 'kino/tak/off', 'kino/bord/dim{30}' ),
 

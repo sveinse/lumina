@@ -313,6 +313,7 @@ class Core(object):
         self.queue.append(job)
         log.msg("%s  --  %s" %(job.event,job), system='EVENT')
         #log.msg("   -- %s" %(job), system='JOB')
+
         if not self.inprogress:
             return self._run_next_action()
 
