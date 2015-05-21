@@ -29,8 +29,8 @@ jobs = {
     'oppo/error'     : None,
 
     # Nexa fjernkontroll
-    'remote/g/on'    :   'kino/lys/on',
-    'remote/g/off'   :   'kino/lys/off',
+    'remote/g/on'    : ( 'kino/led/on', 'kino/lys/on' ),
+    'remote/g/off'   : ( 'kino/lys/off' ),
     'remote/3/on'    :   'kino/tak-reol/dim{30}',
     'remote/3/off'   :   'kino/tak-reol/off',
     'remote/4/on'    :   'kino/lys/dim{30}',
@@ -40,12 +40,12 @@ jobs = {
     'remote/1/off'   : ( 'kino/lys/off', 'oppo/off' ),
 
     # Veggbryter overst hjemmekino
-    'wallsw1/on'     :   'kino/lys/on',
-    'wallsw1/off'    :   'kino/lys/off',
+    'wallsw1/on'     : ( 'kino/led/on', 'kino/lys/on' ),
+    'wallsw1/off'    : ( 'kino/lys/off', ),
 
     # Veggbryter nederst kino
     'wallsw2/on'     :   'kino/lys/dim{30}',
-    'wallsw2/off'    : ( 'kino/tak/off', 'kino/bord/dim{30}' ),
+    'wallsw2/off'    : ( 'kino/lys/off', 'kino/led/off' ),
 
     # Oppo regler
     'oppo/pause'     :   'kino/lys/dim{30}',

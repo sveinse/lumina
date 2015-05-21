@@ -435,7 +435,9 @@ class Telldus(object):
             'kino/bord/dim' : lambda a : self.dim(105, a.args[0]),
             'kino/tak-reol/on'  : lambda a : self.turnOn(104),
             'kino/tak-reol/off' : lambda a : self.turnOff(104),
-            'kino/tak-reol/dim' : lambda a : self.dim(104, a.args[0],)
+            'kino/tak-reol/dim' : lambda a : self.dim(104, a.args[0],),
+            'kino/led/on' : lambda a : self.turnOn(106),
+            'kino/led/off' : lambda a : self.turnOff(106)
         }
 
 
