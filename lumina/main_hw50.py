@@ -1,6 +1,7 @@
 import os,sys
 from hw50 import Hw50
 from utils import Utils
+from core import JobFn
 
 
 def gen():
