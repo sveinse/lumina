@@ -17,6 +17,9 @@ class Utils(object):
         reactor.addSystemEventTrigger('before','shutdown',self._event,'stopping')
         reactor.callWhenRunning(self._event,'starting')
 
+    def close(self):
+        pass
+
 
     # --- Event handler
     def _event(self,event,*args):
@@ -26,7 +29,7 @@ class Utils(object):
 
 
     # --- Actions
-    def pause(self,delay):
+    def delay(self,delay):
         d = Deferred()
         reactor.callLater(int(delay), d.callback, None)
         return d
@@ -48,7 +51,7 @@ class Utils(object):
 
     def get_actions(self):
         return {
-            'pause' : lambda a : self.pause(a.args[0]),
+            'delay' : lambda a : self.delay(a.args[0]),
             'stop'  : lambda a : self.stop(),
             'log'   : lambda a : self.log(*a.args,**a.kw),
         }

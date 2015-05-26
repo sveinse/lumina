@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*-python-*-
-from lumina.main import daemonize,lys
+from lumina.main import daemonize,main
+from lumina.main_lys import jobs,modules
 import argparse
 
 ap = argparse.ArgumentParser()
@@ -13,4 +14,4 @@ if opts.daemon:
     daemonize(pidfile=opts.pidfile)
 
 # Run main program
-lys(use_syslog=opts.syslog)
+main(modules,jobs,use_syslog=opts.syslog)

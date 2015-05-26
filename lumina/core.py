@@ -292,7 +292,7 @@ class Core(object):
 
         # Known event?
         if event.name not in self.jobs:
-            log.msg("%s  --  No job" %(event), system='EVENT')
+            log.msg("%s  --  Skipping, no job registred" %(event), system='EVENT')
             #log.msg("   No job for event '%s', ignoring" %(event.name), system='EVENT')
             return None
 
@@ -385,7 +385,6 @@ class Core(object):
         # Set the function handler
         action.fn = self.actions[action.name]
         return action
-
 
 
 
