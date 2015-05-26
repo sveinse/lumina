@@ -2,7 +2,7 @@ import os,sys
 from telldus import Telldus
 from oppo import Oppo
 from utils import Utils
-from server import Server
+#from server import Server
 
 
 #
