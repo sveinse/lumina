@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+# -*-python-*-
+from lumina.main import daemonize,client
+from lumina.main_lys import jobs,modules
+import argparse
+
+ap = argparse.ArgumentParser()
+ap.add_argument('--daemon', action='store_true', help='Daemonize application')
+ap.add_argument('--pidfile', help="Set the pidfile", default='/var/run/lumina', metavar="FILENAME")
+ap.add_argument('--syslog', action='store_true', default=False, help="Enable syslog logging")
+
+opts = ap.parse_args()
+if opts.daemon:
+    daemonize(pidfile=opts.pidfile)
+
+# Run main program
+client(use_syslog=opts.syslog)

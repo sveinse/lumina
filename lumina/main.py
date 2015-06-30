@@ -1,7 +1,7 @@
 import os,sys,atexit
 from twisted.internet import reactor
 from twisted.python import log, syslog
-from core import Core
+#from core import Core
 
 
 #
@@ -57,38 +57,88 @@ def daemonize(pidfile):
 #
 # ***  MAIN  ***
 #
-def main(modules,jobs,use_syslog=False):
-    ''' Main Entry poin '''
+#def main(modules,jobs,use_syslog=False):
+#    ''' Main Entry poin '''
+#
+#    if use_syslog:
+#        syslog.startLogging(prefix='Lumina')
+#    else:
+#        log.startLogging(sys.stdout)
+#
+#    # Main server handler
+#    core = Core()
+#
+#    # Register all modules
+#    for m in modules:
+#        m.add_eventcallback(core.handle_event)
+#        core.add_events(m.get_events())
+#        core.add_actions(m.get_actions())
+#
+#    # Register all jobs
+#    core.add_jobs(jobs)
+#
+#    # Setup the services
+#    for m in modules:
+#        m.setup()
+#
+#    # Shutdown setup
+#    def close():
+#        mr = modules[:]
+#        mr.reverse()
+#        for m in mr:
+#            m.close()
+#
+#    reactor.addSystemEventTrigger('before','shutdown',close)
+#
+#    # Start everything
+#    log.msg('Server PID: %s' %(os.getpid()), system='MAIN')
+#    reactor.run()
+
+
+#
+# ***  CONTROLLER  ***
+#
+def controller(use_syslog=False):
+
+    from controller import Controller
 
     if use_syslog:
         syslog.startLogging(prefix='Lumina')
     else:
         log.startLogging(sys.stdout)
 
-    # Main server handler
-    core = Core()
+    # Main controller
+    controller = Controller(port=8080)
+    controller.setup()
 
-    # Register all modules
-    for m in modules:
-        m.add_eventcallback(core.handle_event)
-        core.add_events(m.get_events())
-        core.add_actions(m.get_actions())
+    # Start everything
+    log.msg('Server PID: %s' %(os.getpid()), system='CTRL')
+    reactor.run()
 
-    # Register all jobs
-    core.add_jobs(jobs)
 
-    # Setup the services
-    for m in modules:
-        m.setup()
+#
+# ***  CLIENT  ***
+#
+def client(use_syslog=False):
 
-    # Shutdown setup
-    def close():
-        mr = modules[:]
-        mr.reverse()
-        for m in mr:
-            m.close()
+    from client import Client
+    from twisted.internet.task import LoopingCall
 
-    reactor.addSystemEventTrigger('before','shutdown',close)
+    if use_syslog:
+        syslog.startLogging(prefix='Lumina')
+    else:
+        log.startLogging(sys.stdout)
+
+    # Main controller
+    cli = Client(host='localhost',port=8080)
+    cli.setup()
+
+    # Testing
+    def loop_cb():
+        cli.send('demo/event')
+
+    loop = LoopingCall(loop_cb)
+    loop.start(1, False)
 
     # Start everything
     log.msg('Server PID: %s' %(os.getpid()), system='MAIN')
