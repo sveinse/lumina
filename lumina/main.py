@@ -2,6 +2,8 @@ import os,sys,atexit
 from twisted.internet import reactor
 from twisted.python import log, syslog
 #from core import Core
+from core import JobFn
+from utils import Utils
 
 
 #
@@ -95,6 +97,70 @@ def daemonize(pidfile):
 #    reactor.run()
 
 
+
+def gen():
+    print 'GENERATOR START'
+    yield 'delay{2}'
+    status = yield 'hw50/status_power'
+    print 'STATUS', status
+    lamp = yield 'hw50/lamp_timer'
+    print 'LAMP', lamp
+    yield 'stop'
+
+
+jobs = {
+    # Event -> Action(s)
+
+    # Global events
+    'starting'       : None,
+    'stopping'       : None,
+
+    # Telldus connections
+    'td/starting'    : None,
+    'td/connected'   : None,
+    'td/error'       : None,
+
+    # Oppo connections
+    'oppo/starting'  : None,
+    'oppo/connected' : None,
+    'oppo/error'     : None,
+
+    # Nexa fjernkontroll
+    'remote/g/on'    : ( 'kino/led/on', 'kino/lys/on' ),
+    'remote/g/off'   : ( 'kino/lys/off' ),
+    'remote/3/on'    :   'kino/tak-reol/dim{30}',
+    'remote/3/off'   :   'kino/tak-reol/off',
+    'remote/4/on'    :   'kino/lys/dim{30}',
+    'remote/4/off'   : ( 'kino/tak/off', 'kino/bord/dim{30}' ),
+
+    #'remote/1/on'   :   'oppo/play',
+    'remote/1/off'   : ( 'kino/lys/off', 'oppo/off' ),
+
+    # Veggbryter overst hjemmekino
+    'wallsw1/on'     : ( 'kino/led/on', 'kino/lys/on' ),
+    'wallsw1/off'    : ( 'kino/lys/off', ),
+
+    # Veggbryter nederst kino
+    'wallsw2/on'     :   'kino/lys/dim{30}',
+    'wallsw2/off'    : ( 'kino/lys/off', 'kino/led/off' ),
+
+    # Oppo regler
+    'oppo/pause'     :   'kino/lys/dim{30}',
+    'oppo/play'      :   'kino/lys/off',
+    'oppo/stop'      :   'kino/lys/dim{60}',
+
+    # Temperatur
+    'temp/ute'       : None,
+    'temp/kjeller'   : None,
+    'temp/loftute'   : None,
+    'temp/kino'      : None,
+    'temp/fryseskap' : None,
+
+    'test' : JobFn(gen),
+    'stop' : 'stop',
+}
+
+
 #
 # ***  CONTROLLER  ***
 #
@@ -107,13 +173,36 @@ def controller(use_syslog=False):
     else:
         log.startLogging(sys.stdout)
 
-    # Main controller
-    controller = Controller(port=8080)
+    controller = Controller(www_port=8080,socket_port=8081)
     controller.setup()
+    controller.add_jobs(jobs)
+
+    utils = Utils()
+    utils.add_eventcallback(controller.handle_event)
+    controller.add_events(utils.get_events())
+    controller.add_actions(utils.get_actions())
+    utils.setup()
 
     # Start everything
     log.msg('Server PID: %s' %(os.getpid()), system='CTRL')
     reactor.run()
+
+
+
+class Demo(object):
+    def setup(self):
+        pass
+
+    def get_events(self):
+        return [ 'a', 'b', 'c' ]
+
+    def get_actions(self):
+        return {
+            'x' : lambda a : log.msg("X run"),
+            'y' : lambda a : log.msg("Y run"),
+            'z' : lambda a : log.msg("Z run"),
+        }
+
 
 
 #
@@ -130,15 +219,21 @@ def client(use_syslog=False):
         log.startLogging(sys.stdout)
 
     # Main controller
-    cli = Client(host='localhost',port=8080)
+    cli = Client(host='localhost',port=8081)
     cli.setup()
 
-    # Testing
-    def loop_cb():
-        cli.send('demo/event')
+    demo = Demo()
+    #demo.add_eventcallback(cli.handle_event)
+    cli.add_events(demo.get_events())
+    cli.add_actions(demo.get_actions())
+    demo.setup()
 
-    loop = LoopingCall(loop_cb)
-    loop.start(1, False)
+    # Testing
+    #def loop_cb():
+    #    cli.send('demo/event')
+
+    #loop = LoopingCall(loop_cb)
+    #loop.start(1, False)
 
     # Start everything
     log.msg('Server PID: %s' %(os.getpid()), system='MAIN')

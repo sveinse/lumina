@@ -26,6 +26,7 @@ class Event(object):
     def __init__(self, name, *args, **kw):
         self.parse(name,*args,**kw)
 
+
     def __repr__(self):
         (s,t) = ([str(a) for a in self.args],'')
         for (k,v) in self.kw.items():
@@ -33,6 +34,16 @@ class Event(object):
         if s:
             t=' {' + ','.join(s) + '}'
         return "<EVENT:%s%s>" %(self.name,t)
+
+
+    def dump(self):
+        (s,t) = ([str(a) for a in self.args],'')
+        for (k,v) in self.kw.items():
+            s.append("%s=%s" %(k,v))
+        if s:
+            t='{' + ','.join(s) + '}'
+        return "%s%s" %(self.name,t)
+
 
     def parse(self, name, *args, **kw):
         m = re.match(r'^([^{}]+)({(.*)})?$', name)
@@ -54,6 +65,7 @@ class Event(object):
         # in the text string.
         self.args += args
         self.kw.update(kw)
+        return self
 
 
 
