@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # -*-python-*-
-from lumina.main import daemonize,main
-from lumina.main_lys import jobs,modules
+import os,sys
+from lumina.main import daemonize,controller,client_lys
+from twisted.python import log, syslog
+from twisted.internet import reactor
 import argparse
 
 ap = argparse.ArgumentParser()
@@ -13,5 +15,15 @@ opts = ap.parse_args()
 if opts.daemon:
     daemonize(pidfile=opts.pidfile)
 
-# Run main program
-main(modules,jobs,use_syslog=opts.syslog)
+if opts.syslog:
+    syslog.startLogging(prefix='Lumina')
+else:
+    log.startLogging(sys.stdout)
+
+# Start main controller(s)
+controller()
+client_lys()
+
+# Start twisted
+log.msg('Server PID: %s' %(os.getpid()), system='CTRL')
+reactor.run()

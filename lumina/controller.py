@@ -1,13 +1,9 @@
 import os,sys,re
 
-from twisted.web.resource import Resource,NoResource
-from twisted.web.server import Site
 from twisted.internet import reactor
-from twisted.internet.protocol import Protocol, Factory
+from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
-from twisted.web.static import File
 from twisted.python import log
-from twisted.web.server import NOT_DONE_YET
 from twisted.internet.defer import Deferred
 
 from core import Event,JobBase,Job,Action
@@ -118,56 +114,11 @@ class EventFactory(Factory):
         self.clients.remove(client)
 
 
-#class EventPage(Resource):
-#    isLeaf = True
-#
-#    #def getChild(self, name, request):
-#    #    log.msg("getChild(%s,%s)" %(name,request))
-#    #    return NoResource()
-#
-#    def render_GET(self, request):
-#        log.msg("render_GET: %s" %(request))
-#        return ''
-
-
-#class ActionPage(Resource):
-#    isLeaf = True
-#
-#    def __init__(self,controller):
-#        self.controller = controller
-#        self.requests = []
-#
-#    def render_GET(self, request):
-#        self.requests.appned(request)
-#        return NOT_DONE_YET
-#
-#    def send(self, msg):
-#        for p in self.requests:
-#            p.write(msg)
-
-
-class PageRoot(Resource):
-    isLeaf = True
-
-    def __init__(self,path):
-        self.path = path
-
-    def render_GET(self, request):
-        #log.msg("render_GET: %s" %(request))
-        params = {
-            'foo': 'bar'
-        }
-        with open(self.path, 'r') as f:
-            data = f.read().format(**params)
-        return data
-
 
 class Controller(object):
 
-    def __init__(self,www_port,socket_port):
-        self.www_port = www_port
-        self.socket_port = socket_port
-
+    def __init__(self,port):
+        self.port = port
         self.inprogress = False
         self.currentjob = None
         self.currentaction = None
@@ -179,20 +130,10 @@ class Controller(object):
 
     def setup(self):
 
-        # Setup HTML server
-        root = File('www')
-        root.putChild('', PageRoot('www/index.html'))
-        #root.putChild('event', EventPage())
-        #self.action = ActionPage(self)
-        #root.putChild('action', self.action)
-
-        self.site = Site(root)
-        reactor.listenTCP(self.www_port, self.site)
-
         # Setup socket factory
         self.factory = EventFactory()
         self.factory.controller = self
-        reactor.listenTCP(self.socket_port, self.factory)
+        reactor.listenTCP(self.port, self.factory)
 
 
     def add_events(self, events):

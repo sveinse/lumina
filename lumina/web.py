@@ -20,6 +20,32 @@ class Rest(Resource):
         log.msg("render_GET: %s" %(request))
         return ''
 
+#class EventPage(Resource):
+#    isLeaf = True
+#
+#    #def getChild(self, name, request):
+#    #    log.msg("getChild(%s,%s)" %(name,request))
+#    #    return NoResource()
+#
+#    def render_GET(self, request):
+#        log.msg("render_GET: %s" %(request))
+#        return ''
+
+#class ActionPage(Resource):
+#    isLeaf = True
+#
+#    def __init__(self,controller):
+#        self.controller = controller
+#        self.requests = []
+#
+#    def render_GET(self, request):
+#        self.requests.appned(request)
+#        return NOT_DONE_YET
+#
+#    def send(self, msg):
+#        for p in self.requests:
+#            p.write(msg)
+
 
 class PageRoot(Resource):
     isLeaf = True
@@ -37,10 +63,15 @@ class PageRoot(Resource):
         return data
 
 
-def setup():
-    root = File('www')
-    root.putChild('', PageRoot('www/index.html'))
-    root.putChild('rest', Rest())
+class Www(object):
 
-    webfactory = Site(root)
-    reactor.listenTCP(8080, webfactory)
+    def __init__(self,port):
+        self.port = port
+
+    def setup(self):
+        root = File('www')
+        root.putChild('', PageRoot('www/index.html'))
+        root.putChild('rest', Rest())
+
+        self.site = Site(root)
+        reactor.listenTCP(self.port, self.site)
