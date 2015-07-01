@@ -75,7 +75,7 @@ def controller():
     from logic import Logic
 
     # Main controller
-    controller = Controller(www_port=8080,socket_port=8081)
+    controller = Controller(port=8081)
     controller.setup()
 
     # Logic/rules handler
@@ -105,7 +105,6 @@ def client_lys():
     # System Functions
     register(cli, Telldus())
     register(cli, Oppo('/dev/ttyUSB0'))
-    register(cli, Demo())
 
 
 

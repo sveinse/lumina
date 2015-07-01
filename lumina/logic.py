@@ -5,19 +5,8 @@ class Logic(object):
     jobs = {
         # Event -> Action(s)
 
-        # Global events
-        'starting'       : None,
-        'stopping'       : None,
-
-        # Telldus connections
-        'td/starting'    : None,
-        'td/connected'   : None,
-        'td/error'       : None,
-
-        # Oppo connections
-        'oppo/starting'  : None,
-        'oppo/connected' : None,
-        'oppo/error'     : None,
+        # Oppo initialization
+        'oppo/connected' : 'oppo/verbose',
 
         # Nexa fjernkontroll
         'remote/g/on'    : ( 'kino/led/on', 'kino/lys/on' ),
@@ -43,12 +32,6 @@ class Logic(object):
         'oppo/play'      :   'kino/lys/off',
         'oppo/stop'      :   'kino/lys/dim{60}',
 
-        # Temperatur
-        'temp/ute'       : None,
-        'temp/kjeller'   : None,
-        'temp/loftute'   : None,
-        'temp/kino'      : None,
-        'temp/fryseskap' : None,
     }
 
 
@@ -65,4 +48,4 @@ class Logic(object):
         print 'STATUS', status
         lamp = yield 'hw50/lamp_timer'
         print 'LAMP', lamp
-        yield 'stop'
+        #yield 'stop'

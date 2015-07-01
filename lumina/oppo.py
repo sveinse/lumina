@@ -6,6 +6,7 @@ from twisted.internet.protocol import Protocol
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.serialport import SerialPort, EIGHTBITS, PARITY_NONE, STOPBITS_ONE
 from serial.serialutil import SerialException
+from twisted.internet.defer import Deferred
 
 from callback import Callback
 from core import Event
@@ -23,40 +24,59 @@ eventlist = (
 
 
 class OppoProtocol(LineReceiver):
-
     delimiter = '\x0d'
 
     def __init__(self,parent):
         self.parent = parent
+        self.queue = []
+        self.active = None
+
 
     def connectionMade(self):
-        self.parent._event('oppo/connected')
+        self.parent.event('oppo/connected')
+
 
     def connectionLost(self,reason):
-        self.parent._event('oppo/disconnected',reason)
+        self.parent.event('oppo/disconnected',reason)
+
 
     def lineReceived(self, data):
-        #log.msg("     >>>  (%s)'%s'" %(len(data),data), system='OPPO')
+        log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system='OPPO')
 
-        if data[0]!='@':
-            log.msg("Invalid key, skipping ('%s')" %(data), system='OPPO')
-            return
+        # Parse line (skip any chars before '@')
+        if '@' in data:
+            data = data[data.find('@'):]
+        #if data[0]!='@':
+        #    log.msg("Invalid key, skipping ('%s')" %(data), system='OPPO')
+        #    return
         args = data[1:].split(' ')
         cmd = args.pop(0)
 
-        # Do not log certain events
+        # Log command, but omit logging certain verbose events
         if cmd not in ('UTC', ):
             log.msg("     >>>  %s %s" %(cmd,args), system='OPPO')
 
+        # Reply to active command?
+        if self.active and self.active['command'] == cmd:
+            (request, self.active) = (self.active, None)
+            request['deferred'].callback(args)
+            self.send_next()
+            return
+
+        # Status update message
         for ev in eventlist:
+            # Accept only responses from eventlist
             if ev['cmd'] != cmd:
                 continue
+            # Ignore unknown args as well
             if ev['arg'] != args[0]:
                 continue
 
             # Pass on to factory to call the callback
-            self.parent._event(ev['name'])
-            break
+            self.parent.event(ev['name'])
+            return
+
+        log.msg("-IGNORED-", system='OPPO')
 
 
     def command(self, command, *args):
@@ -64,9 +84,27 @@ class OppoProtocol(LineReceiver):
         if a:
             a = ' ' + a
         data='#%s%s\x0d' %(command,a)
-        log.msg("     <<<  (%s)'%s'" %(len(data),data), system='OPPO')
-        #log.msg("%s" %(dir(self)), system='OPPO')
-        self.transport.write(data)
+        request = {
+            'data': data,
+            'command': command,
+            'deferred': Deferred(),
+        }
+        self.queue.append(request)
+        self.send_next()
+        return request['deferred']
+
+
+    def send_next(self):
+        if not self.active and len(self.queue):
+            request = self.queue.pop(0)
+            self.active = request
+            data = request['data']
+
+            log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system='OPPO')
+            self.transport.write(data)
+
+            # FIXME: Add 10s timeout. (Controller has 5 second timeout, which
+            # is faster than the protocol's 10s.)
 
 
 
@@ -89,18 +127,18 @@ class Oppo(object):
                                  xonxoff=0,
                                  rtscts=0)
             log.msg('STARTING', system='OPPO')
-            self._event('oppo/starting')
+            self.event('oppo/starting')
         except SerialException as e:
-            self._event('oppo/error',e)
+            self.event('oppo/error',e)
 
     def close(self):
         if self.sp:
             self.sp.loseConnection()
-        self._event('oppo/stopping')
+        self.event('oppo/stopping')
 
 
     # -- Event handler
-    def _event(self,event,*args):
+    def event(self,event,*args):
         self.cbevent.callback(Event(event,*args))
     def add_eventcallback(self, callback, *args, **kw):
         self.cbevent.addCallback(callback, *args, **kw)
@@ -108,17 +146,18 @@ class Oppo(object):
 
     # -- Get list of events and actions
     def get_events(self):
-        return [ 'oppo/starting',
-                 'oppo/stopping',
-                 'oppo/connected',
-                 'oppo/disconnected',
+        return [ 'oppo/starting',      # Created oppo object
+                 'oppo/stopping',      # close() have been called
+                 'oppo/connected',     # Connection with Oppo has been made
+                 'oppo/disconnected',  # Lost connection with Oppo
                  'oppo/error' ] + [ k['name'] for k in eventlist ]
 
     def get_actions(self):
         return {
-            'oppo/play' : lambda a : self.protocol.command('PLA'),
-            'oppo/pause': lambda a : self.protocol.command('PAU'),
-            'oppo/stop' : lambda a : self.protocol.command('STP'),
-            'oppo/on'   : lambda a : self.protocol.command('PON'),
-            'oppo/off'  : lambda a : self.protocol.command('POF'),
+            'oppo/play'    : lambda a : self.protocol.command('PLA'),
+            'oppo/pause'   : lambda a : self.protocol.command('PAU'),
+            'oppo/stop'    : lambda a : self.protocol.command('STP'),
+            'oppo/on'      : lambda a : self.protocol.command('PON'),
+            'oppo/off'     : lambda a : self.protocol.command('POF'),
+            'oppo/verbose' : lambda a : self.protocol.command('SVM','3'),
          }

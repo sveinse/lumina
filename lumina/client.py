@@ -13,13 +13,6 @@ from twisted.internet.task import LoopingCall
 from core import Event,JobBase,Job,Action
 
 
-    # Testing
-    #def loop_cb():
-    #    cli.send('demo/event')
-
-    #loop = LoopingCall(loop_cb)
-    #loop.start(1, False)
-
 
 class ClientProtocol(LineReceiver):
     delimiter='\n'
@@ -27,7 +20,7 @@ class ClientProtocol(LineReceiver):
 
     def connectionMade(self):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
-        self.client.protocol = self
+        self.parent.protocol = self
         log.msg("Connected to %s" %(self.ip,), system='CLIENT')
 
         # -- Keepalive pings
@@ -35,23 +28,26 @@ class ClientProtocol(LineReceiver):
         self.loop.start(60, False)
 
         # -- Register name
-        log.msg("Registering name '%s'" %(self.client.name,), system='CLIENT')
-        self.send_event(Event('name',self.client.name))
+        log.msg("Registering name '%s'" %(self.parent.name,), system='CLIENT')
+        self.send_event(Event('name',self.parent.name))
 
         # -- Register events
-        evlist = self.client.events
+        evlist = self.parent.events
         log.msg("Registering events %s" %(evlist), system='CLIENT')
         self.send_event(Event('events', *evlist))
 
         # -- Register actions
-        evlist = self.client.actions.keys()
+        evlist = self.parent.actions.keys()
         log.msg("Registering actions %s" %(evlist), system='CLIENT')
         self.send_event(Event('actions', *evlist))
+
+        # -- Flush any queue
+        self.parent.flush_queue()
 
 
     def connectionLost(self, reason):
         log.msg("Lost connection with %s" %(self.ip), system='CLIENT')
-        self.client.protocol = None
+        self.parent.protocol = None
         self.loop.stop()
 
 
@@ -61,7 +57,7 @@ class ClientProtocol(LineReceiver):
 
         request = Action(data, fn=None)
         log.msg("   -->  %s" %(request,), system='CLIENT')
-        result = self.client.run_action(request)
+        result = self.parent.run_action(request)
 
         # If a Deferred object is returned, we set to call this function when the
         # results from the operation is ready
@@ -81,16 +77,17 @@ class ClientProtocol(LineReceiver):
 
 
     def send_reply(self, reply, request):
-        # Parse the incoming data.
-        #   None:     Create new empty object using the request name
-        #   Event():  Use object, but replace name with request name
-        #   *:        Parse via the Event() parser
+        # Wrap common reply type into Event object that can be transferred
+        # to the server.
         if reply is None:
             reply = Event(request.name)
         elif isinstance(reply, Event):
             reply.name = request.name
+        elif type(reply) is list:
+            reply = Event(request.name,*reply)
         else:
-            reply = Event(request.name+'{'+reply+'}')
+            reply = Event(request.name+'{'+str(reply)+'}')
+
         log.msg("   <--  %s" %(reply,), system='CLIENT')
         self.transport.write(reply.dump()+'\n')
 
@@ -107,7 +104,7 @@ class ClientFactory(ReconnectingClientFactory):
     def buildProtocol(self, addr):
         self.resetDelay()
         proto = ClientProtocol()
-        proto.client = self.client
+        proto.parent = self.parent
         return proto
 
     #def clientConnectionLost(self, connector, reason):
@@ -131,11 +128,12 @@ class Client(object):
 
         self.events = []
         self.actions = {}
+        self.queue = []
 
 
     def setup(self):
         self.factory = ClientFactory()
-        self.factory.client = self
+        self.factory.parent = self
         reactor.connectTCP(self.host, self.port, self.factory)
 
 
@@ -174,10 +172,6 @@ class Client(object):
         #    log.msg("%s  --  Unregistered" %(event), system='EVENT')
         #    return None
 
-        if self.protocol is None:
-            log.msg("%s  -- Ignoring, not connected to server" %(event), system='EVENT')
-            return None
-
         # Known event?
         #if event.name not in self.jobs:
         #    log.msg("%s  --  No job handler" %(event), system='EVENT')
@@ -189,8 +183,20 @@ class Client(object):
         #job.event = event
         #return self.run_job(job)
 
-        # Send
-        self.protocol.send_event(event)
+        self.queue.append(event)
+        self.flush_queue()
+
+
+    def flush_queue(self):
+        while(len(self.queue)):
+
+            event = self.queue[0]
+            if self.protocol is None:
+                log.msg("%s  -- Not connected to server, queueing" %(event), system='EVENT')
+                return None
+
+            event = self.queue.pop(0)
+            self.protocol.send_event(event)
 
 
     def run_action(self, action):
