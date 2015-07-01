@@ -215,11 +215,13 @@ class HW50Protocol(Protocol):
         self.buffer = bytearray()
         self.defer = None
 
+
     def connectionMade(self):
-        self.parent._event('hw50/connected')
+        self.parent.event('hw50/connected')
+
 
     def connectionLost(self,reason):
-        self.parent._event('hw50/disconnected',reason)
+        self.parent.event('hw50/disconnected',reason)
 
 
     def dataReceived(self, data):
@@ -259,7 +261,9 @@ class HW50Protocol(Protocol):
                 if self.defer:
                     (defer,self.defer) = (self.defer,None)
                     defer.callback(data)
+                    return
 
+                log.msg("-IGNORED-", system='HW50')
                 return
 
 
@@ -320,12 +324,6 @@ class HW50Protocol(Protocol):
         self.defer = Deferred()
         return self.defer
 
-    def status_power(self):
-        return self.command(STATUS_POWER)
-
-    def lamp_timer(self):
-        return self.command(LAMP_TIMER)
-
 
 
 class Hw50(object):
@@ -347,18 +345,18 @@ class Hw50(object):
                                  xonxoff=0,
                                  rtscts=0)
             log.msg('STARTING', system='HW50')
-            self._event('hw50/starting')
+            self.event('hw50/starting')
         except SerialException as e:
-            self._event('hw50/error',e)
+            self.event('hw50/error',e)
 
     def close(self):
         if self.sp:
             self.sp.loseConnection()
-        self._event('hw50/stopping')
+        self.event('hw50/stopping')
 
 
     # -- Event handler
-    def _event(self,event,*args):
+    def event(self,event,*args):
         self.cbevent.callback(Event(event,*args))
     def add_eventcallback(self, callback, *args, **kw):
         self.cbevent.addCallback(callback, *args, **kw)
@@ -374,6 +372,8 @@ class Hw50(object):
 
     def get_actions(self):
         return {
-            'hw50/status_power' : lambda a : self.protocol.status_power(),
-            'hw50/lamp_timer' : lambda a : self.protocol.lamp_timer(),
+            'hw50/status_power' : lambda a : self.protocol.command(STATUS_POWER),
+            'hw50/lamp_timer'   : lambda a : self.protocol.command(LAMP_TIMER),
+            'hw50/off'          : lambda a : self.protocol.command(IR_PWROFF,operation=SET_RQ),
+            'hw50/on'           : lambda a : self.protocol.command(IR_PWRON,operation=SET_RQ),
         }

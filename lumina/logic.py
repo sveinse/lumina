@@ -17,7 +17,7 @@ class Logic(object):
         'remote/4/off'   : ( 'kino/tak/off', 'kino/bord/dim{30}' ),
 
         #'remote/1/on'   :   'oppo/play',
-        'remote/1/off'   : ( 'kino/lys/off', 'oppo/off' ),
+        'remote/1/off'   : ( 'oppo/off', 'hw50/off' ),
 
         # Veggbryter overst hjemmekino
         'wallsw1/on'     : ( 'kino/led/on', 'kino/lys/on' ),
