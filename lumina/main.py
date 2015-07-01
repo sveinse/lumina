@@ -158,6 +158,8 @@ jobs = {
 
     'test' : JobFn(gen),
     'stop' : 'stop',
+    'b': 'y',
+    'c': ('w','x','y','y2','z'),
 }
 
 
@@ -189,20 +191,58 @@ def controller(use_syslog=False):
 
 
 
-class Demo(object):
-    def setup(self):
-        pass
+from callback import Callback
+from twisted.internet.task import LoopingCall
+from core import Event
+from twisted.internet.defer import Deferred
 
+
+class Demo(object):
+
+    def __init__(self):
+        self.cbevent = Callback()
+
+    def setup(self):
+        self.loop = LoopingCall(self.loop_cb)
+        #self.loop.start(20, False)
+
+    # -- Event handler
+    def add_eventcallback(self, callback, *args, **kw):
+        self.cbevent.addCallback(callback, *args, **kw)
+    def event(self,event,*args):
+        self.cbevent.callback(Event(event,*args))
+
+    # -- List of supported event and actions
     def get_events(self):
         return [ 'a', 'b', 'c' ]
 
     def get_actions(self):
         return {
             'x' : lambda a : log.msg("X run"),
-            'y' : lambda a : log.msg("Y run"),
+            'y' : lambda a : self.delay(Event('y{1,2,3}')),
+            'y2' : lambda a : self.delay('y2'),
             'z' : lambda a : log.msg("Z run"),
+            'w' : lambda a : 'abcd',
         }
 
+    # -- Worker
+    def loop_cb(self):
+        self.event('a')
+
+    def delay(self,data):
+        self.d = Deferred()
+        reactor.callLater(2,self.done,data)
+        return self.d
+
+    def done(self,data):
+        self.d.callback(data)
+
+
+def register(parent,obj):
+    obj.add_eventcallback(parent.handle_event)
+    parent.add_events(obj.get_events())
+    parent.add_actions(obj.get_actions())
+    obj.setup()
 
 
 #
@@ -211,7 +251,6 @@ class Demo(object):
 def client(use_syslog=False):
 
     from client import Client
-    from twisted.internet.task import LoopingCall
 
     if use_syslog:
         syslog.startLogging(prefix='Lumina')
@@ -219,21 +258,11 @@ def client(use_syslog=False):
         log.startLogging(sys.stdout)
 
     # Main controller
-    cli = Client(host='localhost',port=8081)
+    cli = Client(host='localhost',port=8081,name='demo')
     cli.setup()
 
     demo = Demo()
-    #demo.add_eventcallback(cli.handle_event)
-    cli.add_events(demo.get_events())
-    cli.add_actions(demo.get_actions())
-    demo.setup()
-
-    # Testing
-    #def loop_cb():
-    #    cli.send('demo/event')
-
-    #loop = LoopingCall(loop_cb)
-    #loop.start(1, False)
+    register(cli,demo)
 
     # Start everything
     log.msg('Server PID: %s' %(os.getpid()), system='MAIN')

@@ -4,7 +4,7 @@ import twisted.internet.protocol as protocol
 
 from twisted.internet import reactor
 #from twisted.internet import task
-#from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
@@ -24,41 +24,75 @@ from core import Event,JobBase,Job,Action
 class ClientProtocol(LineReceiver):
     delimiter='\n'
 
-    def connectionMade(self):
-        self.chost = self.transport.getPeer().host
-        self.cport = self.transport.getPeer().port
-        log.msg("Connected to %s:%s" %(self.chost,self.cport), system='CLIENT')
 
-        #
+    def connectionMade(self):
+        self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
+        self.client.protocol = self
+        log.msg("Connected to %s" %(self.ip,), system='CLIENT')
+
+        # -- Keepalive pings
         self.loop = LoopingCall(self.keepalive)
         self.loop.start(60, False)
 
-        # Register name
-        name='smarting'
-        log.msg("Registering name '%s'" %(name,), system='CLIENT')
-        self.send(Event('name',name))
+        # -- Register name
+        log.msg("Registering name '%s'" %(self.client.name,), system='CLIENT')
+        self.send_event(Event('name',self.client.name))
 
-        # Register events
+        # -- Register events
         evlist = self.client.events
         log.msg("Registering events %s" %(evlist), system='CLIENT')
-        self.send(Event('events', *evlist))
+        self.send_event(Event('events', *evlist))
+
+        # -- Register actions
+        evlist = self.client.actions.keys()
+        log.msg("Registering actions %s" %(evlist), system='CLIENT')
+        self.send_event(Event('actions', *evlist))
+
 
     def connectionLost(self, reason):
+        log.msg("Lost connection with %s" %(self.ip), system='CLIENT')
+        self.client.protocol = None
         self.loop.stop()
-        log.msg("Lost connection with %s:%s" %(self.chost,self.cport), system='CLIENT')
+
 
     def lineReceived(self, data):
         if not len(data):
             return
 
-        event = Event(data)
-        log.msg(event)
+        request = Action(data, fn=None)
+        log.msg("   -->  %s" %(request,), system='CLIENT')
+        result = self.client.run_action(request)
+
+        # If a Deferred object is returned, we set to call this function when the
+        # results from the operation is ready
+        if isinstance(result, Deferred):
+            result.addCallback(self.send_reply, request)
+        else:
+            self.send_reply(result, request)
+
 
     def keepalive(self):
-        self.transport.write('ping\n')
+        self.transport.write('\n')
 
-    def send(self, data):
-        self.transport.write(data.dump()+'\n')
+
+    def send_event(self, event):
+        log.msg("   <--  %s" %(event,), system='CLIENT')
+        self.transport.write(event.dump()+'\n')
+
+
+    def send_reply(self, reply, request):
+        # Parse the incoming data.
+        #   None:     Create new empty object using the request name
+        #   Event():  Use object, but replace name with request name
+        #   *:        Parse via the Event() parser
+        if reply is None:
+            reply = Event(request.name)
+        elif isinstance(reply, Event):
+            reply.name = request.name
+        else:
+            reply = Event(request.name+'{'+reply+'}')
+        log.msg("   <--  %s" %(reply,), system='CLIENT')
+        self.transport.write(reply.dump()+'\n')
 
 
 
@@ -76,22 +110,24 @@ class ClientFactory(ReconnectingClientFactory):
         proto.client = self.client
         return proto
 
-    def clientConnectionLost(self, connector, reason):
-        log.msg('Lost connection.', reason.getErrorMessage())
-        ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
+    #def clientConnectionLost(self, connector, reason):
+    #    log.msg('Lost connection.', reason.getErrorMessage())
+    #    ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
-    def clientConnectionFailed(self, connector, reason):
-        log.msg('Connection failed.', reason.getErrorMessage())
-        ReconnectingClientFactory.clientConnectionFailed(self, connector,
-                                                         reason)
+    #def clientConnectionFailed(self, connector, reason):
+    #    log.msg('Connection failed.', reason.getErrorMessage())
+    #    ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
 
 
 class Client(object):
 
-    def __init__(self,host,port):
+    def __init__(self,host,port,name):
         self.host = host
         self.port = port
+        self.name = name
+
+        self.protocol = None
 
         self.events = []
         self.actions = {}
@@ -121,3 +157,53 @@ class Client(object):
             if name in self.actions:
                 raise TypeError("Action '%s' already exists" %(name))
             self.actions[name] = fn
+
+
+    def handle_event(self, event):
+        ''' Event dispatcher '''
+
+        #if not event:
+        #    return None
+        #if not isinstance(event,Event):
+        #    event=Event(event)
+
+        #log.msg("%s" %(event), system='EVENT')
+
+        # Is this a registered event?
+        #if event.name not in self.events:
+        #    log.msg("%s  --  Unregistered" %(event), system='EVENT')
+        #    return None
+
+        if self.protocol is None:
+            log.msg("%s  -- Ignoring, not connected to server" %(event), system='EVENT')
+            return None
+
+        # Known event?
+        #if event.name not in self.jobs:
+        #    log.msg("%s  --  No job handler" %(event), system='EVENT')
+        #    #log.msg("   No job for event '%s', ignoring" %(event.name), system='EVENT')
+        #    return None
+
+        # Get the job
+        #job = self.jobs[event.name]
+        #job.event = event
+        #return self.run_job(job)
+
+        # Send
+        self.protocol.send_event(event)
+
+
+    def run_action(self, action):
+
+        #action = Action(name=event, fn=None)
+
+        # Known action?
+        if action.name not in self.actions:
+            log.msg("Unknown action '%s', ignoring" %(action.name), system='ACTION')
+            return None
+
+        # Set the function handler
+        action.fn = self.actions[action.name]
+
+        # Execute the action
+        return action.execute()

@@ -16,50 +16,92 @@ from core import Event,JobBase,Job,Action
 class EventProtocol(LineReceiver):
     delimiter='\n'
 
+
     def connectionMade(self):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
-        self.name = ''
+        self.name = self.ip
         self.events = []
         self.actions = []
+        self.pending = { }
         log.msg("Connect from %s" %(self.ip,), system='CTRL')
         self.factory.addClient(self)
+
 
     def connectionLost(self, reason):
         log.msg("Lost connection from '%s' (%s)" %(self.name,self.ip), system='CTRL')
         if len(self.events):
             self.factory.controller.remove_events(self.events)
+        if len(self.actions):
+            self.factory.controller.remove_actions(self.actions)
+        # TODO: Revoke all pending requests. Call errback?
         self.factory.removeClient(self)
+
 
     def lineReceived(self, data):
         if not len(data):
             return
 
         event = Event(data)
+        log.msg("   -->  %s" %(event,), system=self.name)
 
+        # -- Register client name
         if event.name == 'name':
             self.name = event.args[0]
             log.msg("Client %s identified as '%s'" %(self.ip,self.name), system='CTRL')
 
+        # -- Register client events
         elif event.name == 'events':
             evlist = event.args[:]
             if len(evlist):
                 self.events = evlist
                 self.factory.controller.add_events(evlist)
 
+        # -- Register client actions
         elif event.name == 'actions':
             evlist = event.args[:]
             if len(evlist):
                 self.actions = evlist
-                # FIXME
+                actions = {}
+                for a in evlist:
+                    actions[a] = lambda a : self.send(a)
+                self.factory.controller.add_actions(actions)
 
+        # -- Handle 'exit' event
         elif event.name == 'exit':
             self.transport.loseConnection()
 
+        # -- Handle a reply to a former action
+        elif event.name in self.pending:
+            p = self.pending[event.name]
+            d = p['defer']
+            p['timeout'].cancel()
+            del self.pending[event.name]
+            d.callback(event)
+
+        # -- A new event
         else:
             self.factory.controller.handle_event(event)
 
-    def send(self, data):
-        self.transport.write(str(data)+'\n')
+
+    # -- Send an action to the client
+    def send(self, event):
+        d = Deferred()
+        self.pending[event.name] = {
+            'defer': d,
+            'timeout': reactor.callLater(5, self.timeout, event),
+            }
+        log.msg("   <--  %s" %(event,), system=self.name)
+        self.transport.write(event.dump()+'\n')
+        return d
+
+
+    # -- Action timeout handler
+    def timeout(self, event):
+        log.msg('Timeout on %s' %(event,), system=self.name)
+        p = self.pending[event.name]
+        d = p['defer']
+        del self.pending[event.name]
+        d.errback(event)
 
 
 
@@ -74,12 +116,6 @@ class EventFactory(Factory):
 
     def removeClient(self, client):
         self.clients.remove(client)
-
-    def send(self, data):
-        for c in self.clients:
-            c.send(data)
-
-
 
 
 #class EventPage(Resource):
@@ -175,7 +211,7 @@ class Controller(object):
         log.msg("De-registering events: %s" %(tuple(events),), system='EVENT')
         for name in events:
             if name not in self.events:
-                raise TypeError("Event '%s' not in events" %(name))
+                raise TypeError("Unknown event '%s'" %(name))
             self.events.remove(name)
 
 
@@ -187,6 +223,16 @@ class Controller(object):
             if name in self.actions:
                 raise TypeError("Action '%s' already exists" %(name))
             self.actions[name] = fn
+
+
+    def remove_actions(self, actions):
+        ''' Add to the dict of known action and register their callback fns '''
+
+        log.msg("De-registering actions: %s" %(tuple(actions),), system='ACTION')
+        for name in actions:
+            if name not in self.actions:
+                raise TypeError("Unknown action '%s'" %(name))
+            del self.actions[name]
 
 
     def add_jobs(self, jobs):
@@ -208,7 +254,6 @@ class Controller(object):
 
 
     def handle_event(self, event):
-
         ''' Event dispatcher '''
 
         #if not event:
@@ -291,6 +336,8 @@ class Controller(object):
                     # results from the operation is ready
                     if isinstance(result, Deferred):
                         result.addCallback(self._run_next_action)
+                        result.addErrback(self._run_next_action) # <-- Fixme. This makes the
+                                                                 # the job continue on errors
                         return result
 
             except StopIteration:
