@@ -10,6 +10,7 @@ from core import Event,JobBase,Job,Action
 
 
 class EventProtocol(LineReceiver):
+    noisy = False
     delimiter='\n'
 
 
@@ -70,7 +71,7 @@ class EventProtocol(LineReceiver):
         elif event.name in self.pending:
             p = self.pending[event.name]
             d = p['defer']
-            p['timeout'].cancel()
+            p['timer'].cancel()
             del self.pending[event.name]
             d.callback(event)
 
@@ -84,14 +85,14 @@ class EventProtocol(LineReceiver):
         d = Deferred()
         self.pending[event.name] = {
             'defer': d,
-            'timeout': reactor.callLater(5, self.timeout, event),
+            'timer': reactor.callLater(5, self.timeout, event),
             }
         log.msg("   <--  %s" %(event,), system=self.name)
         self.transport.write(event.dump()+'\n')
         return d
 
 
-    # -- Action timeout handler
+    # -- Action timer handler
     def timeout(self, event):
         log.msg('Timeout on %s' %(event,), system=self.name)
         p = self.pending[event.name]
@@ -102,6 +103,7 @@ class EventProtocol(LineReceiver):
 
 
 class EventFactory(Factory):
+    noisy = False
     protocol = EventProtocol
 
     def __init__(self):
@@ -139,7 +141,7 @@ class Controller(object):
     def add_events(self, events):
         ''' Add to the list of known events'''
 
-        log.msg("Registering events: %s" %(tuple(events),), system='EVENT')
+        log.msg("Registering events: %s" %(tuple(events),), system='CTRL')
         for name in events:
             if name in self.events:
                 raise TypeError("Event '%s' already exists" %(name))
@@ -149,7 +151,7 @@ class Controller(object):
     def remove_events(self, events):
         ''' Remove from the list of known events'''
 
-        log.msg("De-registering events: %s" %(tuple(events),), system='EVENT')
+        log.msg("De-registering events: %s" %(tuple(events),), system='CTRL')
         for name in events:
             if name not in self.events:
                 raise TypeError("Unknown event '%s'" %(name))
@@ -159,7 +161,7 @@ class Controller(object):
     def add_actions(self, actions):
         ''' Add to the dict of known action and register their callback fns '''
 
-        log.msg("Registering actions: %s" %(tuple(actions.keys()),), system='ACTION')
+        log.msg("Registering actions: %s" %(tuple(actions.keys()),), system='CTRL')
         for (name,fn) in actions.items():
             if name in self.actions:
                 raise TypeError("Action '%s' already exists" %(name))
@@ -169,7 +171,7 @@ class Controller(object):
     def remove_actions(self, actions):
         ''' Add to the dict of known action and register their callback fns '''
 
-        log.msg("De-registering actions: %s" %(tuple(actions),), system='ACTION')
+        log.msg("De-registering actions: %s" %(tuple(actions),), system='CTRL')
         for name in actions:
             if name not in self.actions:
                 raise TypeError("Unknown action '%s'" %(name))
@@ -179,7 +181,7 @@ class Controller(object):
     def add_jobs(self, jobs):
         ''' Add list of jobs '''
 
-        log.msg("Registering handlers for: %s" %(tuple(jobs.keys()),), system='JOB')
+        log.msg("Registering handlers for: %s" %(tuple(jobs.keys()),), system='CTRL')
         for (name,actions) in jobs.items():
             #if name not in self.events:
             #    raise TypeError("Job '%s' is not an known event" %(name))
@@ -202,17 +204,17 @@ class Controller(object):
         #if not isinstance(event,Event):
         #    event=Event(event)
 
-        #log.msg("%s" %(event), system='EVENT')
+        #log.msg("%s" %(event), system='CTRL')
 
         # Is this a registered event?
         if event.name not in self.events:
-            log.msg("%s  --  Unregistered" %(event), system='EVENT')
+            log.msg("%s  --  Unregistered" %(event), system='CTRL')
             return None
 
         # Known event?
         if event.name not in self.jobs:
-            log.msg("%s  --  No job handler" %(event), system='EVENT')
-            #log.msg("   No job for event '%s', ignoring" %(event.name), system='EVENT')
+            log.msg("%s  --  Ignored, no job handler" %(event), system='CTRL')
+            #log.msg("   No job for event '%s', ignoring" %(event.name), system='CTRL')
             return None
 
         # Get the job
@@ -226,12 +228,12 @@ class Controller(object):
 
         # If a job is running, put the new one in a queue
         if job.isempty():
-            log.msg("%s  --  Empty job" %(job.event), system='EVENT')
-            #log.msg("   Empty job, skipping", system='JOB')
+            log.msg("%s  --  Empty job" %(job.event), system='CTRL')
+            #log.msg("   Empty job, skipping", system='CTRL')
             return
         self.queue.append(job)
-        log.msg("%s  --  %s" %(job.event,job), system='EVENT')
-        #log.msg("   -- %s" %(job), system='JOB')
+        log.msg("%s  --  %s" %(job.event,job), system='CTRL')
+        #log.msg("   -- %s" %(job), system='CTRL')
 
         if not self.inprogress:
             return self._run_next_action()
@@ -269,7 +271,7 @@ class Controller(object):
 
                 # Execute the given action object (if valid)
                 if action:
-                    log.msg("   --- RUN %s" %(action), system='JOB')
+                    log.msg("   --- RUN %s" %(action), system='CTRL')
                     action.event = self.currentjob.event
                     result = action.execute()
 
@@ -286,7 +288,7 @@ class Controller(object):
                 # to do.
                 self.currentjob = None
                 self.currentaction = None
-                log.msg("   -- DONE", system='JOB')
+                log.msg("   -- DONE", system='CTRL')
 
 
 
@@ -301,7 +303,7 @@ class Controller(object):
 
         # Known action?
         if action.name not in self.actions:
-            log.msg("Unknown action '%s', ignoring" %(action.name), system='ACTION')
+            log.msg("Unknown action '%s', ignoring" %(action.name), system='CTRL')
             return None
 
         # Set the function handler

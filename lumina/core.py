@@ -33,7 +33,7 @@ class Event(object):
             s.append("%s=%s" %(k,v))
         if s:
             t=' {' + ','.join(s) + '}'
-        return "<EVENT:%s%s>" %(self.name,t)
+        return "<EV:%s%s>" %(self.name,t)
 
 
     def dump(self):
@@ -87,7 +87,7 @@ class Action(Event):
             t=' {' + ','.join(s) + '}'
         if self.executed:
             r=' :%s' %(self.result)
-        return "<ACTION:%s%s%s>" %(self.name,t,r)
+        return "<ACT:%s%s%s>" %(self.name,t,r)
 
     def _store_result(self,result):
         self.result = result

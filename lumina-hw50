@@ -10,6 +10,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--daemon', action='store_true', help='Daemonize application')
 ap.add_argument('--pidfile', help="Set the pidfile", default='/var/run/lumina', metavar="FILENAME")
 ap.add_argument('--syslog', action='store_true', default=False, help="Enable syslog logging")
+ap.add_argument('--host', nargs='?', default='lys', help='Server to connect to')
+ap.add_argument('--port', nargs='?', default='8081', help='Port to connect to')
 
 opts = ap.parse_args()
 if opts.daemon:
@@ -21,8 +23,8 @@ else:
     log.startLogging(sys.stdout)
 
 # Start main controller(s)
-client_hw50()
+client_hw50(host=opts.host,port=int(opts.port))
 
 # Start twisted
-log.msg('Server PID: %s' %(os.getpid()), system='CTRL')
+log.msg('Server PID: %s' %(os.getpid()), system='-')
 reactor.run()

@@ -26,21 +26,22 @@ class Callback(object):
         return "<Callback instance; fired=%s, cbs=%s>" %(self.fired,self.callbacks)
 
 
-def allCallbacks(*args):
-    ''' Return a Callback() object which will trigger when all the listed callback object
-        has been fired. '''
-    if not args:
-        return None
-    c = Callback()
-    c.remain = len(args)
-    def done(result,c):
-        if c.remain:
-            c.remain -= 1
-        if not c.remain:
-            c.callback(None)
-    for a in args:
-        a.addCallback(done,c)
-    return c
+
+#def allCallbacks(*args):
+#    ''' Return a Callback() object which will trigger when all the listed callback object
+#        has been fired. '''
+#    if not args:
+#        return None
+#    c = Callback()
+#    c.remain = len(args)
+#    def done(result,c):
+#        if c.remain:
+#            c.remain -= 1
+#        if not c.remain:
+#            c.callback(None)
+#    for a in args:
+#        a.addCallback(done,c)
+#    return c
 
 
 
@@ -64,8 +65,8 @@ if __name__ == "__main__":
     a.addCallback(f)
     b = Callback()
     b.addCallback(f)
-    d = allCallbacks(a,b)
-    d.addCallback(f)
+    #d = allCallbacks(a,b)
+    #d.addCallback(f)
 
     a.callback(1)
     b.callback(2)

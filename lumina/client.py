@@ -15,6 +15,7 @@ from core import Event,JobBase,Job,Action
 
 
 class ClientProtocol(LineReceiver):
+    noisy = False
     delimiter='\n'
 
 
@@ -57,14 +58,20 @@ class ClientProtocol(LineReceiver):
 
         request = Action(data, fn=None)
         log.msg("   -->  %s" %(request,), system='CLIENT')
-        result = self.parent.run_action(request)
 
-        # If a Deferred object is returned, we set to call this function when the
-        # results from the operation is ready
-        if isinstance(result, Deferred):
-            result.addCallback(self.send_reply, request)
+        # -- Handle 'exit' event
+        if request.name == 'exit':
+            self.transport.loseConnection()
+
         else:
-            self.send_reply(result, request)
+            result = self.parent.run_action(request)
+
+            # If a Deferred object is returned, we set to call this function when the
+            # results from the operation is ready
+            if isinstance(result, Deferred):
+                result.addCallback(self.send_reply, request)
+            else:
+                self.send_reply(result, request)
 
 
     def keepalive(self):
@@ -94,6 +101,7 @@ class ClientProtocol(LineReceiver):
 
 
 class ClientFactory(ReconnectingClientFactory):
+    noisy = False
     maxDelay=10
     factor=1.6180339887498948
 
@@ -107,13 +115,13 @@ class ClientFactory(ReconnectingClientFactory):
         proto.parent = self.parent
         return proto
 
-    #def clientConnectionLost(self, connector, reason):
-    #    log.msg('Lost connection.', reason.getErrorMessage())
-    #    ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
+    def clientConnectionLost(self, connector, reason):
+        log.msg(reason.getErrorMessage(), system='CLIENT')
+        ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
-    #def clientConnectionFailed(self, connector, reason):
-    #    log.msg('Connection failed.', reason.getErrorMessage())
-    #    ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
+    def clientConnectionFailed(self, connector, reason):
+        log.msg(reason.getErrorMessage(), system='CLIENT')
+        ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
 
 
@@ -140,7 +148,7 @@ class Client(object):
     def add_events(self, events):
         ''' Add to the list of known events'''
 
-        log.msg("Registering events: %s" %(tuple(events),), system='EVENT')
+        log.msg("Registering events: %s" %(tuple(events),), system='CLIENT')
         for name in events:
             if name in self.events:
                 raise TypeError("Event '%s' already exists" %(name))
@@ -150,7 +158,7 @@ class Client(object):
     def add_actions(self, actions):
         ''' Add to the dict of known action and register their callback fns '''
 
-        log.msg("Registering actions: %s" %(tuple(actions.keys()),), system='ACTION')
+        log.msg("Registering actions: %s" %(tuple(actions.keys()),), system='CLIENT')
         for (name,fn) in actions.items():
             if name in self.actions:
                 raise TypeError("Action '%s' already exists" %(name))
@@ -165,17 +173,17 @@ class Client(object):
         #if not isinstance(event,Event):
         #    event=Event(event)
 
-        #log.msg("%s" %(event), system='EVENT')
+        #log.msg("%s" %(event), system='CLIENT')
 
         # Is this a registered event?
         #if event.name not in self.events:
-        #    log.msg("%s  --  Unregistered" %(event), system='EVENT')
+        #    log.msg("%s  --  Unregistered" %(event), system='CLIENT')
         #    return None
 
         # Known event?
         #if event.name not in self.jobs:
-        #    log.msg("%s  --  No job handler" %(event), system='EVENT')
-        #    #log.msg("   No job for event '%s', ignoring" %(event.name), system='EVENT')
+        #    log.msg("%s  --  No job handler" %(event), system='CLIENT')
+        #    #log.msg("   No job for event '%s', ignoring" %(event.name), system='CLIENT')
         #    return None
 
         # Get the job
@@ -192,7 +200,7 @@ class Client(object):
 
             event = self.queue[0]
             if self.protocol is None:
-                log.msg("%s  -- Not connected to server, queueing" %(event), system='EVENT')
+                log.msg("%s  --  Not connected to server, queueing" %(event), system='CLIENT')
                 return None
 
             event = self.queue.pop(0)
@@ -205,7 +213,7 @@ class Client(object):
 
         # Known action?
         if action.name not in self.actions:
-            log.msg("Unknown action '%s', ignoring" %(action.name), system='ACTION')
+            log.msg("Unknown action '%s', ignoring" %(action.name), system='CLIENT')
             return None
 
         # Set the function handler

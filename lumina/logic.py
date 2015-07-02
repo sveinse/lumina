@@ -9,7 +9,7 @@ class Logic(object):
         'oppo/connected' : 'oppo/verbose',
 
         # Nexa fjernkontroll
-        'remote/g/on'    : ( 'kino/led/on', 'kino/lys/on' ),
+        'remote/g/on'    : ( 'td/on{106}', 'kino/lys/on' ),
         'remote/g/off'   : ( 'kino/lys/off' ),
         'remote/3/on'    :   'kino/tak-reol/dim{30}',
         'remote/3/off'   :   'kino/tak-reol/off',

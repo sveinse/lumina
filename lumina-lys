@@ -25,5 +25,5 @@ controller()
 client_lys()
 
 # Start twisted
-log.msg('Server PID: %s' %(os.getpid()), system='CTRL')
+log.msg('Server PID: %s' %(os.getpid()), system='-')
 reactor.run()

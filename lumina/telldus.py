@@ -6,8 +6,9 @@ from twisted.python import log
 from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.internet.defer import Deferred
 
-from callback import Callback
-from core import Event
+from endpoint import Endpoint
+from queue import Queue
+
 
 # Can be tested with
 #    socat UNIX-LISTEN:/tmp/TelldusEvents -
@@ -174,6 +175,8 @@ def generate(args):
 
 
 class TelldusFactory(ClientFactory):
+    noisy = False
+
     def __init__(self, protocol, parent):
         self.protocol = protocol
         self.parent = parent
@@ -182,11 +185,14 @@ class TelldusFactory(ClientFactory):
         return self.protocol
 
     def clientConnectionFailed(self, connector, reason):
-        self.parent.error(self, reason)
+        self.parent.error(self.protocol.path, reason.getErrorMessage())
 
 
 
 class TelldusEvents(Protocol):
+    ''' Class for incoming Telldus events '''
+
+    noisy = False
     name = 'Event'
     path = '/tmp/TelldusEvents'
 
@@ -194,10 +200,12 @@ class TelldusEvents(Protocol):
         self.parent = parent
         self.connected = False
 
+
     def connect(self):
         factory = TelldusFactory(self, self.parent)
         reactor.connectUNIX(self.path, factory)
         self.factory = factory
+
 
     def connectionMade(self):
         log.msg("%s connected" %(self.name), system='TD')
@@ -206,16 +214,19 @@ class TelldusEvents(Protocol):
         self.connected = True
         self.parent.connected(self)
 
+
     def connectionLost(self, reason):
         log.msg("%s connection lost: %s" %(self.name,reason), system='TD')
         if self.connected:
             self.connected = False
             self.parent.error(self,reason)
 
+
     def disconnect(self):
         if self.connected:
             self.connected = False
             self.transport.loseConnection()
+
 
     def dataReceived(self, data):
         #log.msg("     >>>  (%s)'%s'" %(len(data),data), system='TD')
@@ -232,168 +243,127 @@ class TelldusEvents(Protocol):
 
         # Iverate over the events
         for event in events:
-            cmd = event[0]
-            response = None
-
-            #log.msg("     >>>  %s  %s" %(cmd,event[1:]), system='TD')
-
-            if cmd == 'TDSensorEvent':
-                # ignoring sensor events as we handle them as raw device events
-                continue
-
-            elif cmd == 'TDRawDeviceEvent':
-
-                args = parserawargs(event[1])
-                #log.msg("     >>>  %s  %s" %(cmd,args), system='TD')
-
-                if 'protocol' not in args:
-                    log.msg("Missing protocol from %s, dropping event" %(cmd), system='TD')
-                    continue
-
-                #if args['protocol'] != 'arctech':
-                #    #log.msg("Ignoring unknown protocol '%s' in '%s', dropping event" %(args['protocol'],cmd))
-                #    continue
-
-                # Check for matches in eventlist
-                if args['protocol'] == 'arctech':
-
-                    for ev in eventlist:
-                        if str(ev['house']) != args['house']:
-                            continue
-                        if str(ev['group']) != args['group']:
-                            continue
-                        if str(ev['unit']) != args['unit']:
-                            continue
-                        if ev['method'] != args['method']:
-                            continue
-
-                        response = ev['name']
-                        break
-
-                elif args['protocol'] == 'mandolyn' or args['protocol'] == 'fineoffset':
-
-                    for ev in templist:
-                        if str(ev['id']) != args['id']:
-                            continue
-
-                        if 'humidity' in args:
-                            response = "%s{%s,%s}" %(ev['name'],args['temp'],args['humidity'])
-                        else:
-                            response = "%s{%s}" %(ev['name'],args['temp'])
-                        break
-
-            # Pass response back to the callback
-            if response:
-                self.parent.event(response)
-            else:
-                # Ignore the other events
-                log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system='TD')
+            self.parent.parse_event(event)
 
 
 
 class TelldusClient(Protocol):
+    ''' Class for outgoing Telldus commands '''
+
+    noisy = False
     name = 'Client'
     path = '/tmp/TelldusClient'
-    queue = [ ]
-    active = None
+    timeout = 5
+
 
     def __init__(self,parent):
         self.parent = parent
-        self.data = ''
-        self.elements = [ ]
         self.connected = False
-
+        self.queue = Queue()
         self.factory = TelldusFactory(self, self.parent)
 
-    def connect(self):
-        #factory = TelldusFactory(self, self.parent)
-        reactor.connectUNIX(self.path, self.factory)
-        #self.factory = factory
 
     def connectionMade(self):
         #log.msg("%s connected" %(self.name), system='TD')
-        self.data = ''
-        self.elements = [ ]
         self.connected = True
-        (data,d) = self.active
+        data = self.queue.active['data']
         log.msg("     <<<  (%s)'%s'" %(len(data),data), system='TD')
         self.transport.write(data)
+        self.queue.set_timeout(self.timeout, self.timedout)
+
 
     def connectionLost(self, reason):
         #log.msg("%s connection closed" %(self.name), system='TD')
         self.connected = False
-        self.active = None
-        self.sendNextCommand()
+        self.send_next()
+
 
     def disconnect(self):
         if self.connected:
             self.transport.loseConnection()
 
+
     def dataReceived(self, data):
         log.msg("     >>>  (%s)'%s'" %(len(data),data), system='TD')
-        data = self.data + data
         (elements, data) = parsestream(data)
         #log.msg("          %s" %(elements), system='TD')
-        (m,d) = self.active
         self.disconnect()
-        d.callback(elements)
+        self.queue.response(elements)
 
-    def sendCommand(self, cmd):
+
+    def command(self, cmd):
         data = generate(cmd)
-        d = Deferred()
-        self.queue.append( (data, d) )
-        self.sendNextCommand()
+        d = self.queue.add(data=data)
+        self.send_next()
         return d
 
-    def sendNextCommand(self):
-        if not self.queue:
-            return
-        if self.active:
-            return
-        self.active = self.queue.pop(0)
-        self.connect()
+
+    def send_next(self):
+        if self.queue.get_next():
+            # Connect to Telldus
+            reactor.connectUNIX(self.path, self.factory)
+
+
+    def timedout(self):
+        # The timeout response is to fail the request and proceed with the next command
+        self.queue.fail()
+        self.send_next()
 
 
 
-class Telldus(object):
+class Telldus(Endpoint):
 
-    # -- Initialization
+    events = [
+        'td/starting',
+        'td/connected',
+        'td/error',
+    ]
+
+    actions = {
+        'td/on' : lambda a : self.turnOn(a.args[0]),
+        'td/off' : lambda a : self.turnOff(a.args[0]),
+        'td/dim' : lambda a : self.dim(a.args[0],a.args[1]),
+
+        'kino/lys/on'   : lambda a : self.turnOn(100),
+        'kino/lys/off'  : lambda a : self.turnOff(100),
+        'kino/lys/dim'  : lambda a : self.dim(100, a.args[0]),
+        'kino/tak/on'   : lambda a : self.turnOn(101),
+        'kino/tak/off'  : lambda a : self.turnOff(101),
+        'kino/tak/dim'  : lambda a : self.dim(101, a.args[0]),
+        'kino/bord/on'  : lambda a : self.turnOn(105),
+        'kino/bord/off' : lambda a : self.turnOff(105),
+        'kino/bord/dim' : lambda a : self.dim(105, a.args[0]),
+        'kino/tak-reol/on'  : lambda a : self.turnOn(104),
+        'kino/tak-reol/off' : lambda a : self.turnOff(104),
+        'kino/tak-reol/dim' : lambda a : self.dim(104, a.args[0],),
+        'kino/led/on'       : lambda a : self.turnOn(106),
+        'kino/led/off'      : lambda a : self.turnOff(106),
+    }
+
+
+    # --- Initialization
     def __init__(self):
-        self.cbevent = Callback()
-
-        self.events = TelldusEvents(self)
-        self.client = TelldusClient(self)
+        self.inport = TelldusEvents(self)
+        self.outport = TelldusClient(self)
+        self.events = self.events[:] + [ k['name'] for k in eventlist ] + [ k['name'] for k in templist ]
 
     def setup(self):
         log.msg('STARTING', system='TD')
         self.event('td/starting')
-        self.events.connect()
+        self.inport.connect()
 
     def close(self):
         log.msg("Close called", system='TD')
-        if self.events:
-            self.events.disconnect()
-        if self.client:
-            self.client.disconnect()
+        if self.inport:
+            self.inport.disconnect()
+        if self.outport:
+            self.outport.disconnect()
 
 
-    # -- Event handler
-    def add_eventcallback(self, callback, *args, **kw):
-        self.cbevent.addCallback(callback, *args, **kw)
-    def event(self,event,*args):
-        self.cbevent.callback(Event(event,*args))
-
-
-
-    # Yeah, you know what this is
-
-
-
-
-    # Protocol and factory callback points
+    # --- Protocol and factory callback points
     def error(self, who, reason):
         ''' Called if connections fails '''
-        log.err("Error: %s, %s" %(who,reason), system='TD')
+        log.msg("Error %s: %s" %(who,reason), system='TD')
         self.event('td/error', who, reason)
 
     def connected(self, who):
@@ -401,44 +371,73 @@ class Telldus(object):
         self.event('td/connected')
 
 
-
-    # --  Telldus Actions
+    # --- Telldus Actions
     def turnOn(self,num):
         cmd = ( 'tdTurnOn', num )
-        return self.client.sendCommand(cmd)
+        return self.outport.command(cmd)
 
     def turnOff(self,num):
         cmd = ( 'tdTurnOff', num )
-        return self.client.sendCommand(cmd)
+        return self.outport.command(cmd)
 
     def dim(self,num, val):
         cmd = ( 'tdDim', num, val )
-        return self.client.sendCommand(cmd)
+        return self.outport.command(cmd)
 
 
-    # -- Get list of events and actions
-    def get_events(self):
-        return [ 'td/starting',
-                 'td/connected',
-                 'td/error' ] + [ k['name'] for k in eventlist ] + [ k['name'] for k in templist ]
+    # --- Event filter (located here to keep TelldusEvents() clean
+    def parse_event(self, event):
+        cmd = event[0]
 
-    def get_actions(self):
-        return {
-            'kino/lys/on'   : lambda a : self.turnOn(100),
-            'kino/lys/off'  : lambda a : self.turnOff(100),
-            'kino/lys/dim'  : lambda a : self.dim(100, a.args[0]),
-            'kino/tak/on'   : lambda a : self.turnOn(101),
-            'kino/tak/off'  : lambda a : self.turnOff(101),
-            'kino/tak/dim'  : lambda a : self.dim(101, a.args[0]),
-            'kino/bord/on'  : lambda a : self.turnOn(105),
-            'kino/bord/off' : lambda a : self.turnOff(105),
-            'kino/bord/dim' : lambda a : self.dim(105, a.args[0]),
-            'kino/tak-reol/on'  : lambda a : self.turnOn(104),
-            'kino/tak-reol/off' : lambda a : self.turnOff(104),
-            'kino/tak-reol/dim' : lambda a : self.dim(104, a.args[0],),
-            'kino/led/on' : lambda a : self.turnOn(106),
-            'kino/led/off' : lambda a : self.turnOff(106)
-        }
+        #log.msg("     >>>  %s  %s" %(cmd,event[1:]), system='TD')
+
+        if cmd == 'TDSensorEvent':
+            # ignoring sensor events as we handle them as raw device events
+            return
+
+        elif cmd == 'TDRawDeviceEvent':
+
+            args = parserawargs(event[1])
+            #log.msg("     >>>  %s  %s" %(cmd,args), system='TD')
+
+            if 'protocol' not in args:
+                log.msg("Missing protocol from %s, dropping event" %(cmd), system='TD')
+                return
+
+            #if args['protocol'] != 'arctech':
+            #    #log.msg("Ignoring unknown protocol '%s' in '%s', dropping event" %(args['protocol'],cmd))
+            #    continue
+
+            # Check for matches in eventlist
+            if args['protocol'] == 'arctech':
+
+                for ev in eventlist:
+                    if str(ev['house']) != args['house']:
+                        continue
+                    if str(ev['group']) != args['group']:
+                        continue
+                    if str(ev['unit']) != args['unit']:
+                        continue
+                    if ev['method'] != args['method']:
+                        continue
+
+                    self.event(ev['name'])
+                    return
+
+            elif args['protocol'] == 'mandolyn' or args['protocol'] == 'fineoffset':
+
+                for ev in templist:
+                    if str(ev['id']) != args['id']:
+                        continue
+
+                    if 'humidity' in args:
+                        self.event("%s{%s,%s}" %(ev['name'],args['temp'],args['humidity']))
+                    else:
+                        self.event("%s{%s}" %(ev['name'],args['temp']))
+                    return
+
+            # Ignore the other events
+            log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system='TD')
 
 
 

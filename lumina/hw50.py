@@ -6,10 +6,9 @@ from twisted.python import log
 from twisted.internet.protocol import Protocol
 from twisted.internet.serialport import SerialPort, EIGHTBITS, PARITY_EVEN, STOPBITS_ONE
 from serial.serialutil import SerialException
-from twisted.internet.defer import Deferred
 
-from callback import Callback
-from core import Event
+from endpoint import Endpoint
+from queue import Queue
 
 
 # HW50 Protocol
@@ -210,10 +209,12 @@ class FrameException(Exception):
 
 class HW50Protocol(Protocol):
 
+    timeout = 3
+
     def __init__(self,parent):
         self.parent = parent
-        self.buffer = bytearray()
-        self.defer = None
+        self.rxbuffer = bytearray()
+        self.queue = Queue()
 
 
     def connectionMade(self):
@@ -228,11 +229,11 @@ class HW50Protocol(Protocol):
         #msg = bytearray([0x01,0x02,0xa9,0x01,0x02,0x02,0x00,0x00,0x03,0x9a,0x03,0x04])
         msg = bytearray(data)
         log.msg("RAW  >>>  %s" %(dump(data)), system='HW50')
-        self.buffer += msg
+        self.rxbuffer += msg
 
         # Search for data frames in the incoming data buffer. Search for SOF and EOF markers.
         # It will only iterate if the buffer is large enough for a complete frame
-        buffer = self.buffer
+        buffer = self.rxbuffer
         for x in range(0,len(buffer)-FRAMESIZE+1):
 
             # Search for SOF and EOF markers
@@ -252,15 +253,15 @@ class HW50Protocol(Protocol):
 
                 # Consume all data up until the frame (including pre-junk) and save the data
                 # after the frame for later processing
-                self.buffer = buffer[x+FRAMESIZE:]
-                if x > 0 or len(self.buffer) > 0:
-                    log.msg("Discard junk in data, '%s' before, '%s' after" %(dump(buffer[:x]),dump(self.buffer)),
+                self.rxbuffer = buffer[x+FRAMESIZE:]
+                if x > 0 or len(self.rxbuffer) > 0:
+                    log.msg("Discard junk in data, '%s' before, '%s' after" %(dump(buffer[:x]),dump(self.rxbuffer)),
                             system='HW50')
 
                 # Process the frame here...
-                if self.defer:
-                    (defer,self.defer) = (self.defer,None)
-                    defer.callback(data)
+                if self.queue.active:
+                    self.queue.response(data)
+                    self.send_next()
                     return
 
                 log.msg("-IGNORED-", system='HW50')
@@ -319,24 +320,56 @@ class HW50Protocol(Protocol):
 
     def command(self, item, operation=GET_RQ, data=0x0):
         msg = self.encode(item,operation,data)
-        log.msg("     <<<  %s - %s" %(dump(msg),dumptext(msg)), system='HW50')
-        self.transport.write(str(msg))
-        self.defer = Deferred()
-        return self.defer
+        d = self.queue.add(data=msg)
+        self.send_next()
+        return d
+
+
+    def send_next(request=None):
+        if self.queue.get_next():
+
+            # Send data
+            msg = self.active['data']
+            log.msg("     <<<  %s - %s" %(dump(msg),dumptext(msg)), system='HW50')
+            self.transport.write(str(msg))
+
+            # Set timeout
+            self.queue.set_timeout(self.timeout, self.timedout)
+
+
+    def timedout(self):
+        # The timeout response is to fail the request and proceed with the next command
+        self.queue.fail()
+        self.send_next()
 
 
 
-class Hw50(object):
+class Hw50(Endpoint):
 
-    # -- Initialization
+    events = [
+        'hw50/starting',
+        'hw50/stopping',
+        'hw50/connected',
+        'hw50/disconnected',
+        'hw50/error',
+    ]
+
+    actions = {
+        'hw50/status_power' : lambda a : self.protocol.command(STATUS_POWER),
+        'hw50/lamp_timer'   : lambda a : self.protocol.command(LAMP_TIMER),
+        'hw50/off'          : lambda a : self.protocol.command(IR_PWROFF,operation=SET_RQ),
+        'hw50/on'           : lambda a : self.protocol.command(IR_PWRON,operation=SET_RQ),
+    }
+
+
+    # --- Initialization
     def __init__(self, port):
         self.port = port
-        self.cbevent = Callback()
-        self.protocol = HW50Protocol(self)
         self.sp = None
 
     def setup(self):
         try:
+            self.protocol = HW50Protocol(self)
             self.sp = SerialPort(self.protocol, self.port, reactor,
                                  baudrate=38400,
                                  bytesize=EIGHTBITS,
@@ -347,33 +380,10 @@ class Hw50(object):
             log.msg('STARTING', system='HW50')
             self.event('hw50/starting')
         except SerialException as e:
-            self.event('hw50/error',e)
+            log.msg("Error %s" %(e.message), system='HW50')
+            self.event('hw50/error',e.message)
 
     def close(self):
         if self.sp:
             self.sp.loseConnection()
         self.event('hw50/stopping')
-
-
-    # -- Event handler
-    def event(self,event,*args):
-        self.cbevent.callback(Event(event,*args))
-    def add_eventcallback(self, callback, *args, **kw):
-        self.cbevent.addCallback(callback, *args, **kw)
-
-
-    # -- Get list of events and actions
-    def get_events(self):
-        return [ 'hw50/starting',
-                 'hw50/stopping',
-                 'hw50/connected',
-                 'hw50/disconnected',
-                 'hw50/error' ] # + [ k['name'] for k in eventlist ]
-
-    def get_actions(self):
-        return {
-            'hw50/status_power' : lambda a : self.protocol.command(STATUS_POWER),
-            'hw50/lamp_timer'   : lambda a : self.protocol.command(LAMP_TIMER),
-            'hw50/off'          : lambda a : self.protocol.command(IR_PWROFF,operation=SET_RQ),
-            'hw50/on'           : lambda a : self.protocol.command(IR_PWRON,operation=SET_RQ),
-        }

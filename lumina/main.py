@@ -73,6 +73,7 @@ def controller():
     from controller import Controller
     from utils import Utils
     from logic import Logic
+    from telldus import Telldus
 
     # Main controller
     controller = Controller(port=8081)
@@ -85,6 +86,8 @@ def controller():
 
     # System Functions
     register(controller, Utils())
+
+    #register(controller, Telldus())
 
 
 
@@ -99,29 +102,29 @@ def client_lys():
     from demo import Demo
 
     # Main controller
-    cli = Client(host='localhost',port=8081,name='lys')
-    cli.setup()
+    controller = Client(host='localhost',port=8081,name='LYS')
+    controller.setup()
 
     # System Functions
-    register(cli, Telldus())
-    register(cli, Oppo('/dev/ttyUSB0'))
+    register(controller, Telldus())
+    register(controller, Oppo('/dev/ttyUSB0'))
 
 
 
 #
 # ***  CLIENT HW50  ***
 #
-def client_hw50():
+def client_hw50(host,port):
 
     from client import Client
     from hw50 import Hw50
 
     # Main controller
-    cli = Client(host='lys',port=8081,name='hw50')
-    cli.setup()
+    controller = Client(host=host,port=port,name='HW50')
+    controller.setup()
 
     # System Functions
-    register(cli, Hw50('/dev/ttyUSB0'))
+    register(controller, Hw50('/dev/ttyUSB0'))
 
 
 
@@ -164,3 +167,33 @@ def client_hw50():
 #    # Start everything
 #    log.msg('Server PID: %s' %(os.getpid()), system='MAIN')
 #    reactor.run()
+
+
+################################################################
+#
+#  TESTING
+#
+################################################################
+if __name__ == "__main__":
+
+    import os,sys
+    from twisted.python import log
+    from twisted.internet import reactor
+    from client import Client
+    from hw50 import Hw50
+    from oppo import Oppo
+
+    log.startLogging(sys.stdout)
+
+    #controller()
+
+    # Main controller
+    client = Client(host='localhost',port=8081,name='lys')
+    client.setup()
+
+    # System Functions
+    #register(cli, Telldus())
+    #register(client, Oppo('/dev/ttyUSB0'))
+
+    log.msg('Server PID: %s' %(os.getpid()), system='CTRL')
+    reactor.run()
