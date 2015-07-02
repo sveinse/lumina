@@ -75,6 +75,12 @@ class EventProtocol(LineReceiver):
             del self.pending[event.name]
             d.callback(event)
 
+        # -- Special @ notation which makes the controller execute the incoming data as an
+        #    action. No response is given.
+        elif event.name.startswith('@'):
+            action = self.factory.controller.get_action(data[1:])
+            action.execute()
+
         # -- A new event
         else:
             self.factory.controller.handle_event(event)

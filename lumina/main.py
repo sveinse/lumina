@@ -179,21 +179,29 @@ if __name__ == "__main__":
     import os,sys
     from twisted.python import log
     from twisted.internet import reactor
+
     from client import Client
     from hw50 import Hw50
     from oppo import Oppo
+    from utils import Utils
+    from controller import Controller
 
     log.startLogging(sys.stdout)
 
     #controller()
 
     # Main controller
-    client = Client(host='localhost',port=8081,name='lys')
-    client.setup()
+    controller = Controller(port=8081)
+    controller.setup()
+
+    # Main controller
+    #controller = Client(host='localhost',port=8081,name='lys')
+    #controller.setup()
 
     # System Functions
-    #register(cli, Telldus())
-    #register(client, Oppo('/dev/ttyUSB0'))
+    register(controller, Utils())
+    #register(controller, Telldus())
+    #register(controller, Oppo('/dev/ttyUSB0'))
 
     log.msg('Server PID: %s' %(os.getpid()), system='CTRL')
     reactor.run()

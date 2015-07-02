@@ -346,20 +346,23 @@ class HW50Protocol(Protocol):
 
 class Hw50(Endpoint):
 
-    events = [
-        'hw50/starting',
-        'hw50/stopping',
-        'hw50/connected',
-        'hw50/disconnected',
-        'hw50/error',
-    ]
+    # --- Interfaces
+    def get_events(self):
+        return [
+            'hw50/starting',
+            'hw50/stopping',
+            'hw50/connected',
+            'hw50/disconnected',
+            'hw50/error',
+        ]
 
-    actions = {
-        'hw50/status_power' : lambda a : self.protocol.command(STATUS_POWER),
-        'hw50/lamp_timer'   : lambda a : self.protocol.command(LAMP_TIMER),
-        'hw50/off'          : lambda a : self.protocol.command(IR_PWROFF,operation=SET_RQ),
-        'hw50/on'           : lambda a : self.protocol.command(IR_PWRON,operation=SET_RQ),
-    }
+    def get_actions(self):
+        return {
+            'hw50/status_power' : lambda a : self.protocol.command(STATUS_POWER),
+            'hw50/lamp_timer'   : lambda a : self.protocol.command(LAMP_TIMER),
+            'hw50/off'          : lambda a : self.protocol.command(IR_PWROFF,operation=SET_RQ),
+            'hw50/on'           : lambda a : self.protocol.command(IR_PWRON,operation=SET_RQ),
+        }
 
 
     # --- Initialization

@@ -9,16 +9,19 @@ from endpoint import Endpoint
 
 class Utils(Endpoint):
 
-    events = [
-        'starting',
-        'stopping'
-    ]
+    # --- Interfaces
+    def get_events(self):
+        return [
+            'starting',
+            'stopping'
+        ]
 
-    actions = {
-        'delay' : lambda a : self.delay(a.args[0]),
-        'stop'  : lambda a : self.stop(),
-        'log'   : lambda a : self.log(*a.args,**a.kw),
-    }
+    def get_actions(self):
+        return {
+            'delay' : lambda a : self.delay(a.args[0]),
+            'stop'  : lambda a : self.stop(),
+            'log'   : lambda a : self.log(*a.args,**a.kw),
+        }
 
 
     # --- Initialization

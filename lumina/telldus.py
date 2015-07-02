@@ -313,39 +313,41 @@ class TelldusClient(Protocol):
 
 class Telldus(Endpoint):
 
-    events = [
-        'td/starting',
-        'td/connected',
-        'td/error',
-    ]
+    # --- Interfaces
+    def get_events(self):
+        return [
+            'td/starting',
+            'td/connected',
+            'td/error',
+        ] + [ k['name'] for k in eventlist ] + [ k['name'] for k in templist ]
 
-    actions = {
-        'td/on' : lambda a : self.turnOn(a.args[0]),
-        'td/off' : lambda a : self.turnOff(a.args[0]),
-        'td/dim' : lambda a : self.dim(a.args[0],a.args[1]),
+    def get_actions(self):
+        return {
+            'td/on'  : lambda a : self.turnOn(a.args[0]),
+            'td/off' : lambda a : self.turnOff(a.args[0]),
+            'td/dim' : lambda a : self.dim(a.args[0],a.args[1]),
 
-        'kino/lys/on'   : lambda a : self.turnOn(100),
-        'kino/lys/off'  : lambda a : self.turnOff(100),
-        'kino/lys/dim'  : lambda a : self.dim(100, a.args[0]),
-        'kino/tak/on'   : lambda a : self.turnOn(101),
-        'kino/tak/off'  : lambda a : self.turnOff(101),
-        'kino/tak/dim'  : lambda a : self.dim(101, a.args[0]),
-        'kino/bord/on'  : lambda a : self.turnOn(105),
-        'kino/bord/off' : lambda a : self.turnOff(105),
-        'kino/bord/dim' : lambda a : self.dim(105, a.args[0]),
-        'kino/tak-reol/on'  : lambda a : self.turnOn(104),
-        'kino/tak-reol/off' : lambda a : self.turnOff(104),
-        'kino/tak-reol/dim' : lambda a : self.dim(104, a.args[0],),
-        'kino/led/on'       : lambda a : self.turnOn(106),
-        'kino/led/off'      : lambda a : self.turnOff(106),
-    }
+            'kino/lys/on'   : lambda a : self.turnOn(100),
+            'kino/lys/off'  : lambda a : self.turnOff(100),
+            'kino/lys/dim'  : lambda a : self.dim(100, a.args[0]),
+            'kino/tak/on'   : lambda a : self.turnOn(101),
+            'kino/tak/off'  : lambda a : self.turnOff(101),
+            'kino/tak/dim'  : lambda a : self.dim(101, a.args[0]),
+            'kino/bord/on'  : lambda a : self.turnOn(105),
+            'kino/bord/off' : lambda a : self.turnOff(105),
+            'kino/bord/dim' : lambda a : self.dim(105, a.args[0]),
+            'kino/tak-reol/on'  : lambda a : self.turnOn(104),
+            'kino/tak-reol/off' : lambda a : self.turnOff(104),
+            'kino/tak-reol/dim' : lambda a : self.dim(104, a.args[0],),
+            'kino/led/on'       : lambda a : self.turnOn(106),
+            'kino/led/off'      : lambda a : self.turnOff(106),
+        }
 
 
     # --- Initialization
     def __init__(self):
         self.inport = TelldusEvents(self)
         self.outport = TelldusClient(self)
-        self.events = self.events[:] + [ k['name'] for k in eventlist ] + [ k['name'] for k in templist ]
 
     def setup(self):
         log.msg('STARTING', system='TD')

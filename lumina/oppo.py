@@ -29,13 +29,17 @@ class OppoProtocol(LineReceiver):
     def __init__(self,parent):
         self.parent = parent
         self.queue = Queue()
+        self.connected = False
 
 
     def connectionMade(self):
+        self.connected = True
         self.parent.event('oppo/connected')
+        self.send_next()
 
 
     def connectionLost(self,reason):
+        self.connected = False
         self.parent.event('oppo/disconnected',reason)
 
 
@@ -90,6 +94,8 @@ class OppoProtocol(LineReceiver):
 
 
     def send_next(self):
+        if not self.connected:
+            return
         if self.queue.get_next():
 
             # Send data
@@ -110,29 +116,31 @@ class OppoProtocol(LineReceiver):
 
 class Oppo(Endpoint):
 
-    events = [
-        'oppo/starting',      # Created oppo object
-        'oppo/stopping',      # close() have been called
-        'oppo/connected',     # Connection with Oppo has been made
-        'oppo/disconnected',  # Lost connection with Oppo
-        'oppo/error',         # Connection failed
-    ]
+    # --- Interfaces
+    def get_events(self):
+        return [
+            'oppo/starting',      # Created oppo object
+            'oppo/stopping',      # close() have been called
+            'oppo/connected',     # Connection with Oppo has been made
+            'oppo/disconnected',  # Lost connection with Oppo
+            'oppo/error',         # Connection failed
+        ] + [ k['name'] for k in eventlist ]
 
-    actions = {
-        'oppo/play'    : lambda a : self.protocol.command('PLA'),
-        'oppo/pause'   : lambda a : self.protocol.command('PAU'),
-        'oppo/stop'    : lambda a : self.protocol.command('STP'),
-        'oppo/on'      : lambda a : self.protocol.command('PON'),
-        'oppo/off'     : lambda a : self.protocol.command('POF'),
-        'oppo/verbose' : lambda a : self.protocol.command('SVM','3'),
-    }
+    def get_actions(self):
+        return {
+            'oppo/play'    : lambda a : self.protocol.command('PLA'),
+            'oppo/pause'   : lambda a : self.protocol.command('PAU'),
+            'oppo/stop'    : lambda a : self.protocol.command('STP'),
+            'oppo/on'      : lambda a : self.protocol.command('PON'),
+            'oppo/off'     : lambda a : self.protocol.command('POF'),
+            'oppo/verbose' : lambda a : self.protocol.command('SVM','3'),
+        }
 
 
     # --- Initialization
     def __init__(self, port):
         self.port = port
         self.sp = None
-        self.events = self.events[:] + [ k['name'] for k in eventlist ]
 
     def setup(self):
         try:
