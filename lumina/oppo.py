@@ -61,7 +61,7 @@ class OppoProtocol(LineReceiver):
 
         # Reply to active pending command?
         if self.queue.active and self.queue.active['command'] == cmd:
-            self.queue.response(*args)
+            self.queue.response(args)
             self.send_next()
             return
 
@@ -96,7 +96,8 @@ class OppoProtocol(LineReceiver):
     def send_next(self):
         if not self.connected:
             return
-        if self.queue.get_next():
+        q = self.queue.get_next()
+        if q is not None:
 
             # Send data
             data = self.queue.active['data']
@@ -109,7 +110,7 @@ class OppoProtocol(LineReceiver):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        self.queue.fail()
+        self.queue.fail(None)
         self.send_next()
 
 

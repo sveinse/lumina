@@ -306,7 +306,7 @@ class TelldusClient(Protocol):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        self.queue.fail()
+        self.queue.fail(None)
         self.send_next()
 
 

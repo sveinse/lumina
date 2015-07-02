@@ -17,36 +17,39 @@ class Queue(object):
         request = dict(*args,**kw)
         d = Deferred()
         request['defer'] = d
+        self.queue.append(request)
         return d
 
     def get_next(self):
         ''' Return the next request to send and mark it as active. If the queue is
             already active, None will be returned
         '''
-        if self.active:
+        if self.active is not None:
             return None
         if not len(self.queue):
             return None
         self.active = self.queue.pop(0)
         return self.active
 
-    def response(self, *args, **kw):
+    def response(self, data):
         ''' Send response back to caller of the active queued request. The active
             request will be removed
         '''
         if self.timer:
             self.timer.cancel()
+            self.timer = None
         (request, self.active) = (self.active, None)
-        request['defer'].callback(*args,**kw)
+        request['defer'].callback(data)
 
-    def fail(self, *args, **kw):
+    def fail(self, reason):
         ''' Send failed (errback) response to the caller of the request. The active
             request will be removed.
         '''
         if self.timer:
             self.timer.cancel()
+            self.timer = None
         (request, self.active) = (self.active, None)
-        request['defer'].errback(*args,**kw)
+        request['defer'].errback(reason)
 
     def set_timeout(self,timeout,fn,*args,**kw):
         ''' Set a timeout and callback. Calling response() or fail() will cancel
@@ -54,7 +57,8 @@ class Queue(object):
         '''
         if self.timer:
             self.timer.cancel()
-        self.timer = reactor.CallLater(timeout, fn, *args, **kw)
+            self.timer = None
+        self.timer = reactor.callLater(timeout, fn, *args, **kw)
 
 
 

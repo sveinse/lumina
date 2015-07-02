@@ -325,11 +325,11 @@ class HW50Protocol(Protocol):
         return d
 
 
-    def send_next(request=None):
+    def send_next(self):
         if self.queue.get_next():
 
             # Send data
-            msg = self.active['data']
+            msg = self.queue.active['data']
             log.msg("     <<<  %s - %s" %(dump(msg),dumptext(msg)), system='HW50')
             self.transport.write(str(msg))
 
@@ -339,7 +339,7 @@ class HW50Protocol(Protocol):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        self.queue.fail()
+        self.queue.fail(None)
         self.send_next()
 
 
