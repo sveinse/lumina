@@ -12,7 +12,7 @@ from core import Event,JobBase,Job,Action
 class EventProtocol(LineReceiver):
     noisy = False
     delimiter='\n'
-
+    timeout=15
 
     def connectionMade(self):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
@@ -79,7 +79,8 @@ class EventProtocol(LineReceiver):
         #    action. No response is given.
         elif event.name.startswith('@'):
             action = self.factory.controller.get_action(data[1:])
-            action.execute()
+            if action:
+                action.execute()
 
         # -- A new event
         else:
@@ -91,7 +92,7 @@ class EventProtocol(LineReceiver):
         d = Deferred()
         self.pending[event.name] = {
             'defer': d,
-            'timer': reactor.callLater(5, self.timeout, event),
+            'timer': reactor.callLater(self.timeout, self.timedout, event),
             }
         log.msg("   <--  %s" %(event,), system=self.name)
         self.transport.write(event.dump()+'\n')
@@ -99,7 +100,7 @@ class EventProtocol(LineReceiver):
 
 
     # -- Action timer handler
-    def timeout(self, event):
+    def timedout(self, event):
         log.msg('Timeout on %s' %(event,), system=self.name)
         p = self.pending[event.name]
         d = p['defer']

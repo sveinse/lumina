@@ -70,6 +70,7 @@ class ClientProtocol(LineReceiver):
             # results from the operation is ready
             if isinstance(result, Deferred):
                 result.addCallback(self.send_reply, request)
+                result.addErrback(self.send_error, request)
             else:
                 self.send_reply(result, request)
 
@@ -97,6 +98,10 @@ class ClientProtocol(LineReceiver):
 
         log.msg("   <--  %s" %(reply,), system='CLIENT')
         self.transport.write(reply.dump()+'\n')
+
+
+    def send_error(self, reply, request):
+        log.msg("FIXME: %s failed with %s, not implemented" %(request,reply), system='CLIENT')
 
 
 

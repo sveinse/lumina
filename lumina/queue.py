@@ -35,7 +35,7 @@ class Queue(object):
         ''' Send response back to caller of the active queued request. The active
             request will be removed
         '''
-        if self.timer:
+        if self.timer and self.timer.active():
             self.timer.cancel()
             self.timer = None
         (request, self.active) = (self.active, None)
@@ -45,7 +45,7 @@ class Queue(object):
         ''' Send failed (errback) response to the caller of the request. The active
             request will be removed.
         '''
-        if self.timer:
+        if self.timer and self.timer.active():
             self.timer.cancel()
             self.timer = None
         (request, self.active) = (self.active, None)
@@ -55,7 +55,7 @@ class Queue(object):
         ''' Set a timeout and callback. Calling response() or fail() will cancel
             the timeout.
         '''
-        if self.timer:
+        if self.timer and self.timer.active():
             self.timer.cancel()
             self.timer = None
         self.timer = reactor.callLater(timeout, fn, *args, **kw)

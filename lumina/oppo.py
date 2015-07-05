@@ -11,14 +11,28 @@ from endpoint import Endpoint
 from queue import Queue
 
 
+class OppoException(Exception):
+    pass
+class CommandFailedException(OppoException):
+    pass
+class NotConnectedException(OppoException):
+    pass
+class TimeoutException(OppoException):
+    pass
+
+
 # Translation from Oppo commands to event commands
 eventlist = (
-    dict(name='oppo/play',  cmd='UPL', arg='PLAY'),
-    dict(name='oppo/pause', cmd='UPL', arg='PAUS'),
-    dict(name='oppo/stop',  cmd='UPL', arg='STOP'),
-    dict(name='oppo/home',  cmd='UPL', arg='HOME'),
-    dict(name='oppo/off',   cmd='UPW', arg='0'),
-    dict(name='oppo/on',    cmd='UPW', arg='1'),
+    dict(name='oppo/off',      cmd='UPW', arg='0'),
+    dict(name='oppo/on',       cmd='UPW', arg='1'),
+    dict(name='oppo/play',     cmd='UPL', arg='PLAY'),
+    dict(name='oppo/pause',    cmd='UPL', arg='PAUS'),
+    dict(name='oppo/stop',     cmd='UPL', arg='STOP'),
+    dict(name='oppo/home',     cmd='UPL', arg='HOME'),
+    dict(name='oppo/nodisc',   cmd='UPL', arg='DISC'),
+    dict(name='oppo/loading',  cmd='UPL', arg='LOAD'),
+    dict(name='oppo/closing',  cmd='UPL', arg='CLOS'),
+    dict(name='oppo/audio',    cmd='UAT', arg=None),
 )
 
 
@@ -27,66 +41,114 @@ class OppoProtocol(LineReceiver):
     timeout = 10
 
     def __init__(self,parent):
+        self.state = 'init'
         self.parent = parent
         self.queue = Queue()
-        self.connected = False
+
+
+    def setstate(self,state):
+        (old, self.state) = (self.state, state)
+        if state != old:
+            log.msg("STATE change: '%s' --> '%s'" %(old,state), system='OPPO')
 
 
     def connectionMade(self):
-        self.connected = True
+        self.setstate('connected')
         self.parent.event('oppo/connected')
-        self.send_next()
+
+        # Set query power to force a reply. It check if the connection is ok, and it will set
+        # the state accordingly.
+        d=self.command('QPW')
+        d.addErrback(lambda a : None)
 
 
     def connectionLost(self,reason):
-        self.connected = False
+        self.setstate('closed')
         self.parent.event('oppo/disconnected',reason)
 
 
     def lineReceived(self, data):
         log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system='OPPO')
 
-        # Parse line (skip any chars before '@')
-        if '@' in data:
-            data = data[data.find('@'):]
-        #if data[0]!='@':
-        #    log.msg("Invalid key, skipping ('%s')" %(data), system='OPPO')
-        #    return
+        # Oppo has three incoming message formats:
+        #    Short reply:    @(OK|ER) [ARG1 [...]]
+        #    Verbose reply:  @CMD (OK|ER) [ARG1 [...]]
+        #    Status update:  @CMD [ARG1 [...]]
+
+        # Parse line (skip any chars before '@', but not allow any more after it)
+        if '@' not in data:
+            log.msg("Frame error, ignoring junk ('%s')" %(data,), system='OPPO')
+            return
+        data = data[data.find('@'):]
+        if '@' in data[1:]:
+            log.msg("Frame error, illegal chars ('%s')" %(data,), system='OPPO')
+            return
+        if len(data) > 25:
+            log.msg("Frame error, line too long ('%s')" %(data,), system='OPPO')
+            return
+
+        # Split line by spaces. args will be at least one element long
         args = data[1:].split(' ')
-        cmd = args.pop(0)
 
         # Log command, but omit logging certain verbose events
-        if cmd not in ('UTC', ):
-            log.msg("     >>>  %s %s" %(cmd,args), system='OPPO')
+        #if args[0] not in ('UTC', ):
+        #    log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system='OPPO')
 
-        # Reply to active pending command?
-        if self.queue.active and self.queue.active['command'] == cmd:
-            self.queue.response(args)
+        # Short message format? Implies a reply type by design. Make it into a verbose reply
+        if args[0] in ('OK', 'ER'):
+            if not self.queue.active:
+                log.msg("Protocol error. Reply to unknown command ('%s')" %(data,), system='OPPO')
+                return
+            args.insert(0,self.queue.active['command'])
+
+        # Extract command
+        cmd = args.pop(0)
+        if len(cmd) != 3:
+            log.msg("Protocol error, invalid length on command ('%s')" %(data,), system='OPPO')
+            return
+
+        # From here on, consider this a valid frame and thus an active connection
+        self.setstate('active')
+
+        # Reply type (verbose and short), which is given by the second argument being OK|ER
+        if len(args)>0 and args[0] in ('OK', 'ER'):
+            if cmd != self.queue.active['command']:
+                log.msg("Protocol error, unknown command in reply ('%s')" %(data,), system='OPPO')
+                return
+
+            # Send reply back to caller
+            if args[0] == 'OK':
+                self.queue.response(args[2:])
+            else:
+                self.queue.fail(CommandFailedException(args[2:]))
             self.send_next()
             return
 
         # Status update message we're interested in?
         for ev in eventlist:
+
             # Consider only responses listed in eventlist
             if ev['cmd'] != cmd:
                 continue
-            # ..and with listed argument
-            if ev['arg'] != args[0]:
-                continue
+            if ev['arg']:
+                if len(args)==0 or ev['arg'] != args[0]:
+                    continue
 
             # Pass on to factory to handle the event
             self.parent.event(ev['name'],*args)
             return
 
-        # Not interested in the message
+        # Not interested in the received message
         log.msg("-IGNORED-", system='OPPO')
 
 
     def command(self, command, *args):
+        if self.state in ('error', 'closed'):
+            raise NotConnectedException()
         a = ' '.join(args)
         if a:
             a = ' ' + a
-        data='#%s%s\x0d' %(command,a)
+        data='#%s%s' %(command,a)
 
         d = self.queue.add(data=data, command=command)
         self.send_next()
@@ -94,7 +156,7 @@ class OppoProtocol(LineReceiver):
 
 
     def send_next(self):
-        if not self.connected:
+        if self.state not in ('connected', 'active', 'inactive'):
             return
         q = self.queue.get_next()
         if q is not None:
@@ -102,7 +164,7 @@ class OppoProtocol(LineReceiver):
             # Send data
             data = self.queue.active['data']
             log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system='OPPO')
-            self.transport.write(data)
+            self.transport.write(data+self.delimiter)
 
             # Set timeout
             self.queue.set_timeout(self.timeout, self.timedout)
@@ -110,7 +172,9 @@ class OppoProtocol(LineReceiver):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        self.queue.fail(None)
+        log.msg("Command '%s' timed out" %(self.queue.active['command'],), system='OPPO')
+        self.setstate('inactive')
+        self.queue.fail(TimeoutException())
         self.send_next()
 
 
@@ -129,12 +193,15 @@ class Oppo(Endpoint):
 
     def get_actions(self):
         return {
+            'oppo/state'   : lambda a : self.protocol.state,
+            'oppo/raw'     : lambda a : self.protocol.command(*a.args),
+            'oppo/ison'    : lambda a : self.protocol.command('QPW'),
             'oppo/play'    : lambda a : self.protocol.command('PLA'),
             'oppo/pause'   : lambda a : self.protocol.command('PAU'),
             'oppo/stop'    : lambda a : self.protocol.command('STP'),
             'oppo/on'      : lambda a : self.protocol.command('PON'),
             'oppo/off'     : lambda a : self.protocol.command('POF'),
-            'oppo/verbose' : lambda a : self.protocol.command('SVM','3'),
+            'oppo/verbose' : lambda a : self.protocol.command('SVM','2'),
         }
 
 
@@ -144,8 +211,9 @@ class Oppo(Endpoint):
         self.sp = None
 
     def setup(self):
+        self.protocol = OppoProtocol(self)
         try:
-            self.protocol = OppoProtocol(self)
+            self.protocol.setstate('starting')
             self.sp = SerialPort(self.protocol, self.port, reactor,
                                  baudrate=9600,
                                  bytesize=EIGHTBITS,
@@ -153,12 +221,12 @@ class Oppo(Endpoint):
                                  stopbits=STOPBITS_ONE,
                                  xonxoff=0,
                                  rtscts=0)
-            log.msg('STARTING', system='OPPO')
             self.event('oppo/starting')
         except SerialException as e:
+            self.protocol.setstate('error')
             self.event('oppo/error',e.message)
 
     def close(self):
+        self.event('oppo/stopping')
         if self.sp:
             self.sp.loseConnection()
-        self.event('oppo/stopping')

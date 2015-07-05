@@ -12,6 +12,16 @@ build::
 install::
 	sudo dpkg -i ../lumina_*.deb
 
+newversion::
+	head -n 1 debian/changelog
+	@echo "lumina ($(V)) unstable; urgency=low" >debian/changelog
+	@echo "" >>debian/changelog
+	@echo "  * See git history" >>debian/changelog
+	@echo "" >>debian/changelog
+	@echo " -- Svein Seldal <sveinse@seldal.com>  $$(date -R)" >>debian/changelog
+	cat debian/changelog
+
+
 
 # Convenience for developing on 'lys'
 lys-sync::

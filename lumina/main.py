@@ -118,6 +118,7 @@ def client_hw50(host,port):
 
     from client import Client
     from hw50 import Hw50
+    from led import Led
 
     # Main controller
     controller = Client(host=host,port=port,name='HW50')
@@ -125,6 +126,7 @@ def client_hw50(host,port):
 
     # System Functions
     register(controller, Hw50('/dev/ttyUSB0'))
+    register(controller, Led())
 
 
 
@@ -199,9 +201,9 @@ if __name__ == "__main__":
     #controller.setup()
 
     # System Functions
-    register(controller, Utils())
+    #register(controller, Utils())
     #register(controller, Telldus())
-    #register(controller, Oppo('/dev/ttyUSB0'))
+    register(controller, Oppo('/dev/ttyUSB0'))
 
     log.msg('Server PID: %s' %(os.getpid()), system='CTRL')
     reactor.run()
