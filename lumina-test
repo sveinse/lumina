@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+# -*-python-*-
+import os,sys
+from lumina.main import daemonize,test
+from twisted.python import log, syslog
+from twisted.internet import reactor
+import argparse
+
+ap = argparse.ArgumentParser()
+ap.add_argument('--daemon', action='store_true', help='Daemonize application')
+ap.add_argument('--pidfile', help="Set the pidfile", default='/var/run/lumina', metavar="FILENAME")
+ap.add_argument('--syslog', action='store_true', default=False, help="Enable syslog logging")
+
+opts = ap.parse_args()
+if opts.daemon:
+    daemonize(pidfile=opts.pidfile)
+
+if opts.syslog:
+    syslog.startLogging(prefix='Lumina')
+else:
+    log.startLogging(sys.stdout)
+
+# Start main controller(s)
+test()
+
+# Start twisted
+log.msg('Server PID: %s' %(os.getpid()), system='-')
+reactor.run()

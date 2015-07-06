@@ -89,7 +89,7 @@ class EventProtocol(LineReceiver):
             request = self.requests[name]
             d = request['defer']
             request['timer'].cancel()
-            del requests[name]
+            del self.requests[name]
             d.errback(event)
             return
 
@@ -98,22 +98,41 @@ class EventProtocol(LineReceiver):
             request = self.requests[event.name]
             d = request['defer']
             request['timer'].cancel()
-            del requests[event.name]
+            del self.requests[event.name]
 
             # FIXME: Perhaps the payload should be a separate object(type), not the event itself?
             d.callback(event)
             return
 
-        # -- Special @ notation which makes the controller execute the incoming data as an
-        #    action. No response is given.
+        # -- Special @ notation which makes the controller execute the incoming data as action
         elif event.name.startswith('@'):
 
-            # FIXME: This is not working now, as we're not using Action objects any more
-            action = self.parent.get_action(data[1:])
-            if action:
-                action.execute()
+            def raw_reply(reply,cls,event):
+                cls.transport.write(">>> %s\n" %(str(reply),))
 
-        # -- A new event
+            newevent = Event(event.name[1:],*event.args,**event.kw)
+            fn = self.parent.get_actionfn(newevent.name)
+            if not fn:
+                self.transport.write('ERR: Event not found. Ignoring %s\n',newevent)
+                return
+
+            try:
+                self.transport.write("<<< %s\n" %(newevent,))
+                result = fn(newevent)
+                if isinstance(result, Deferred):
+                    result.addCallback(raw_reply, self, newevent)
+                    result.addErrback(raw_reply, self, newevent)
+                    return
+                else:
+                    raw_reply(result, self, newevent)
+                    return
+            except Exception as e:
+                raw_reply(e, self, newevent)
+
+                # You need this for debugging
+                raise
+
+        # -- A new incoming (async) event.
         else:
             self.parent.handle_event(event)
 
@@ -121,7 +140,7 @@ class EventProtocol(LineReceiver):
     # -- Send an action to the client
     def send(self, event):
         d = Deferred()
-        self.pending[event.name] = {
+        self.requests[event.name] = {
             'defer': d,
             'timer': reactor.callLater(self.timeout, self.timedout, event),
         }
@@ -146,7 +165,7 @@ class EventFactory(Factory):
     noisy = False
 
     def buildProtocol(self, addr):
-        proto = EventProcol()
+        proto = EventProtocol()
         proto.parent = self.parent
         return proto
 

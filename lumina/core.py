@@ -300,7 +300,7 @@ class Core(object):
 
         # Known action?
         if action not in self.actions:
-            log.msg("Unknown action '%s', ignoring" %(action.name), system='CLIENT')
+            log.msg("Unknown action '%s', ignoring" %(action), system='CLIENT')
             return None
 
         return self.actions[action]

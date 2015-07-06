@@ -62,7 +62,7 @@ def register(parent,obj):
     parent.add_events(obj.get_events())
     parent.add_actions(obj.get_actions())
     obj.setup()
-
+    reactor.addSystemEventTrigger('before','shutdown',obj.close)
 
 
 #
@@ -131,44 +131,37 @@ def client_hw50(host,port):
 
 
 #
-# ***  MAIN  ***
+# ***  TEST  ***
 #
-#def main(modules,jobs,use_syslog=False):
-#    ''' Main Entry poin '''
-#
-#    if use_syslog:
-#        syslog.startLogging(prefix='Lumina')
-#    else:
-#        log.startLogging(sys.stdout)
-#
-#    # Main server handler
-#    core = Core()
-#
-#    # Register all modules
-#    for m in modules:
-#        m.add_eventcallback(core.handle_event)
-#        core.add_events(m.get_events())
-#        core.add_actions(m.get_actions())
-#
-#    # Register all jobs
-#    core.add_jobs(jobs)
-#
-#    # Setup the services
-#    for m in modules:
-#        m.setup()
-#
-#    # Shutdown setup
-#    def close():
-#        mr = modules[:]
-#        mr.reverse()
-#        for m in mr:
-#            m.close()
-#
-#    reactor.addSystemEventTrigger('before','shutdown',close)
-#
-#    # Start everything
-#    log.msg('Server PID: %s' %(os.getpid()), system='MAIN')
-#    reactor.run()
+def test():
+
+    from controller import Controller
+    from client import Client
+    from utils import Utils
+    from logic import Logic
+    from telldus import Telldus
+    from demo import Demo
+
+    # Main controller
+    if True:
+        controller = Controller(port=8081)
+        controller.setup()
+
+        # Logic/rules handler
+        #logic = Logic()
+        #logic.setup()
+        #controller.add_jobs(logic.jobs)
+
+        #register(controller, Demo())
+
+    # Main client
+    if True:
+        controller = Client(host='localhost',port=8081,name='test')
+        controller.setup()
+
+        register(controller, Demo())
+
+
 
 
 ################################################################

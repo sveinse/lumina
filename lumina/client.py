@@ -31,13 +31,15 @@ class EventProtocol(LineReceiver):
 
         # -- Register events
         evlist = self.parent.events
-        log.msg("Registering events %s" %(evlist), system='CLIENT')
-        self.send_event(Event('events', *evlist))
+        if len(evlist):
+            log.msg("Registering events %s" %(evlist), system='CLIENT')
+            self.send_event(Event('events', *evlist))
 
         # -- Register actions
         evlist = self.parent.actions.keys()
-        log.msg("Registering actions %s" %(evlist), system='CLIENT')
-        self.send_event(Event('actions', *evlist))
+        if len(evlist):
+            log.msg("Registering actions %s" %(evlist), system='CLIENT')
+            self.send_event(Event('actions', *evlist))
 
         # -- Flush any queue that might have been accumulated before
         #    connecting to the controller
@@ -103,7 +105,7 @@ class EventProtocol(LineReceiver):
 
 
     def send_reply(self, reply, request):
-        log.msg("REPLY to %s: %s" %(request.name, reply)
+        log.msg("REPLY to %s: %s" %(request.name, reply))
 
         # Wrap common reply type into Event object that can be transferred
         # to the server.
@@ -121,7 +123,7 @@ class EventProtocol(LineReceiver):
 
 
     def send_error(self, reply, request):
-        log.msg("FAIL on %s: %s" %(request.name, reply)
+        log.msg("FAIL on %s: %s" %(request.name, reply))
 
         # FIXME: Wrap local exceptions into event massages that can be transferred
         #        over the net
