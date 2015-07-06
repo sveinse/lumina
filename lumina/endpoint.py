@@ -20,9 +20,9 @@ class Endpoint(object):
         pass
 
     # --- Event handler
-    def event(self,event,*args):
+    def event(self, event, *args, **kw):
         if self.cbevent is not None:
-            self.cbevent.callback(Event(event,*args))
+            self.cbevent.callback(Event(event,*args,**kw))
     def add_eventcallback(self, callback, *args, **kw):
         if self.cbevent is None:
             self.cbevent = Callback()

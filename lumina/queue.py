@@ -2,6 +2,13 @@
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 
+# Possible improvements:
+#   - Queue(serial=True) to support serial execution. get_next() returns None
+#     when there is an active transmission
+#   - Queue(serial=False) to support concurrent execute. get_next() will always
+#     return the next object. This requires to move the timeout functionality
+#     into the queue request object.
+
 
 class Queue(object):
 
@@ -9,6 +16,7 @@ class Queue(object):
         self.active = None
         self.queue = [ ]
         self.timer = None
+
 
     def add(self, *args, **kw):
         ''' Add a new request to the queue. Return a Deferred() object connected to
@@ -19,6 +27,7 @@ class Queue(object):
         request['defer'] = d
         self.queue.append(request)
         return d
+
 
     def get_next(self):
         ''' Return the next request to send and mark it as active. If the queue is
@@ -31,8 +40,9 @@ class Queue(object):
         self.active = self.queue.pop(0)
         return self.active
 
-    def response(self, data):
-        ''' Send response back to caller of the active queued request. The active
+
+    def callback(self, data):
+        ''' Call response callback of the active queued request. The active
             request will be removed
         '''
         if self.timer and self.timer.active():
@@ -41,8 +51,10 @@ class Queue(object):
         (request, self.active) = (self.active, None)
         request['defer'].callback(data)
 
-    def fail(self, reason):
-        ''' Send failed (errback) response to the caller of the request. The active
+
+
+    def errback(self, reason):
+        ''' Send failed response to the caller of the request. The active
             request will be removed.
         '''
         if self.timer and self.timer.active():
@@ -51,8 +63,10 @@ class Queue(object):
         (request, self.active) = (self.active, None)
         request['defer'].errback(reason)
 
-    def set_timeout(self,timeout,fn,*args,**kw):
-        ''' Set a timeout and callback. Calling response() or fail() will cancel
+
+
+    def set_timeout(self, timeout, fn, *args, **kw):
+        ''' Set a timeout and callback. Calling callback() or errback() will cancel
             the timeout.
         '''
         if self.timer and self.timer.active():

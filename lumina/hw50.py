@@ -260,7 +260,7 @@ class HW50Protocol(Protocol):
 
                 # Process the frame here...
                 if self.queue.active:
-                    self.queue.response(data)
+                    self.queue.callback(data)
                     self.send_next()
                     return
 
@@ -339,7 +339,7 @@ class HW50Protocol(Protocol):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        self.queue.fail(None)
+        self.queue.errback(None)
         self.send_next()
 
 

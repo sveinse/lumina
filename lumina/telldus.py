@@ -288,7 +288,7 @@ class TelldusClient(Protocol):
         (elements, data) = parsestream(data)
         #log.msg("          %s" %(elements), system='TD')
         self.disconnect()
-        self.queue.response(elements)
+        self.queue.callback(elements)
 
 
     def command(self, cmd):
@@ -306,7 +306,7 @@ class TelldusClient(Protocol):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        self.queue.fail(None)
+        self.queue.errback(None)
         self.send_next()
 
 

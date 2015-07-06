@@ -118,9 +118,9 @@ class OppoProtocol(LineReceiver):
 
             # Send reply back to caller
             if args[0] == 'OK':
-                self.queue.response(args[2:])
+                self.queue.callback(args[2:])
             else:
-                self.queue.fail(CommandFailedException(args[2:]))
+                self.queue.errback(CommandFailedException(args[2:]))
             self.send_next()
             return
 
@@ -174,7 +174,7 @@ class OppoProtocol(LineReceiver):
         # The timeout response is to fail the request and proceed with the next command
         log.msg("Command '%s' timed out" %(self.queue.active['command'],), system='OPPO')
         self.setstate('inactive')
-        self.queue.fail(TimeoutException())
+        self.queue.errback(TimeoutException())
         self.send_next()
 
 
