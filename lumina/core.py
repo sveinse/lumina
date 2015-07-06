@@ -23,8 +23,10 @@ class Event(object):
            'nul{arg1=foo,arg2=bar}'
            'nul{arg1=foo,arg2=bar,5}'
     '''
-    def __init__(self, name, *args, **kw):
-        self.parse(name,*args,**kw)
+    def __init__(self, name=None, *args, **kw):
+        self.name = name
+        self.args = args[:]
+        self.kw = kw.copy()
 
 
     def __repr__(self):
@@ -68,7 +70,7 @@ class Event(object):
         return self
 
 
-
+# FIXME: Do we still need this class?
 class Action(Event):
     ''' Action handler object. '''
 
@@ -243,44 +245,77 @@ class JobFn(JobBase):
 class Core(object):
 
     def __init__(self):
-        self.inprogress = False
-        self.currentjob = None
-        self.currentaction = None
-        self.queue = []
         self.events = []
         self.actions = {}
         self.jobs = {}
 
+        # Job handler
+        self.queue = []
+        self.currentjob = None
+        self.inprogress = False
+        self.currentaction = None
 
+
+    # --- EVENTS
     def add_events(self,events):
         ''' Add to the list of known events'''
 
-        log.msg("Registering events: %s" %(tuple(events),), system='EVENT')
+        log.msg("Registering events: %s" %(tuple(events),), system='CORE')
         for name in events:
             if name in self.events:
                 raise TypeError("Event '%s' already exists" %(name))
             self.events.append(name)
 
+    def remove_events(self, events):
+        ''' Remove from the list of known events'''
 
+        log.msg("De-registering events: %s" %(tuple(events),), system='CORE')
+        for name in events:
+            if name not in self.events:
+                raise TypeError("Unknown event '%s'" %(name))
+            self.events.remove(name)
+
+
+    # --- ACTIONS
     def add_actions(self,actions):
         ''' Add to the dict of known action and register their callback fns '''
 
-        log.msg("Registering actions: %s" %(tuple(actions.keys()),), system='ACTION')
+        log.msg("Registering actions: %s" %(tuple(actions.keys()),), system='CORE')
         for (name,fn) in actions.items():
             if name in self.actions:
                 raise TypeError("Action '%s' already exists" %(name))
             self.actions[name] = fn
 
+    def remove_actions(self, actions):
+        ''' Add to the dict of known action and register their callback fns '''
 
+        log.msg("De-registering actions: %s" %(tuple(actions),), system='CORE')
+        for name in actions:
+            if name not in self.actions:
+                raise TypeError("Unknown action '%s'" %(name))
+            del self.actions[name]
+
+    def get_actionfn(self, action):
+        ''' Get the action handler function '''
+
+        # Known action?
+        if action not in self.actions:
+            log.msg("Unknown action '%s', ignoring" %(action.name), system='CLIENT')
+            return None
+
+        return self.actions[action]
+
+
+    # --- JOBS
     def add_jobs(self,jobs):
         ''' Add list of jobs '''
 
-        log.msg("Registering jobs: %s" %(tuple(jobs.keys()),), system='JOB')
+        log.msg("Registering handlers for events: %s" %(tuple(jobs.keys()),), system='CORE')
         for (name,actions) in jobs.items():
-            if name not in self.events:
-                raise TypeError("Job '%s' is not an known event" %(name))
             if name in self.jobs:
                 raise TypeError("Job '%s' already exists" %(name))
+
+            # This is done to allow job lists to be specified as text lists or lists
             if isinstance(actions, JobBase):
                 job = actions
             else:
@@ -288,48 +323,27 @@ class Core(object):
             self.jobs[name] = job
 
 
-    def handle_event(self,event):
-        ''' Event dispatcher '''
 
-        if not event:
-            return None
-        if not isinstance(event,Event):
-            event=Event(event)
+    # --- JOB HANDLING
 
-        #log.msg("%s" %(event), system='EVENT')
-
-        # Is this a registered event?
-        if event.name not in self.events:
-            log.msg("   Unregistered event '%s'" %(event.name), system='EVENT')
-
-        # Known event?
-        if event.name not in self.jobs:
-            log.msg("%s  --  Skipping, no job registred" %(event), system='EVENT')
-            #log.msg("   No job for event '%s', ignoring" %(event.name), system='EVENT')
-            return None
-
-        # Get the job
-        job = self.jobs[event.name]
-        job.event = event
-        return self.run_job(job)
-
-
+    # FIXME: Add support for parallel execution
     def run_job(self,job):
         ''' Run the given job '''
 
         # If a job is running, put the new one in a queue
         if job.isempty():
-            log.msg("%s  --  Empty job" %(job.event), system='EVENT')
-            #log.msg("   Empty job, skipping", system='JOB')
+            log.msg("%s  --  Empty job" %(job.event), system='CORE')
+            #log.msg("   Empty job, skipping", system='CORE')
             return
         self.queue.append(job)
-        log.msg("%s  --  %s" %(job.event,job), system='EVENT')
-        #log.msg("   -- %s" %(job), system='JOB')
+        log.msg("%s  --  %s" %(job.event,job), system='CORE')
+        #log.msg("   -- %s" %(job), system='CORE')
 
         if not self.inprogress:
             return self._run_next_action()
 
 
+    # FIXME: Add support for parallel execution
     def _run_next_action(self,result=None):
         ''' Internal handler for processing actions in a job '''
         #print "core::run_next_action(result=%s)" %(result)
@@ -357,12 +371,17 @@ class Core(object):
                 self.currentjob.prevresult = prevresult
 
                 # Get the next action object
-                action = self.get_action(self.currentjob.next())
+                name = self.currentjob.next()
+                action = None
+                if name:
+                    fn = self.get_actionfn(name)
+                    if fn:
+                        action = Action(name,fn)
                 self.currentaction = action
 
                 # Execute the given action object (if valid)
                 if action:
-                    log.msg("   --- RUN %s" %(action), system='JOB')
+                    log.msg("   --- RUN %s" %(action), system='CORE')
                     action.event = self.currentjob.event
                     result = action.execute()
 
@@ -370,6 +389,8 @@ class Core(object):
                     # results from the operation is ready
                     if isinstance(result, Deferred):
                         result.addCallback(self._run_next_action)
+                        result.addErrback(self._run_next_action) # <-- Fixme. This makes the
+                                                                 # the job continue on errors
                         return result
 
             except StopIteration:
@@ -377,27 +398,7 @@ class Core(object):
                 # to do.
                 self.currentjob = None
                 self.currentaction = None
-                log.msg("   -- DONE", system='JOB')
-
-
-    def get_action(self,name):
-        ''' Get action object from name and set its function callback '''
-
-        if not name:
-            return None
-
-        # Make an action object of the specified name
-        action = Action(name=name, fn=None)
-
-        # Known action?
-        if action.name not in self.actions:
-            log.msg("Unknown action '%s', ignoring" %(action.name), system='ACTION')
-            return None
-
-        # Set the function handler
-        action.fn = self.actions[action.name]
-        return action
-
+                log.msg("   -- DONE", system='CORE')
 
 
 

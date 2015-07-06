@@ -1,23 +1,20 @@
 import os,sys
 
 import twisted.internet.protocol as protocol
-
 from twisted.internet import reactor
-#from twisted.internet import task
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from twisted.internet.task import LoopingCall
 
-from core import Event,JobBase,Job,Action
+from core import Event,Core
 
 
 
-class ClientProtocol(LineReceiver):
+class EventProtocol(LineReceiver):
     noisy = False
     delimiter='\n'
-
 
     def connectionMade(self):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
@@ -42,8 +39,9 @@ class ClientProtocol(LineReceiver):
         log.msg("Registering actions %s" %(evlist), system='CLIENT')
         self.send_event(Event('actions', *evlist))
 
-        # -- Flush any queue
-        self.parent.flush_queue()
+        # -- Flush any queue that might have been accumulated before
+        #    connecting to the controller
+        self.parent.send_events()
 
 
     def connectionLost(self, reason):
@@ -53,26 +51,45 @@ class ClientProtocol(LineReceiver):
 
 
     def lineReceived(self, data):
+        ''' Handle messages from the controller, which are actions that shall
+            be executed '''
+
+        # Empty lines are simply ignored
         if not len(data):
             return
 
-        request = Action(data, fn=None)
-        log.msg("   -->  %s" %(request,), system='CLIENT')
+        try:
+            event = Event().parse(data)
+            log.msg("   -->  %s" %(event,), system='CLIENT')
+        except SyntaxError as e:
+            log.msg("Protocol error. %s" %(e.message))
+            return
 
         # -- Handle 'exit' event
-        if request.name == 'exit':
+        if event.name == 'exit':
             self.transport.loseConnection()
+            return
 
+        # -- Handle events from controller (actions)
         else:
-            result = self.parent.run_action(request)
+            # Get the the action function
+            fn = self.parent.get_actionfn(event.name)
+            if not fn:
+                return
 
-            # If a Deferred object is returned, we set to call this function when the
-            # results from the operation is ready
-            if isinstance(result, Deferred):
-                result.addCallback(self.send_reply, request)
-                result.addErrback(self.send_error, request)
-            else:
-                self.send_reply(result, request)
+            # Call the action function. If a Deferred object is returned, we set to
+            # call this function when the results from the operation is ready
+            try:
+                result = fn(event)
+                if isinstance(result, Deferred):
+                    result.addCallback(self.send_reply, event)
+                    result.addErrback(self.send_error, event)
+                    return
+                else:
+                    self.send_reply(result, event)
+                    return
+            except Exception as e:
+                self.send_error(e, event)
 
 
     def keepalive(self):
@@ -80,43 +97,49 @@ class ClientProtocol(LineReceiver):
 
 
     def send_event(self, event):
+        # No response is expected from events, so no need to setup any deferals
         log.msg("   <--  %s" %(event,), system='CLIENT')
         self.transport.write(event.dump()+'\n')
 
 
     def send_reply(self, reply, request):
+        log.msg("REPLY to %s: %s" %(request.name, reply)
+
         # Wrap common reply type into Event object that can be transferred
         # to the server.
         if reply is None:
             reply = Event(request.name)
-        elif isinstance(reply, Event):
-            reply.name = request.name
-        elif type(reply) is list:
+        #elif isinstance(reply, Event):
+        #    reply.name = request.name
+        elif type(reply) is list or type(reply) is tuple:
             reply = Event(request.name,*reply)
         else:
-            reply = Event(request.name+'{'+str(reply)+'}')
+            reply = Event(request.name,reply)
 
         log.msg("   <--  %s" %(reply,), system='CLIENT')
         self.transport.write(reply.dump()+'\n')
 
 
     def send_error(self, reply, request):
-        log.msg("FIXME: %s failed with %s, not implemented" %(request,reply), system='CLIENT')
+        log.msg("FAIL on %s: %s" %(request.name, reply)
+
+        # FIXME: Wrap local exceptions into event massages that can be transferred
+        #        over the net
+        error = Event('error',request.name,str(reply))
+
+        log.msg("   <--  %s" %(error,), system='CLIENT')
+        self.transport.write(error.dump()+'\n')
 
 
 
-class ClientFactory(ReconnectingClientFactory):
+class EventFactory(ReconnectingClientFactory):
     noisy = False
     maxDelay=10
     factor=1.6180339887498948
 
-    def startedConnecting(self, connector):
-        pass
-        #log.msg('Started to connect.')
-
     def buildProtocol(self, addr):
         self.resetDelay()
-        proto = ClientProtocol()
+        proto = EventProtocol()
         proto.parent = self.parent
         return proto
 
@@ -130,99 +153,42 @@ class ClientFactory(ReconnectingClientFactory):
 
 
 
-class Client(object):
+class Client(Core):
 
     def __init__(self,host,port,name):
+        Core.__init__(self)
         self.host = host
         self.port = port
         self.name = name
-
         self.protocol = None
-
-        self.events = []
-        self.actions = {}
         self.queue = []
 
 
     def setup(self):
-        self.factory = ClientFactory()
+        self.factory = EventFactory()
         self.factory.parent = self
         reactor.connectTCP(self.host, self.port, self.factory)
 
 
-    def add_events(self, events):
-        ''' Add to the list of known events'''
-
-        log.msg("Registering events: %s" %(tuple(events),), system='CLIENT')
-        for name in events:
-            if name in self.events:
-                raise TypeError("Event '%s' already exists" %(name))
-            self.events.append(name)
-
-
-    def add_actions(self, actions):
-        ''' Add to the dict of known action and register their callback fns '''
-
-        log.msg("Registering actions: %s" %(tuple(actions.keys()),), system='CLIENT')
-        for (name,fn) in actions.items():
-            if name in self.actions:
-                raise TypeError("Action '%s' already exists" %(name))
-            self.actions[name] = fn
-
-
     def handle_event(self, event):
-        ''' Event dispatcher '''
+        ''' Event dispatcher. Events contains messages coming from the device
+            endpoints and should be forwarded to the controller over the network '''
 
-        #if not event:
-        #    return None
-        #if not isinstance(event,Event):
-        #    event=Event(event)
-
-        #log.msg("%s" %(event), system='CLIENT')
-
-        # Is this a registered event?
-        #if event.name not in self.events:
-        #    log.msg("%s  --  Unregistered" %(event), system='CLIENT')
-        #    return None
-
-        # Known event?
-        #if event.name not in self.jobs:
-        #    log.msg("%s  --  No job handler" %(event), system='CLIENT')
-        #    #log.msg("   No job for event '%s', ignoring" %(event.name), system='CLIENT')
-        #    return None
-
-        # Get the job
-        #job = self.jobs[event.name]
-        #job.event = event
-        #return self.run_job(job)
-
+        # Queue it here rather than in the procol, as the procol object is created
+        # when the connection to the controller is made
         self.queue.append(event)
-        self.flush_queue()
+        if self.protocol is None:
+            log.msg("%s  --  Not connected to server, queueing" %(event), system='CLIENT')
+
+        # Attempt sending the message
+        self.send_events()
 
 
-    def flush_queue(self):
+    def send_events(self):
+        ''' Send the next event(s) in the queue '''
+
+        if self.protocol is None:
+            return None
         while(len(self.queue)):
-
-            event = self.queue[0]
-            if self.protocol is None:
-                log.msg("%s  --  Not connected to server, queueing" %(event), system='CLIENT')
-                return None
-
             event = self.queue.pop(0)
             self.protocol.send_event(event)
-
-
-    def run_action(self, action):
-
-        #action = Action(name=event, fn=None)
-
-        # Known action?
-        if action.name not in self.actions:
-            log.msg("Unknown action '%s', ignoring" %(action.name), system='CLIENT')
-            return None
-
-        # Set the function handler
-        action.fn = self.actions[action.name]
-
-        # Execute the action
-        return action.execute()
