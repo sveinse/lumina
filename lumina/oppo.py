@@ -56,8 +56,7 @@ class OppoProtocol(LineReceiver):
         self.setstate('connected')
         self.parent.event('oppo/connected')
 
-        # Set query power to force a reply. It check if the connection is ok, and it will set
-        # the state accordingly.
+        # Send a ping command to make the state machine progress
         d=self.command('QPW')
         d.addErrback(lambda a : None)
 
@@ -159,9 +158,9 @@ class OppoProtocol(LineReceiver):
         if self.state not in ('connected', 'active', 'inactive'):
             return
         q = self.queue.get_next()
-        if q is not None:
 
-            # Send data
+        # Send data
+        if q is not None:
             data = self.queue.active['data']
             log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system='OPPO')
             self.transport.write(data+self.delimiter)

@@ -11,6 +11,16 @@ from endpoint import Endpoint
 from queue import Queue
 
 
+class Hw50Exception(Exception):
+    pass
+class FrameException(Hw50Exception):
+    pass
+class NotConnectedException(Hw50Exception):
+    pass
+class TimeoutException(Hw50Exception):
+    pass
+
+
 # HW50 Protocol
 # 38500, 8 bits, even parity, one stop bit
 # 8 byte packets
@@ -203,30 +213,38 @@ def dumptext(data):
 
 
 
-class FrameException(Exception):
-    pass
-
 
 class HW50Protocol(Protocol):
-
     timeout = 3
 
     def __init__(self,parent):
+        self.state = 'init'
         self.parent = parent
         self.rxbuffer = bytearray()
         self.queue = Queue()
 
 
+    def setstate(self,state):
+        (old, self.state) = (self.state, state)
+        if state != old:
+            log.msg("STATE change: '%s' --> '%s'" %(old,state), system='HW50')
+
+
     def connectionMade(self):
+        self.setstate('connected')
         self.parent.event('hw50/connected')
+
+        # Send a dummy command to progress the state machine
+        d=self.command(STATUS_POWER)
+        d.addErrback(lambda a : None)
 
 
     def connectionLost(self,reason):
+        self.setstate('closed')
         self.parent.event('hw50/disconnected',reason)
 
 
     def dataReceived(self, data):
-        #msg = bytearray([0x01,0x02,0xa9,0x01,0x02,0x02,0x00,0x00,0x03,0x9a,0x03,0x04])
         msg = bytearray(data)
         log.msg("RAW  >>>  %s" %(dump(data)), system='HW50')
         self.rxbuffer += msg
@@ -257,6 +275,9 @@ class HW50Protocol(Protocol):
                 if x > 0 or len(self.rxbuffer) > 0:
                     log.msg("Discard junk in data, '%s' before, '%s' after" %(dump(buffer[:x]),dump(self.rxbuffer)),
                             system='HW50')
+
+                # From here on, consider this a valid frame
+                self.setstate('active')
 
                 # Process the frame here...
                 if self.queue.active:
@@ -319,16 +340,21 @@ class HW50Protocol(Protocol):
 
 
     def command(self, item, operation=GET_RQ, data=0x0):
+        if self.state in ('error', 'closed'):
+            raise NotConnectedException()
         msg = self.encode(item,operation,data)
-        d = self.queue.add(data=msg)
+        d = self.queue.add(data=msg, item=item)
         self.send_next()
         return d
 
 
     def send_next(self):
-        if self.queue.get_next():
+        if self.state not in ('connected', 'active', 'inactive'):
+            return
+        q = self.queue.get_next()
 
-            # Send data
+        # Send data
+        if q is not None:
             msg = self.queue.active['data']
             log.msg("     <<<  %s - %s" %(dump(msg),dumptext(msg)), system='HW50')
             self.transport.write(str(msg))
@@ -339,7 +365,9 @@ class HW50Protocol(Protocol):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        self.queue.errback(None)
+        log.msg("Command '%s' timed out" %(self.queue.active['item'],), system='HW50')
+        self.setstate('inactive')
+        self.queue.errback(TimeoutException())
         self.send_next()
 
 
@@ -371,8 +399,9 @@ class Hw50(Endpoint):
         self.sp = None
 
     def setup(self):
+        self.protocol = HW50Protocol(self)
         try:
-            self.protocol = HW50Protocol(self)
+            self.protocol.setstate('starting')
             self.sp = SerialPort(self.protocol, self.port, reactor,
                                  baudrate=38400,
                                  bytesize=EIGHTBITS,
@@ -380,13 +409,12 @@ class Hw50(Endpoint):
                                  stopbits=STOPBITS_ONE,
                                  xonxoff=0,
                                  rtscts=0)
-            log.msg('STARTING', system='HW50')
             self.event('hw50/starting')
         except SerialException as e:
-            log.msg("Error %s" %(e.message), system='HW50')
+            self.protocol.setstate('error')
             self.event('hw50/error',e.message)
 
     def close(self):
+        self.event('hw50/stopping')
         if self.sp:
             self.sp.loseConnection()
-        self.event('hw50/stopping')
