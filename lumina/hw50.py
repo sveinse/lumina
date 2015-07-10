@@ -189,25 +189,29 @@ STATUS_ERROR2_HIGHLAND = 0x0020
 
 
 def dump(data):
+    ''' Return a printout string of data '''
     msg = bytearray(data)
     s=' '.join([ '%02x' %(x) for x in msg ])
     return "(%s) %s" %(len(data),s)
 
+
+
 def dumptext(data):
+    ''' Return a HW50 frame printout as text '''
     b = bytearray(data)
 
     item = b[1]<<8 | b[2]
-    operation = b[3]
+    cmd = b[3]
     data = b[4]<<8 | b[5]
 
-    s1=TYPES.get(operation,'???')
+    s1=TYPES.get(cmd,'???')
     s2=''
     s3 = ITEMS.get(item,'???')
-    if operation == GET_RQ:
+    if cmd == GET_RQ:
         s2 = '%04x "%s"' %(item,s3)
-    elif operation in (SET_RQ, GET_RS):
+    elif cmd in (SET_RQ, GET_RS):
         s2 = '%04x "%s" = %04x' %(item,s3,data)
-    elif operation == ACK_RS:
+    elif cmd == ACK_RS:
         s2 = RESPONSES.get(item,'???')
     return s1 + ' ' + s2
 
@@ -261,7 +265,7 @@ class HW50Protocol(Protocol):
                     # Decode the response-frame
                     frame = buffer[x:x+FRAMESIZE]
                     log.msg("     >>>  %s - %s" %(dump(frame),dumptext(frame)), system='HW50')
-                    (item,operation,data) = self.decode(frame)
+                    (item,cmd,data) = self.decode(frame)
 
                 except FrameException as e:
 
@@ -289,10 +293,11 @@ class HW50Protocol(Protocol):
                 return
 
 
-    def decode(self, data):
-        b = bytearray(data)
+    def decode(self, frame):
+        ''' Decode an input frame '''
+        b = bytearray(frame)
 
-        if len(data) != FRAMESIZE:
+        if len(frame) != FRAMESIZE:
             raise FrameException("Incomplete frame")
         if b[0] != SOF:
             raise FrameException("Wrong SOF field")
@@ -306,27 +311,28 @@ class HW50Protocol(Protocol):
             raise FrameException("Checksum failure")
 
         item = b[1]<<8 | b[2]
-        operation = b[3]
+        cmd = b[3]
         data = b[4]<<8 | b[5]
 
-        if operation == ACK_RS:
+        if cmd == ACK_RS:
             if item not in RESPONSES:
                 raise FrameException("Unknown ACK/NAK response error")
-        elif operation == GET_RS:
+        elif cmd == GET_RS:
             pass
         else:
             raise FrameException("Unknown response type")
 
-        return (item, operation, data)
+        return (item, cmd, data)
 
 
-    def encode(self, item, operation, data):
+    def encode(self, item, cmd, data):
+        ''' Return an encoded frame '''
         b = bytearray(b"\x00" * FRAMESIZE)
 
         b[0] = SOF
         b[1] = (item&0xFF00)>>8
         b[2] = (item&0xFF)
-        b[3] = operation
+        b[3] = cmd
         b[4] = (data&0xFF00)>>8
         b[5] = (data&0xFF)
 
@@ -339,10 +345,10 @@ class HW50Protocol(Protocol):
         return b
 
 
-    def command(self, item, operation=GET_RQ, data=0x0):
+    def command(self, item, cmd=GET_RQ, data=0x0):
         if self.state in ('error', 'closed'):
             raise NotConnectedException()
-        msg = self.encode(item,operation,data)
+        msg = self.encode(item,cmd,data)
         d = self.queue.add(data=msg, item=item)
         self.send_next()
         return d
@@ -386,10 +392,15 @@ class Hw50(Endpoint):
 
     def get_actions(self):
         return {
+            'hw50/state'        : lambda a : self.protocol.state,
+            'hw50/status_error' : lambda a : self.protocol.command(STATUS_ERROR),
             'hw50/status_power' : lambda a : self.protocol.command(STATUS_POWER),
             'hw50/lamp_timer'   : lambda a : self.protocol.command(LAMP_TIMER),
-            'hw50/off'          : lambda a : self.protocol.command(IR_PWROFF,operation=SET_RQ),
-            'hw50/on'           : lambda a : self.protocol.command(IR_PWRON,operation=SET_RQ),
+            'hw50/off'          : lambda a : self.protocol.command(IR_PWROFF,cmd=SET_RQ),
+            'hw50/on'           : lambda a : self.protocol.command(IR_PWRON,cmd=SET_RQ),
+            'hw50/preset/film1' : lambda a : self.protocol.command(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA1),
+            'hw50/preset/film2' : lambda a : self.protocol.command(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA2),
+            'hw50/preset/tv'    : lambda a : self.protocol.command(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_TV),
         }
 
 
