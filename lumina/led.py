@@ -3,18 +3,15 @@ import os,sys
 import array
 from endpoint import Endpoint
 from ola.OlaClient import OlaClient
+from twisted.python import log
 
 
 class Led(Endpoint):
     universe = 0
 
-    # --- Interfaces
-    #def get_events(self):
-    #    return [
-    #    ]
-
     def get_actions(self):
         return {
+            'led/state'   : lambda a : self.state,
             'led/off'     : lambda a : self.command(0,0,0,0),
             'led/white'   : lambda a : self.command(0,0,0,255),
             'led/blue'    : lambda a : self.command(0,0,255,0),
@@ -25,12 +22,8 @@ class Led(Endpoint):
     # --- Initialization
     def __init__(self):
         self.dmx = OlaClient()
-
-    def setup(self):
-        pass
-
-    def close(self):
-        pass
+        self.state = 'active'
+        log.msg("STATE change: '%s'" %(self.state,), system='LED')
 
 
     def command(self,r,g,b,w):
