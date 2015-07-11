@@ -77,8 +77,8 @@ class Event(object):
 class Action(Event):
     ''' Action handler object. '''
 
-    def __init__(self, name, fn, *args, **kw):
-        self.parse(name,*args,**kw)
+    def __init__(self, name=None, fn=None, *args, **kw):
+        Event.__init__(self,name,*args,**kw)
         self.executed = False
         self.result = None
         self.fn = fn
@@ -377,9 +377,10 @@ class Core(object):
                 name = self.currentjob.next()
                 action = None
                 if name:
-                    fn = self.get_actionfn(name)
-                    if fn:
-                        action = Action(name,fn)
+                    action = Action().parse(name)
+                    action.fn = self.get_actionfn(action.name)
+                    if action.fn is None:
+                        action = None
                 self.currentaction = action
 
                 # Execute the given action object (if valid)

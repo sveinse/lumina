@@ -9,28 +9,27 @@ class Logic(object):
         'oppo/connected' : 'oppo/verbose',
 
         # Nexa fjernkontroll
-        'remote/g/on'    : ( 'td/on{106}', 'kino/lys/on' ),
-        'remote/g/off'   : ( 'kino/lys/off' ),
-        'remote/3/on'    :   'kino/tak-reol/dim{30}',
-        'remote/3/off'   :   'kino/tak-reol/off',
-        'remote/4/on'    :   'kino/lys/dim{30}',
-        'remote/4/off'   : ( 'kino/tak/off', 'kino/bord/dim{30}' ),
-
         #'remote/1/on'   :   'oppo/play',
         'remote/1/off'   : ( 'oppo/off', 'hw50/off' ),
 
+        'remote/4/on'    : ( 'lys/dim{30}', 'led/off' ),
+        'remote/4/off'   : ( 'lys/off', 'led/raw{0,0,0,10}' ),
+        'remote/g/on'    : ( 'led/pwr/on', 'lys/on', 'led/blue' ),
+        'remote/g/off'   : ( 'lys/off', 'led/off' ),
+
+
         # Veggbryter overst hjemmekino
-        'wallsw1/on'     : ( 'kino/led/on', 'kino/lys/on' ),
-        'wallsw1/off'    : ( 'kino/lys/off', ),
+        'wallsw1/on'     : ( 'led/pwr/on', 'lys/on', 'led/blue' ),
+        'wallsw1/off'    : ( 'lys/off', 'led/off' ),
 
         # Veggbryter nederst kino
-        'wallsw2/on'     :   'kino/lys/dim{30}',
-        'wallsw2/off'    : ( 'kino/lys/off', 'kino/led/off' ),
+        'wallsw2/on'     : ( 'lys/dim{60}', 'led/raw{0,0,0,20}' ),
+        'wallsw2/off'    : ( 'lys/off', 'led/pwr/off' ),
 
         # Oppo regler
-        'oppo/pause'     :   'kino/lys/dim{30}',
-        'oppo/play'      :   'kino/lys/off',
-        'oppo/stop'      :   'kino/lys/dim{60}',
+        'oppo/pause'     : ( 'lys/off', 'led/raw{0,0,0,10}' ),
+        'oppo/play'      : ( 'lys/off', 'led/off' ),
+        'oppo/stop'      : ( 'lys/dim{30}', 'led/raw{0,0,0,10}' ),
 
     }
 

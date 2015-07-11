@@ -10,6 +10,16 @@ from endpoint import Endpoint
 from queue import Queue
 
 
+class TelldusException(Exception):
+    pass
+class FrameException(TelldusException):
+    pass
+class NotConnectedException(TelldusException):
+    pass
+class TimeoutException(TelldusException):
+    pass
+
+
 # Can be tested with
 #    socat UNIX-LISTEN:/tmp/TelldusEvents -
 #    socat UNIX-LISTEN:/tmp/TelldusClient -
@@ -185,46 +195,48 @@ class TelldusFactory(ClientFactory):
         return self.protocol
 
     def clientConnectionFailed(self, connector, reason):
-        self.parent.error(self.protocol.path, reason.getErrorMessage())
+        self.protocol.setstate('error',self.protocol.path,reason.getErrorMessage())
 
 
 
-class TelldusEvents(Protocol):
+class TelldusIn(Protocol):
     ''' Class for incoming Telldus events '''
 
     noisy = False
     name = 'Event'
     path = '/tmp/TelldusEvents'
 
+
     def __init__(self,parent):
+        self.state = 'init'
         self.parent = parent
-        self.connected = False
+        self.factory = TelldusFactory(self, self.parent)
+
+
+    def setstate(self,state,*args):
+        (old, self.state) = (self.state, state)
+        if state != old:
+            log.msg("STATE change: '%s' --> '%s'" %(old,state), system='TD/IN')
+        self.parent.changestate(self,self.state,*args)
 
 
     def connect(self):
-        factory = TelldusFactory(self, self.parent)
-        reactor.connectUNIX(self.path, factory)
-        self.factory = factory
+        self.setstate('connecting')
+        reactor.connectUNIX(self.path, self.factory)
 
 
     def connectionMade(self):
-        log.msg("%s connected" %(self.name), system='TD')
+        self.setstate('connected')
         self.data = ''
         self.elements = [ ]
-        self.connected = True
-        self.parent.connected(self)
 
 
     def connectionLost(self, reason):
-        log.msg("%s connection lost: %s" %(self.name,reason), system='TD')
-        if self.connected:
-            self.connected = False
-            self.parent.error(self,reason)
+        self.setstate('closed', reason.getErrorMessage())
 
 
     def disconnect(self):
-        if self.connected:
-            self.connected = False
+        if self.state in ('connected','active'):
             self.transport.loseConnection()
 
 
@@ -237,17 +249,20 @@ class TelldusEvents(Protocol):
         (elements, data) = parsestream(data)
         (events, elements) = parseelements(elements)
 
-        # Save remaining data (incomplete frame received)
+        # Save remaining data for next call (incomplete frame received)
         self.data = data
         self.elements = elements
 
-        # Iverate over the events
+        # At this point, we can consider the connection active
+        self.setstate('active')
+
+        # Iterate over the received events
         for event in events:
             self.parent.parse_event(event)
 
 
 
-class TelldusClient(Protocol):
+class TelldusOut(Protocol):
     ''' Class for outgoing Telldus commands '''
 
     noisy = False
@@ -256,35 +271,45 @@ class TelldusClient(Protocol):
     timeout = 5
 
 
+    # This object is connected when data is about to be sent and closed right after.
+    # The normal flow is:
+    #   command -> send_next() -> connectionMade() -> dataReceived()
+    #   -> disconnect() -> connectionLost() [ -> send_next() ... ]
+
     def __init__(self,parent):
+        self.state = 'init'
         self.parent = parent
-        self.connected = False
         self.queue = Queue()
         self.factory = TelldusFactory(self, self.parent)
 
 
+    def setstate(self,state,*args):
+        (old, self.state) = (self.state, state)
+        if state != old:
+            log.msg("STATE change: '%s' --> '%s'" %(old,state), system='TD/OUT')
+        self.parent.changestate(self,self.state,*args)
+
+
     def connectionMade(self):
-        #log.msg("%s connected" %(self.name), system='TD')
-        self.connected = True
+        self.setstate('connected')
         data = self.queue.active['data']
-        log.msg("     <<<  (%s)'%s'" %(len(data),data), system='TD')
+        log.msg("     <<<  (%s)'%s'" %(len(data),data), system='TD/OUT')
         self.transport.write(data)
-        self.queue.set_timeout(self.timeout, self.timedout)
 
 
     def connectionLost(self, reason):
-        #log.msg("%s connection closed" %(self.name), system='TD')
-        self.connected = False
+        self.setstate('closed', reason.getErrorMessage())
         self.send_next()
 
 
     def disconnect(self):
-        if self.connected:
+        if self.state in ('connected','active'):
             self.transport.loseConnection()
 
 
     def dataReceived(self, data):
-        log.msg("     >>>  (%s)'%s'" %(len(data),data), system='TD')
+        self.setstate('active')
+        log.msg("     >>>  (%s)'%s'" %(len(data),data), system='TD/OUT')
         (elements, data) = parsestream(data)
         #log.msg("          %s" %(elements), system='TD')
         self.disconnect()
@@ -293,20 +318,25 @@ class TelldusClient(Protocol):
 
     def command(self, cmd):
         data = generate(cmd)
-        d = self.queue.add(data=data)
+        d = self.queue.add(data=data, command=cmd)
         self.send_next()
         return d
 
 
     def send_next(self):
-        if self.queue.get_next():
-            # Connect to Telldus
+        #if self.state not in (''):
+        #    return
+
+        if self.queue.get_next() is not None:
             reactor.connectUNIX(self.path, self.factory)
+            self.queue.set_timeout(self.timeout, self.timedout)
 
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        self.queue.errback(None)
+        log.msg("Command '%s' timed out" %(self.queue.active['command'],), system='TD/OUT')
+        self.setstate('inactive')
+        self.queue.errback(TimeoutException())
         self.send_next()
 
 
@@ -323,54 +353,55 @@ class Telldus(Endpoint):
 
     def get_actions(self):
         return {
-            'td/on'  : lambda a : self.turnOn(a.args[0]),
-            'td/off' : lambda a : self.turnOff(a.args[0]),
-            'td/dim' : lambda a : self.dim(a.args[0],a.args[1]),
+            'td/state'     : lambda a : self.state,
 
-            'kino/lys/on'   : lambda a : self.turnOn(100),
-            'kino/lys/off'  : lambda a : self.turnOff(100),
-            'kino/lys/dim'  : lambda a : self.dim(100, a.args[0]),
-            'kino/tak/on'   : lambda a : self.turnOn(101),
-            'kino/tak/off'  : lambda a : self.turnOff(101),
-            'kino/tak/dim'  : lambda a : self.dim(101, a.args[0]),
-            'kino/bord/on'  : lambda a : self.turnOn(105),
-            'kino/bord/off' : lambda a : self.turnOff(105),
-            'kino/bord/dim' : lambda a : self.dim(105, a.args[0]),
-            'kino/tak-reol/on'  : lambda a : self.turnOn(104),
-            'kino/tak-reol/off' : lambda a : self.turnOff(104),
-            'kino/tak-reol/dim' : lambda a : self.dim(104, a.args[0],),
-            'kino/led/on'       : lambda a : self.turnOn(106),
-            'kino/led/off'      : lambda a : self.turnOff(106),
+            'td/on'        : lambda a : self.turnOn(a.args[0]),
+            'td/off'       : lambda a : self.turnOff(a.args[0]),
+            'td/dim'       : lambda a : self.dim(a.args[0],a.args[1]),
+
+            'lys/on'       : lambda a : self.turnOn(100),
+            'lys/off'      : lambda a : self.turnOff(100),
+            'lys/dim'      : lambda a : self.dim(100, a.args[0]),
+            'lys/tak/on'   : lambda a : self.turnOn(101),
+            'lys/tak/off'  : lambda a : self.turnOff(101),
+            'lys/tak/dim'  : lambda a : self.dim(101, a.args[0]),
+            'lys/bord/on'  : lambda a : self.turnOn(105),
+            'lys/bord/off' : lambda a : self.turnOff(105),
+            'lys/bord/dim' : lambda a : self.dim(105, a.args[0]),
+            'led/pwr/on'   : lambda a : self.turnOn(106),
+            'led/pwr/off'  : lambda a : self.turnOff(106),
         }
 
 
     # --- Initialization
     def __init__(self):
-        self.inport = TelldusEvents(self)
-        self.outport = TelldusClient(self)
+        self.inport = TelldusIn(self)
+        self.outport = TelldusOut(self)
 
     def setup(self):
-        log.msg('STARTING', system='TD')
         self.event('td/starting')
         self.inport.connect()
 
     def close(self):
-        log.msg("Close called", system='TD')
+        self.event('td/stopping')
         if self.inport:
             self.inport.disconnect()
         if self.outport:
             self.outport.disconnect()
 
 
-    # --- Protocol and factory callback points
-    def error(self, who, reason):
-        ''' Called if connections fails '''
-        log.msg("Error %s: %s" %(who,reason), system='TD')
-        self.event('td/error', who, reason)
-
-    def connected(self, who):
-        ''' Called when connection is established '''
-        self.event('td/connected')
+    # --- Notification on internal state changes
+    def changestate(self,cls,state,*args):
+        if cls == self.inport:
+            if state == 'connected':
+                self.event('td/connected')
+            elif state == 'closed':
+                self.event('td/disconnected',*args)
+            elif state == 'error':
+                self.event('td/error',*args)
+        elif cls == self.outport:
+            if state == 'error':
+                self.event('td/error',*args)
 
 
     # --- Telldus Actions
@@ -387,7 +418,7 @@ class Telldus(Endpoint):
         return self.outport.command(cmd)
 
 
-    # --- Event filter (located here to keep TelldusEvents() clean
+    # --- Event filter (located here to keep TelldusInport() clean
     def parse_event(self, event):
         cmd = event[0]
 
@@ -438,8 +469,8 @@ class Telldus(Endpoint):
                         self.event("%s{%s}" %(ev['name'],args['temp']))
                     return
 
-            # Ignore the other events
-            log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system='TD')
+        # Ignore the other events
+        log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system='TD')
 
 
 

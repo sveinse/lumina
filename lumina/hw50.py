@@ -357,10 +357,9 @@ class HW50Protocol(Protocol):
     def send_next(self):
         if self.state not in ('connected', 'active', 'inactive'):
             return
-        q = self.queue.get_next()
 
         # Send data
-        if q is not None:
+        if self.queue.get_next() is not None:
             msg = self.queue.active['data']
             log.msg("     <<<  %s - %s" %(dump(msg),dumptext(msg)), system='HW50')
             self.transport.write(str(msg))

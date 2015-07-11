@@ -157,10 +157,9 @@ class OppoProtocol(LineReceiver):
     def send_next(self):
         if self.state not in ('connected', 'active', 'inactive'):
             return
-        q = self.queue.get_next()
 
         # Send data
-        if q is not None:
+        if self.queue.get_next() is not None:
             data = self.queue.active['data']
             log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system='OPPO')
             self.transport.write(data+self.delimiter)
