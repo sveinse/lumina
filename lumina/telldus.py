@@ -78,13 +78,13 @@ eventlist = (
 
 templist = (
     # Mandolyn devices
-    dict(name='temp/ute', id=11),
-    dict(name='temp/kjeller', id=12),
+    #dict(name='temp/ute', id=11),
+    #dict(name='temp/kjeller', id=12),
 
     # Nexa/proove devices
-    dict(name='temp/fryseskap', id=247),
-    dict(name='temp/loftute', id=135),
-    dict(name='temp/kino', id=151),
+    #dict(name='temp/fryseskap', id=247),
+    #dict(name='temp/loftute', id=135),
+    #dict(name='temp/kino', id=151),
 )
 
 
@@ -353,7 +353,7 @@ class Telldus(Endpoint):
 
     def get_actions(self):
         return {
-            'td/state'     : lambda a : self.state,
+            'td/state'     : lambda a : (self.inport.state, self.outport.state),
 
             'td/on'        : lambda a : self.turnOn(a.args[0]),
             'td/off'       : lambda a : self.turnOff(a.args[0]),
@@ -468,6 +468,9 @@ class Telldus(Endpoint):
                     else:
                         self.event("%s{%s}" %(ev['name'],args['temp']))
                     return
+
+                # Not interested in logging temp events we don't subscribe to
+                return
 
         # Ignore the other events
         log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system='TD')
