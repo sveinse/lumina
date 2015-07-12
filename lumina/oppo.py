@@ -1,5 +1,6 @@
 # -*-python-*-
 import os,sys
+import traceback
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.internet.protocol import Protocol
@@ -9,16 +10,9 @@ from serial.serialutil import SerialException
 
 from endpoint import Endpoint
 from queue import Queue
+from core import CommandFailedException,NotConnectedException,TimeoutException
 
 
-class OppoException(Exception):
-    pass
-class CommandFailedException(OppoException):
-    pass
-class NotConnectedException(OppoException):
-    pass
-class TimeoutException(OppoException):
-    pass
 
 
 # Translation from Oppo commands to event commands
@@ -111,15 +105,17 @@ class OppoProtocol(LineReceiver):
 
         # Reply type (verbose and short), which is given by the second argument being OK|ER
         if len(args)>0 and args[0] in ('OK', 'ER'):
+            result = args.pop(0)
+
             if self.queue.active is None or cmd != self.queue.active['command']:
                 log.msg("Protocol error, unknown command in reply ('%s')" %(data,), system='OPPO')
                 return
 
             # Send reply back to caller
-            if args[0] == 'OK':
-                self.queue.callback(args[2:])
+            if result == 'OK':
+                self.queue.callback(args)
             else:
-                self.queue.errback(CommandFailedException(args[2:]))
+                self.queue.errback(CommandFailedException(args[0]))
             self.send_next()
             return
 
@@ -192,6 +188,7 @@ class Oppo(Endpoint):
     def get_actions(self):
         return {
             'oppo/state'   : lambda a : self.protocol.state,
+
             'oppo/raw'     : lambda a : self.protocol.command(*a.args),
             'oppo/ison'    : lambda a : self.protocol.command('QPW'),
             'oppo/play'    : lambda a : self.protocol.command('PLA'),
@@ -221,6 +218,7 @@ class Oppo(Endpoint):
                                  rtscts=0)
             self.event('oppo/starting')
         except SerialException as e:
+            log.msg(traceback.format_exc(), system='OPPO')
             self.protocol.setstate('error')
             self.event('oppo/error',e.message)
 
@@ -228,3 +226,15 @@ class Oppo(Endpoint):
         self.event('oppo/stopping')
         if self.sp:
             self.sp.loseConnection()
+
+
+    # --- Commands
+    def ison(self):
+        def _ison(result):
+            if result=='ON':
+                return 1
+            else:
+                return 0
+        d = self.protocol.command('QPW')
+        d.addCallback(_ison)
+        return d
