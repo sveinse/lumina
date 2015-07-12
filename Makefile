@@ -40,6 +40,8 @@ $(1)-stop:
 	ssh -t pi@$(1) -- /bin/sh -c '"sudo service lumina stop"'
 $(1)-start:
 	ssh -t pi@$(1) -- /bin/sh -c '"sudo service lumina start"'
+$(1)-logs:
+	ssh -t pi@$(1) -- /bin/sh -c '"tail -f /var/log/messages"'
 endef
 
 
