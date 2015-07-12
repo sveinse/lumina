@@ -133,6 +133,7 @@ STATUS_ERROR2 = 0x0125
 IRCMD  = 0x1700
 IRCMD2 = 0x1900
 IRCMD3 = 0x1B00
+IRCMD_MASK = 0xFF00
 
 IR_PWRON = IRCMD | 0x2E
 IR_PWROFF = IRCMD | 0x2F
@@ -147,7 +148,10 @@ IR_STATUSOFF = IRCMD | 0x26
 ITEMS = { STATUS_ERROR: "Status Error",
           STATUS_POWER: "Status Power",
           LAMP_TIMER: "Lamp Timer",
-          STATUS_ERROR2: "Status Error(2)",
+          STATUS_ERROR2: "Status Error2",
+          IR_PWROFF: "Power Off (IR)",
+          IR_PWRON: "Power On (IR)",
+          CALIB_PRESET: "Preset",
     }
 
 
@@ -250,7 +254,7 @@ class HW50Protocol(Protocol):
 
     def dataReceived(self, data):
         msg = bytearray(data)
-        log.msg("RAW  >>>  %s" %(dump(data)), system='HW50')
+        #log.msg("RAW  >>>  %s" %(dump(data)), system='HW50')
         self.rxbuffer += msg
 
         # Search for data frames in the incoming data buffer. Search for SOF and EOF markers.
@@ -355,17 +359,28 @@ class HW50Protocol(Protocol):
 
 
     def send_next(self):
-        if self.state not in ('connected', 'active', 'inactive'):
-            return
+        while True:
+            if self.state not in ('connected', 'active', 'inactive'):
+                return
 
-        # Send data
-        if self.queue.get_next() is not None:
-            msg = self.queue.active['data']
+            # If queue empty, simply return
+            if self.queue.get_next() is None:
+                return
+
+            active = self.queue.active
+            msg = active['data']
             log.msg("     <<<  %s - %s" %(dump(msg),dumptext(msg)), system='HW50')
             self.transport.write(str(msg))
 
-            # Set timeout
-            self.queue.set_timeout(self.timeout, self.timedout)
+            ircmd = active['item'] & IRCMD_MASK
+            if ircmd not in (IRCMD, IRCMD2, IRCMD3):
+                # All command except ircommands expects responses from HW50, so set
+                # the timer and return
+                self.queue.set_timeout(self.timeout, self.timedout)
+                return
+
+            # Immediate response back to caller
+            self.queue.callback(None)
 
 
     def timedout(self):
@@ -392,6 +407,8 @@ class Hw50(Endpoint):
     def get_actions(self):
         return {
             'hw50/state'        : lambda a : self.protocol.state,
+            'hw50/ison'         : lambda a : self.ison(),
+
             'hw50/status_error' : lambda a : self.protocol.command(STATUS_ERROR),
             'hw50/status_power' : lambda a : self.protocol.command(STATUS_POWER),
             'hw50/lamp_timer'   : lambda a : self.protocol.command(LAMP_TIMER),
@@ -421,6 +438,7 @@ class Hw50(Endpoint):
                                  rtscts=0)
             self.event('hw50/starting')
         except SerialException as e:
+            log.msg(traceback.format_exc(), system='HW50')
             self.protocol.setstate('error')
             self.event('hw50/error',e.message)
 
@@ -428,3 +446,15 @@ class Hw50(Endpoint):
         self.event('hw50/stopping')
         if self.sp:
             self.sp.loseConnection()
+
+
+    # --- Commands
+    def ison(self):
+        def _ison(result):
+            if result==STATUS_POWER_POWERON:
+                return 1
+            else:
+                return 0
+        d = self.protocol.command(STATUS_POWER)
+        d.addCallback(_ison)
+        return d
