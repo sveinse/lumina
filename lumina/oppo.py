@@ -10,8 +10,7 @@ from serial.serialutil import SerialException
 
 from endpoint import Endpoint
 from queue import Queue
-from core import CommandFailedException,NotConnectedException,TimeoutException
-
+from exceptions import *
 
 
 

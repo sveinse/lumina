@@ -9,15 +9,10 @@ from serial.serialutil import SerialException
 
 from endpoint import Endpoint
 from queue import Queue
+from exceptions import *
 
 
-class Hw50Exception(Exception):
-    pass
-class FrameException(Hw50Exception):
-    pass
-class NotConnectedException(Hw50Exception):
-    pass
-class TimeoutException(Hw50Exception):
+class FrameException(LuminaException):
     pass
 
 

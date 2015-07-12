@@ -3,14 +3,14 @@ import traceback
 
 import twisted.internet.protocol as protocol
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred,maybeDeferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from twisted.internet.task import LoopingCall
 
 from core import Event,Core
-
+from exceptions import *
 
 
 class EventProtocol(LineReceiver):
@@ -80,20 +80,11 @@ class EventProtocol(LineReceiver):
             if not fn:
                 return
 
-            # Call the action function. If a Deferred object is returned, we set to
-            # call this function when the results from the operation is ready
-            try:
-                result = fn(event)
-                if isinstance(result, Deferred):
-                    result.addCallback(self.send_reply, event)
-                    result.addErrback(self.send_error, event)
-                    return
-                else:
-                    self.send_reply(result, event)
-                    return
-            except Exception as e:
-		log.msg(traceback.format_exc(), system='CLIENT')
-                self.send_error(e, event)
+            # Call the action function and setup proper response handlers.
+            result = maybeDeferred(fn, event)
+            result.addCallback(self.send_reply, event)
+            result.addErrback(self.send_error, event)
+            return
 
 
     def keepalive(self):
@@ -124,12 +115,13 @@ class EventProtocol(LineReceiver):
         self.transport.write(reply.dump()+'\n')
 
 
-    def send_error(self, reply, request):
-        log.msg("FAIL on %s: %s" %(request.name, reply))
+    def send_error(self, failure, request):
+        failtype = failure.trap(CommandException)
+        reason = failure.value
 
-        # FIXME: Wrap local exceptions into event massages that can be transferred
-        #        over the net
-        error = Event('error',request.name,str(reply))
+        # Wrap in error Event object to be able to send back to the controller
+        # error syntax {event_name, exception_name, exception args}
+        error = Event('error',request.name,reason.__class__.__name__,*reason.args)
 
         log.msg("   <--  %s" %(error,), system='CLIENT')
         self.transport.write(error.dump()+'\n')

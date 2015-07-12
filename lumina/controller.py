@@ -4,13 +4,15 @@ from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred,maybeDeferred
 
 from core import Event,Core
+from exceptions import *
 
 
-class TimeoutException(Exception):
-    pass
+validClientExceptions = (
+    CommandFailedException,
+)
 
 
 class EventProtocol(LineReceiver):
@@ -82,56 +84,18 @@ class EventProtocol(LineReceiver):
 
         # -- Handle error to a former request
         elif event.name == 'error':
-
-            # FIXME: Make sure the Event() parser is able to produce proper failure object.
-            #        Perhaps Event() should make Exceptions upon receiving error frames
-            name = event.args[0]
-            request = self.requests[name]
-            d = request['defer']
-            request['timer'].cancel()
-            del self.requests[name]
-            d.errback(event)
+            self.error(event)
             return
 
         # -- Handle a reply to a former request
         elif event.name in self.requests:
-            request = self.requests[event.name]
-            d = request['defer']
-            request['timer'].cancel()
-            del self.requests[event.name]
-
-            # FIXME: Perhaps the payload should be a separate object(type), not the event itself?
-            d.callback(event)
+            self.response(event)
             return
 
         # -- Special @ notation which makes the controller execute the incoming data as action
         elif event.name.startswith('@'):
-
-            def raw_reply(reply,cls,event):
-                cls.transport.write(">>> %s\n" %(str(reply),))
-
-            newevent = Event(event.name[1:],*event.args,**event.kw)
-            fn = self.parent.get_actionfn(newevent.name)
-            if not fn:
-                self.transport.write('ERR: Event not found. Ignoring %s\n' %(newevent,))
-                return
-
-            try:
-                self.transport.write("<<< %s\n" %(newevent,))
-                result = fn(newevent)
-                if isinstance(result, Deferred):
-                    result.addCallback(raw_reply, self, newevent)
-                    result.addErrback(raw_reply, self, newevent)
-                    return
-                else:
-                    raw_reply(result, self, newevent)
-                    return
-            except Exception as e:
-		log.msg(traceback.format_exc(), system='CTRL')
-                raw_reply(e, self, newevent)
-
-                # You need this for debugging
-                raise
+            self.interactive(event)
+            return
 
         # -- A new incoming (async) event.
         else:
@@ -159,6 +123,62 @@ class EventProtocol(LineReceiver):
 
         # FIXME: See error handler response and make similar setup
         d.errback(TimeoutException())
+
+
+    # -- OK response handler
+    def response(self, event):
+        request = self.requests[event.name]
+        d = request['defer']
+        request['timer'].cancel()
+        del self.requests[event.name]
+
+        # FIXME: Perhaps the payload should be a separate object(type), not the event itself?
+        d.callback(event)
+
+
+    # -- ERROR response handler
+    def error(self, event):
+
+        # FIXME: Make sure the Event() parser is able to produce proper failure object.
+        #        Perhaps Event() should make Exceptions upon receiving error frames
+        failure = event.args[0]
+        request = self.requests[failure]
+        request['timer'].cancel()
+        d = request['defer']
+        del self.requests[failure]
+
+        # Parse exception types
+        ename = event.args[1]
+        eargs = event.args[2:]
+        el = [ e.__name__ for e in validClientExceptions ]
+        if ename in el:
+            ei = el.index(ename)
+            exc = validClientExceptions[ei](eargs)
+        else:
+            exc = ClientException(eargs)
+
+        d.errback(exc)
+
+
+    # -- Interactive mode (lines prefixed with '@')
+    def interactive(self, event):
+
+        def raw_reply(reply,cls,event):
+            cls.transport.write(">>> %s\n" %(str(reply),))
+        def raw_error(reply,cls,event):
+            cls.transport.write(">>> %s FAILED: %s %s\n" %(event,reply.value.__class__.__name__,str(reply.value)))
+            raise reply
+
+        newevent = Event(event.name[1:],*event.args,**event.kw)
+        fn = self.parent.get_actionfn(newevent.name)
+        if not fn:
+            self.transport.write('>>> %s ERROR: Event not found.\n' %(newevent,))
+            return
+
+        self.transport.write("<<< %s\n" %(newevent,))
+        result = maybeDeferred(fn, newevent)
+        result.addCallback(raw_reply, self, newevent)
+        result.addErrback(raw_error, self, newevent)
 
 
 

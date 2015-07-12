@@ -12,9 +12,6 @@ import re
 from types import *
 
 
-class LuminaException(Exception):
-    pass
-
 
 class Event(object):
     ''' Event object.

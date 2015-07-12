@@ -4,7 +4,7 @@
 help:
 	@grep '^\S*:' Makefile
 
-build:
+build::
 	rm -f ../lumina*.deb ../python-lumina*.deb ../lumina_*.changes
 	dpkg-buildpackage -b -uc -us
 	mv ../lumina*.deb ../python-lumina*.deb ../lumina_*.changes .
@@ -32,8 +32,10 @@ $(1)-run: $(1)-sync
 	ssh -t pi@$(1) -- /bin/sh -c '"cd /home/pi/lumina-dev/ && exec ./lumina-$(1)"'
 $(1)-build: $(1)-sync
 	ssh -t pi@$(1) -- /bin/sh -c '"cd /home/pi/lumina-dev/ && make build"'
-$(1)-install: $(1)-build
+$(1)-install: $(1)-sync $(1)-build
 	ssh -t pi@$(1) -- /bin/sh -c '"cd /home/pi/lumina-dev/ && sudo dpkg -i lumina-$(1)_*.deb python-lumina_*.deb"'
+$(1)-distclean: $(1)-sync
+	ssh -t pi@$(1) -- /bin/sh -c '"cd /home/pi/lumina-dev/ && make distclean"'
 $(1)-stop:
 	ssh -t pi@$(1) -- /bin/sh -c '"sudo service lumina stop"'
 $(1)-start:

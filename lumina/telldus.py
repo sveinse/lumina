@@ -8,16 +8,8 @@ from twisted.internet.defer import Deferred
 
 from endpoint import Endpoint
 from queue import Queue
+from exceptions import *
 
-
-class TelldusException(Exception):
-    pass
-class FrameException(TelldusException):
-    pass
-class NotConnectedException(TelldusException):
-    pass
-class TimeoutException(TelldusException):
-    pass
 
 
 # Can be tested with
