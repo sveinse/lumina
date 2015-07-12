@@ -111,7 +111,7 @@ class OppoProtocol(LineReceiver):
 
         # Reply type (verbose and short), which is given by the second argument being OK|ER
         if len(args)>0 and args[0] in ('OK', 'ER'):
-            if cmd != self.queue.active['command']:
+            if self.queue.active is None or cmd != self.queue.active['command']:
                 log.msg("Protocol error, unknown command in reply ('%s')" %(data,), system='OPPO')
                 return
 

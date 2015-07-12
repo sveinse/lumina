@@ -1,4 +1,5 @@
 import os,sys
+import traceback
 
 import twisted.internet.protocol as protocol
 from twisted.internet import reactor
@@ -91,6 +92,7 @@ class EventProtocol(LineReceiver):
                     self.send_reply(result, event)
                     return
             except Exception as e:
+		traceback.print_exc()
                 self.send_error(e, event)
 
 
