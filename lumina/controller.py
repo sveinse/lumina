@@ -1,5 +1,5 @@
-import os,sys,re
-
+import os,sys
+import traceback
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
@@ -113,7 +113,7 @@ class EventProtocol(LineReceiver):
             newevent = Event(event.name[1:],*event.args,**event.kw)
             fn = self.parent.get_actionfn(newevent.name)
             if not fn:
-                self.transport.write('ERR: Event not found. Ignoring %s\n',newevent)
+                self.transport.write('ERR: Event not found. Ignoring %s\n' %(newevent,))
                 return
 
             try:
@@ -127,6 +127,7 @@ class EventProtocol(LineReceiver):
                     raw_reply(result, self, newevent)
                     return
             except Exception as e:
+		log.msg(traceback.format_exc(), system='CTRL')
                 raw_reply(e, self, newevent)
 
                 # You need this for debugging
@@ -153,7 +154,7 @@ class EventProtocol(LineReceiver):
     def timedout(self, event):
         log.msg('   -->  TIMEOUT %s' %(event,), system=self.name)
         request = self.requests[event.name]
-        d = p['defer']
+        d = request['defer']
         del self.requests[event.name]
 
         # FIXME: See error handler response and make similar setup

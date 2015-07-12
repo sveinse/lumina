@@ -92,7 +92,7 @@ class EventProtocol(LineReceiver):
                     self.send_reply(result, event)
                     return
             except Exception as e:
-		traceback.print_exc()
+		log.msg(traceback.format_exc(), system='CLIENT')
                 self.send_error(e, event)
 
 
@@ -107,7 +107,7 @@ class EventProtocol(LineReceiver):
 
 
     def send_reply(self, reply, request):
-        log.msg("REPLY to %s: %s" %(request.name, reply))
+        #log.msg("REPLY to %s: %s" %(request.name, reply))
 
         # Wrap common reply type into Event object that can be transferred
         # to the server.
