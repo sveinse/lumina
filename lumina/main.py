@@ -100,6 +100,7 @@ def client_lys():
     from telldus import Telldus
     from oppo import Oppo
     from demo import Demo
+    from yamaha import Yamaha
 
     # Main controller
     controller = Client(host='localhost',port=8081,name='LYS')
@@ -108,6 +109,7 @@ def client_lys():
     # System Functions
     register(controller, Telldus())
     register(controller, Oppo('/dev/ttyUSB0'))
+    #register(controller, Yamaha('192.168.234.20'))
 
 
 
@@ -141,9 +143,10 @@ def test():
     from logic import Logic
     from telldus import Telldus
     from demo import Demo
+    from yamaha import Yamaha
 
     # Main controller
-    if True:
+    if False:
         controller = Controller(port=8081)
         controller.setup()
 
@@ -153,14 +156,20 @@ def test():
         #controller.add_jobs(logic.jobs)
 
         #register(controller, Demo())
+        register(controller, Yamaha('192.168.234.20'))
 
     # Main client
-    if True:
+    if False:
         controller = Client(host='localhost',port=8081,name='test')
         controller.setup()
 
-        register(controller, Demo())
+        #register(controller, Demo())
+        register(controller, Yamaha('192.168.234.20'))
 
+    if True:
+        y = Yamaha('192.168.234.20')
+        y.setup()
+        y.protocol.command()
 
 
 
