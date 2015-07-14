@@ -219,6 +219,7 @@ def dumptext(data):
 
 class HW50Protocol(Protocol):
     timeout = 3
+    system = 'HW50'
 
     def __init__(self,parent):
         self.state = 'init'
@@ -230,7 +231,7 @@ class HW50Protocol(Protocol):
     def setstate(self,state):
         (old, self.state) = (self.state, state)
         if state != old:
-            log.msg("STATE change: '%s' --> '%s'" %(old,state), system='HW50')
+            log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
 
 
     def connectionMade(self):
@@ -249,7 +250,7 @@ class HW50Protocol(Protocol):
 
     def dataReceived(self, data):
         msg = bytearray(data)
-        #log.msg("RAW  >>>  %s" %(dump(data)), system='HW50')
+        #log.msg("RAW  >>>  %s" %(dump(data)), system=self.system)
         self.rxbuffer += msg
 
         # Search for data frames in the incoming data buffer. Search for SOF and EOF markers.
@@ -263,13 +264,13 @@ class HW50Protocol(Protocol):
                 try:
                     # Decode the response-frame
                     frame = buffer[x:x+FRAMESIZE]
-                    log.msg("     >>>  %s - %s" %(dump(frame),dumptext(frame)), system='HW50')
+                    log.msg("     >>>  %s - %s" %(dump(frame),dumptext(frame)), system=self.system)
                     (item,cmd,data) = self.decode(frame)
 
                 except FrameException as e:
 
                     # Frame decode fails, do iteration
-                    log.msg("Decode failure: %s" %(e), system='HW50')
+                    log.msg("Decode failure: %s" %(e), system=self.system)
                     continue
 
                 # Consume all data up until the frame (including pre-junk) and save the data
@@ -277,18 +278,21 @@ class HW50Protocol(Protocol):
                 self.rxbuffer = buffer[x+FRAMESIZE:]
                 if x > 0 or len(self.rxbuffer) > 0:
                     log.msg("Discard junk in data, '%s' before, '%s' after" %(dump(buffer[:x]),dump(self.rxbuffer)),
-                            system='HW50')
+                            system=self.system)
 
                 # From here on, consider this a valid frame
                 self.setstate('active')
 
                 # Process the frame here...
                 if self.queue.active:
-                    self.queue.callback(data)
+                    if cmd == ACK_OK:
+                        self.queue.callback(data)
+                    else:
+                        self.queue.errback(CommandFailedException(RESPONSES.get(item,item)))
                     self.send_next()
                     return
 
-                log.msg("-IGNORED-", system='HW50')
+                log.msg("-IGNORED-", system=self.system)
                 return
 
 
@@ -364,7 +368,7 @@ class HW50Protocol(Protocol):
 
             active = self.queue.active
             msg = active['data']
-            log.msg("     <<<  %s - %s" %(dump(msg),dumptext(msg)), system='HW50')
+            log.msg("     <<<  %s - %s" %(dump(msg),dumptext(msg)), system=self.system)
             self.transport.write(str(msg))
 
             ircmd = active['item'] & IRCMD_MASK
@@ -380,7 +384,7 @@ class HW50Protocol(Protocol):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        log.msg("Command '%s' timed out" %(self.queue.active['item'],), system='HW50')
+        log.msg("Command '%s' timed out" %(self.queue.active['item'],), system=self.system)
         self.setstate('inactive')
         self.queue.errback(TimeoutException())
         self.send_next()
@@ -388,6 +392,7 @@ class HW50Protocol(Protocol):
 
 
 class Hw50(Endpoint):
+    system = 'HW50'
 
     # --- Interfaces
     def get_events(self):
@@ -403,6 +408,8 @@ class Hw50(Endpoint):
         return {
             'hw50/state'        : lambda a : self.protocol.state,
             'hw50/ison'         : lambda a : self.ison(),
+
+            'hw50/raw'          : lambda a : self.protocol.command(int(a.args[0],16),int(a.args[1],16),int(a.args[2],16)),
 
             'hw50/status_error' : lambda a : self.protocol.command(STATUS_ERROR),
             'hw50/status_power' : lambda a : self.protocol.command(STATUS_POWER),
@@ -433,7 +440,7 @@ class Hw50(Endpoint):
                                  rtscts=0)
             self.event('hw50/starting')
         except SerialException as e:
-            log.msg(traceback.format_exc(), system='HW50')
+            log.msg(traceback.format_exc(), system=self.system)
             self.protocol.setstate('error')
             self.event('hw50/error',e.message)
 
