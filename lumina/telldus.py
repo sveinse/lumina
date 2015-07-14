@@ -376,13 +376,11 @@ class Telldus(Endpoint):
 
     def close(self):
         self.event('td/stopping')
-        if self.inport:
-            self.inport.disconnect()
-        if self.outport:
-            self.outport.disconnect()
+        self.inport.disconnect()
+        self.outport.disconnect()
 
 
-    # --- Notification on internal state changes
+    # --- Callbacks
     def changestate(self,cls,state,*args):
         if cls == self.inport:
             if state == 'connected':
@@ -396,7 +394,7 @@ class Telldus(Endpoint):
                 self.event('td/error',*args)
 
 
-    # --- Telldus Actions
+    # --- Commands
     def turnOn(self,num):
         cmd = ( 'tdTurnOn', num )
         return self.outport.command(cmd)

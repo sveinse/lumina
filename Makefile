@@ -30,6 +30,8 @@ $(1)-sync:
 	rsync -av --del -e ssh ./ pi@$(1):/home/pi/lumina-dev/ --exclude="/debian/lumina" --exclude="/build" --exclude="/lumina.egg-info" --exclude="*.pyc"
 $(1)-run: $(1)-sync
 	ssh -t pi@$(1) -- /bin/sh -c '"cd /home/pi/lumina-dev/ && exec ./lumina-$(1)"'
+$(1)-test: $(1)-sync
+	ssh -t pi@$(1) -- /bin/sh -c '"cd /home/pi/lumina-dev/ && exec ./lumina-test"'
 $(1)-build: $(1)-sync
 	ssh -t pi@$(1) -- /bin/sh -c '"cd /home/pi/lumina-dev/ && make build"'
 $(1)-install: $(1)-sync $(1)-build

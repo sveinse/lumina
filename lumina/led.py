@@ -8,10 +8,13 @@ from twisted.python import log
 
 class Led(Endpoint):
     universe = 0
+    system = 'LED'
 
+    # --- Interfaces
     def get_actions(self):
         return {
             'led/state'   : lambda a : self.state,
+
             'led/off'     : lambda a : self.command(0,0,0,0),
             'led/white'   : lambda a : self.command(0,0,0,255),
             'led/blue'    : lambda a : self.command(0,0,255,0),
@@ -21,11 +24,15 @@ class Led(Endpoint):
 
     # --- Initialization
     def __init__(self):
+        self.state = 'init'
+
+    def setup(self):
         self.dmx = OlaClient()
-        self.state = 'active'
-        log.msg("STATE change: '%s'" %(self.state,), system='LED')
+        (old, self.state) = (self.state, 'active')
+        log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
 
 
+    # --- Commands
     def command(self,r,g,b,w):
         data = array.array('B')
         data.append(int(r))

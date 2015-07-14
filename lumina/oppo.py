@@ -32,6 +32,7 @@ eventlist = (
 class OppoProtocol(LineReceiver):
     delimiter = '\x0d'
     timeout = 10
+    system = 'OPPO'
 
     def __init__(self,parent):
         self.state = 'init'
@@ -42,7 +43,7 @@ class OppoProtocol(LineReceiver):
     def setstate(self,state):
         (old, self.state) = (self.state, state)
         if state != old:
-            log.msg("STATE change: '%s' --> '%s'" %(old,state), system='OPPO')
+            log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
 
 
     def connectionMade(self):
@@ -60,7 +61,7 @@ class OppoProtocol(LineReceiver):
 
 
     def lineReceived(self, data):
-        log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system='OPPO')
+        log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system=self.system)
 
         # Oppo has three incoming message formats:
         #    Short reply:    @(OK|ER) [ARG1 [...]]
@@ -69,14 +70,14 @@ class OppoProtocol(LineReceiver):
 
         # Parse line (skip any chars before '@', but not allow any more after it)
         if '@' not in data:
-            log.msg("Frame error, ignoring junk ('%s')" %(data,), system='OPPO')
+            log.msg("Frame error, ignoring junk ('%s')" %(data,), system=self.system)
             return
         data = data[data.find('@'):]
         if '@' in data[1:]:
-            log.msg("Frame error, illegal chars ('%s')" %(data,), system='OPPO')
+            log.msg("Frame error, illegal chars ('%s')" %(data,), system=self.system)
             return
         if len(data) > 25:
-            log.msg("Frame error, line too long ('%s')" %(data,), system='OPPO')
+            log.msg("Frame error, line too long ('%s')" %(data,), system=self.system)
             return
 
         # Split line by spaces. args will be at least one element long
@@ -84,19 +85,19 @@ class OppoProtocol(LineReceiver):
 
         # Log command, but omit logging certain verbose events
         #if args[0] not in ('UTC', ):
-        #    log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system='OPPO')
+        #    log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system=self.system)
 
         # Short message format? Implies a reply type by design. Make it into a verbose reply
         if args[0] in ('OK', 'ER'):
             if not self.queue.active:
-                log.msg("Protocol error. Reply to unknown command ('%s')" %(data,), system='OPPO')
+                log.msg("Protocol error. Reply to unknown command ('%s')" %(data,), system=self.system)
                 return
             args.insert(0,self.queue.active['command'])
 
         # Extract command
         cmd = args.pop(0)
         if len(cmd) != 3:
-            log.msg("Protocol error, invalid length on command ('%s')" %(data,), system='OPPO')
+            log.msg("Protocol error, invalid length on command ('%s')" %(data,), system=self.system)
             return
 
         # From here on, consider this a valid frame and thus an active connection
@@ -107,7 +108,7 @@ class OppoProtocol(LineReceiver):
             result = args.pop(0)
 
             if self.queue.active is None or cmd != self.queue.active['command']:
-                log.msg("Protocol error, unknown command in reply ('%s')" %(data,), system='OPPO')
+                log.msg("Protocol error, unknown command in reply ('%s')" %(data,), system=self.system)
                 return
 
             # Send reply back to caller
@@ -133,7 +134,7 @@ class OppoProtocol(LineReceiver):
             return
 
         # Not interested in the received message
-        log.msg("-IGNORED-", system='OPPO')
+        log.msg("-IGNORED-", system=self.system)
 
 
     def command(self, command, *args):
@@ -156,7 +157,7 @@ class OppoProtocol(LineReceiver):
         # Send data
         if self.queue.get_next() is not None:
             data = self.queue.active['data']
-            log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system='OPPO')
+            log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
             self.transport.write(data+self.delimiter)
 
             # Set timeout
@@ -165,7 +166,7 @@ class OppoProtocol(LineReceiver):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        log.msg("Command '%s' timed out" %(self.queue.active['command'],), system='OPPO')
+        log.msg("Command '%s' timed out" %(self.queue.active['command'],), system=self.system)
         self.setstate('inactive')
         self.queue.errback(TimeoutException())
         self.send_next()
@@ -173,6 +174,7 @@ class OppoProtocol(LineReceiver):
 
 
 class Oppo(Endpoint):
+    system = 'OPPO'
 
     # --- Interfaces
     def get_events(self):
@@ -187,9 +189,10 @@ class Oppo(Endpoint):
     def get_actions(self):
         return {
             'oppo/state'   : lambda a : self.protocol.state,
+            'oppo/ison'    : lambda a : self.protocol.command('QPW'),
 
             'oppo/raw'     : lambda a : self.protocol.command(*a.args),
-            'oppo/ison'    : lambda a : self.protocol.command('QPW'),
+
             'oppo/play'    : lambda a : self.protocol.command('PLA'),
             'oppo/pause'   : lambda a : self.protocol.command('PAU'),
             'oppo/stop'    : lambda a : self.protocol.command('STP'),
@@ -217,7 +220,7 @@ class Oppo(Endpoint):
                                  rtscts=0)
             self.event('oppo/starting')
         except SerialException as e:
-            log.msg(traceback.format_exc(), system='OPPO')
+            log.msg(traceback.format_exc(), system=self.system)
             self.protocol.setstate('error')
             self.event('oppo/error',e.message)
 
