@@ -1,5 +1,5 @@
 # -*-python-*-
-import os,sys
+import os,sys,re
 import traceback
 
 from twisted.internet import reactor
@@ -124,6 +124,7 @@ class YamahaProtocol(Protocol):
         data = 'POST /YamahaRemoteControl/ctrl HTTP/1.1\r\nHost: %s\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Length: %s\r\n\r\n%s' %(myip,len(body),body)
         log.msg("     <<<  (%s)'%s'" %(len(data),data), system=self.system)
         self.data = ''
+        self.dstate = 'html'
         self.transport.write(data)
 
 
@@ -141,6 +142,29 @@ class YamahaProtocol(Protocol):
         self.setstate('active')
         self.data += data
         log.msg("     >>>  (%s)'%s'" %(len(data),data), system=self.system)
+
+        for line in self.data.split('\r\n'):
+
+            # First line
+            if self.dstate == 'html':
+                print line
+                m = re.search('HTTP/\S+ (\d+) (.*)', line)
+                if not m:
+                    raise Exception("Malformed HTML header")
+                self.htmlerr = int(m.group(1))
+                self.htmltxt = m.group(2)
+                self.dstate = 'header'
+
+            # Header
+            elif self.dstate == 'header':
+
+                if len(line) == 0:
+                    self.dstate = 'body'
+                m = re.search('\s*(\S+)\s*:\s*(.*)\s*', line)
+                if not m:
+                    raise Exception("Malformed HTML header")
+                print "'%s' = '%s'" %(m.group(1),m.group(2))
+
         # Process data
         #self.disconnect()
         #self.queue.callback(elements)
@@ -148,7 +172,7 @@ class YamahaProtocol(Protocol):
 
     def command(self):
         body = '<?xml version="1.0" encoding="utf-8"?><YAMAHA_AV cmd="GET"><Main_Zone><Volume><Lvl>GetParam</Lvl></Volume></Main_Zone></YAMAHA_AV>'
-        body = '<?xml version="1.0" encoding="utf-8"?><YAMAHA_AV cmd="GET"><System><Speaker_Preout><Pattern_2><PEQ><Manual_Data><Front_L>GetParam</Front_L></Manual_Data></PEQ></Pattern_2></Speaker_Preout></System></YAMAHA_AV>'
+        body = '<?xml version="1.0" encoding="utf-8"?><YAMAHA_AV cmd="GET"><System><Speaker_Preout><Pattern_2><PEQ><Manual_Data><Front_L>GetParam</Front_L></Manual_Data></PEQ></Pattern_23></Speaker_Preout></System></YAMAHA_AV>'
         d = self.queue.add(body=body)
         self.send_next()
         return d
