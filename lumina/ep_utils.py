@@ -10,14 +10,13 @@ from endpoint import Endpoint
 class Utils(Endpoint):
 
     # --- Interfaces
-    def get_events(self):
-        return [
+    def register(self):
+        self.events = [
             'starting',
             'stopping'
         ]
 
-    def get_actions(self):
-        return {
+        self.commands = {
             'delay' : lambda a : self.delay(a.args[0]),
             'stop'  : lambda a : self.stop(),
             'log'   : lambda a : self.log(*a.args,**a.kw),

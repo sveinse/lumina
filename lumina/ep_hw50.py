@@ -187,6 +187,13 @@ STATUS_ERROR2_HIGHLAND = 0x0020
 
 
 
+def ison(result):
+    if result==STATUS_POWER_POWERON:
+        return 1
+    else:
+        return 0
+
+
 def dump(data):
     ''' Return a printout string of data '''
     msg = bytearray(data)
@@ -394,9 +401,10 @@ class HW50Protocol(Protocol):
 class Hw50(Endpoint):
     system = 'HW50'
 
+
     # --- Interfaces
-    def get_events(self):
-        return [
+    def register(self):
+        self.events = [
             'hw50/starting',
             'hw50/stopping',
             'hw50/connected',
@@ -404,21 +412,22 @@ class Hw50(Endpoint):
             'hw50/error',
         ]
 
-    def get_actions(self):
-        return {
+        self.commands = {
             'hw50/state'        : lambda a : self.protocol.state,
-            'hw50/ison'         : lambda a : self.ison(),
 
-            'hw50/raw'          : lambda a : self.protocol.command(int(a.args[0],16),int(a.args[1],16),int(a.args[2],16)),
+            'hw50/raw'          : lambda a : self.c(
+                int(a.args[0],16),int(a.args[1],16),int(a.args[2],16)),
 
-            'hw50/status_error' : lambda a : self.protocol.command(STATUS_ERROR),
-            'hw50/status_power' : lambda a : self.protocol.command(STATUS_POWER),
-            'hw50/lamp_timer'   : lambda a : self.protocol.command(LAMP_TIMER),
-            'hw50/off'          : lambda a : self.protocol.command(IR_PWROFF,cmd=SET_RQ),
-            'hw50/on'           : lambda a : self.protocol.command(IR_PWRON,cmd=SET_RQ),
-            'hw50/preset/film1' : lambda a : self.protocol.command(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA1),
-            'hw50/preset/film2' : lambda a : self.protocol.command(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA2),
-            'hw50/preset/tv'    : lambda a : self.protocol.command(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_TV),
+            'hw50/ison'         : lambda a : self.c(STATUS_POWER).addCallback(ison),
+
+            'hw50/status_error' : lambda a : self.c(STATUS_ERROR),
+            'hw50/status_power' : lambda a : self.c(STATUS_POWER),
+            'hw50/lamp_timer'   : lambda a : self.c(LAMP_TIMER),
+            'hw50/off'          : lambda a : self.c(IR_PWROFF,cmd=SET_RQ),
+            'hw50/on'           : lambda a : self.c(IR_PWRON,cmd=SET_RQ),
+            'hw50/preset/film1' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA1),
+            'hw50/preset/film2' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA2),
+            'hw50/preset/tv'    : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_TV),
         }
 
 
@@ -450,13 +459,9 @@ class Hw50(Endpoint):
             self.sp.loseConnection()
 
 
+    # --- Convenience
+    def c(self,*args,**kw):
+        self.protocol.command(*args,**kw)
+
+
     # --- Commands
-    def ison(self):
-        def _ison(result):
-            if result==STATUS_POWER_POWERON:
-                return 1
-            else:
-                return 0
-        d = self.protocol.command(STATUS_POWER)
-        d.addCallback(_ison)
-        return d

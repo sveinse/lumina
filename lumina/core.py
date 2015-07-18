@@ -1,3 +1,4 @@
+# -*- python -*-
 #
 # 2015.04.05
 # Notater:
@@ -6,68 +7,10 @@
 #
 from twisted.internet.defer import Deferred
 from twisted.python import log
-#from callback import Callback
-#from job import Event, Action, Job
-import re
+
 from types import *
 
-
-
-class Event(object):
-    ''' Event object.
-           event = Event(name,*args,**kw)
-
-        Event name text syntax:
-           'foo'
-           'bar{1,2}'
-           'nul{arg1=foo,arg2=bar}'
-           'nul{arg1=foo,arg2=bar,5}'
-    '''
-    def __init__(self, name=None, *args, **kw):
-        self.name = name
-        self.args = args[:]
-        self.kw = kw.copy()
-
-
-    def __repr__(self):
-        (s,t) = ([str(a) for a in self.args],'')
-        for (k,v) in self.kw.items():
-            s.append("%s=%s" %(k,v))
-        if s:
-            t=' {' + ','.join(s) + '}'
-        return "<EV:%s%s>" %(self.name,t)
-
-
-    def dump(self):
-        (s,t) = ([str(a) for a in self.args],'')
-        for (k,v) in self.kw.items():
-            s.append("%s=%s" %(k,v))
-        if s:
-            t='{' + ','.join(s) + '}'
-        return "%s%s" %(self.name,t)
-
-
-    def parse(self, name, *args, **kw):
-        m = re.match(r'^([^{}]+)({(.*)})?$', name)
-        if not m:
-            raise SyntaxError("Invalid syntax '%s'" %(name))
-        self.name = m.group(1)
-        self.args = []
-        self.kw = {}
-        opts = m.group(3)
-        if opts:
-            for arg in opts.split(','):
-                if '=' in arg:
-                    k = arg.split('=')
-                    self.kw[k[0]] = k[1]
-                else:
-                    self.args.append(arg)
-        # Update optional variable arguments from constructor. Append the args, and update
-        # the kw args. This will override any colliding kw options that might have been present
-        # in the text string.
-        self.args += args
-        self.kw.update(kw)
-        return self
+from event import Event
 
 
 # FIXME: Do we still need this class?
@@ -105,11 +48,12 @@ class Action(Event):
         return result
 
 
-
+# FIXME: Do we still need this class?
 class JobBase(object):
     pass
 
 
+# FIXME: Do we still need this class?
 class Job(JobBase):
     ''' Job collection class. Accepts a list of actions to execute. '''
 
@@ -174,6 +118,7 @@ class Job(JobBase):
 
 
 
+# FIXME: Do we still need this class?
 class JobFn(JobBase):
     ''' Job collection class for running a generator function. '''
 
@@ -246,19 +191,22 @@ class Core(object):
 
     def __init__(self):
         self.events = []
-        self.actions = {}
+        self.commands = {}
         self.jobs = {}
 
         # Job handler
         self.queue = []
         self.currentjob = None
         self.inprogress = False
-        self.currentaction = None
+        self.currentcommand = None
 
 
     # --- EVENTS
     def add_events(self,events):
         ''' Add to the list of known events'''
+
+        if isinstance(events, dict):
+            events=events.keys()
 
         log.msg("Registering events: %s" %(tuple(events),), system='CORE')
         for name in events:
@@ -276,34 +224,35 @@ class Core(object):
             self.events.remove(name)
 
 
-    # --- ACTIONS
-    def add_actions(self,actions):
-        ''' Add to the dict of known action and register their callback fns '''
+    # --- COMMANDS
+    def add_commands(self, commands):
+        ''' Add to the dict of known commands and register their callback fns '''
 
-        log.msg("Registering actions: %s" %(tuple(actions.keys()),), system='CORE')
-        for (name,fn) in actions.items():
-            if name in self.actions:
-                raise TypeError("Action '%s' already exists" %(name))
-            self.actions[name] = fn
+        log.msg("Registering commands: %s" %(tuple(commands.keys()),), system='CORE')
+        for (name,fn) in commands.items():
+            if name in self.commands:
+                raise TypeError("Command '%s' already exists" %(name))
+            self.commands[name] = fn
 
-    def remove_actions(self, actions):
-        ''' Add to the dict of known action and register their callback fns '''
+    def remove_commands(self, commands):
+        ''' Remove from the dict of known commands '''
 
-        log.msg("De-registering actions: %s" %(tuple(actions),), system='CORE')
-        for name in actions:
-            if name not in self.actions:
-                raise TypeError("Unknown action '%s'" %(name))
-            del self.actions[name]
+        log.msg("De-registering commands: %s" %(tuple(commands),), system='CORE')
+        for name in commands:
+            if name not in self.commands:
+                raise TypeError("Unknown command '%s'" %(name))
+            del self.commands[name]
 
-    def get_actionfn(self, action):
-        ''' Get the action handler function '''
+    def get_commandfn(self, command):
+        ''' Get the command handler function '''
 
-        # Known action?
-        if action not in self.actions:
-            log.msg("Unknown action '%s', ignoring" %(action), system='CLIENT')
-            return None
+        fn = self.commands.get(command)
 
-        return self.actions[action]
+        # Known command?
+        if fn is None:
+            log.msg("Unknown command '%s', ignoring" %(command), system='CORE')
+
+        return fn
 
 
     # --- JOBS
@@ -311,15 +260,15 @@ class Core(object):
         ''' Add list of jobs '''
 
         log.msg("Registering handlers for events: %s" %(tuple(jobs.keys()),), system='CORE')
-        for (name,actions) in jobs.items():
+        for (name,commands) in jobs.items():
             if name in self.jobs:
                 raise TypeError("Job '%s' already exists" %(name))
 
             # This is done to allow job lists to be specified as text lists or lists
-            if isinstance(actions, JobBase):
-                job = actions
+            if isinstance(commands, JobBase):
+                job = commands
             else:
-                job = Job( actions )
+                job = Job( commands )
             self.jobs[name] = job
 
 
@@ -361,13 +310,13 @@ class Core(object):
 
                 # Start the job by getting the next object's iterator instance
                 self.currentjob = self.queue.pop(0).__iter__()
-                self.currentaction = None
+                self.currentcommand = None
 
             try:
                 # Save the previous result (JobFn needs this for yield/send)
                 prevresult = None
-                if self.currentaction:
-                    prevresult = self.currentaction.result
+                if self.currentcommand:
+                    prevresult = self.currentcommand.result
                 self.currentjob.prevresult = prevresult
 
                 # Get the next action object
@@ -375,10 +324,10 @@ class Core(object):
                 action = None
                 if name:
                     action = Action().parse(name)
-                    action.fn = self.get_actionfn(action.name)
+                    action.fn = self.get_commandfn(action.name)
                     if action.fn is None:
                         action = None
-                self.currentaction = action
+                self.currentcommand = action
 
                 # Execute the given action object (if valid)
                 if action:
@@ -398,131 +347,5 @@ class Core(object):
                 # This will cause the function to evaluate the queue and start over if more
                 # to do.
                 self.currentjob = None
-                self.currentaction = None
+                self.currentcommand = None
                 log.msg("   -- DONE", system='CORE')
-
-
-
-
-################################################################
-#
-#  TESTING
-#
-################################################################
-if __name__ == "__main__":
-
-    # -----------------------------------------------
-    def test_core():
-        from twisted.internet import reactor
-        from twisted.internet import task
-        from twisted.python import log, syslog
-        import sys
-
-
-        log.startLogging(sys.stdout)
-
-        def later(args):
-            d = 'LATER'
-            args.callback('REPLY')
-
-        def fa_done(args):
-            d = 'DONE'
-            print "\t\tFA DONE: ",args,d
-            return d
-
-        def fa(args):
-            # Create a deferred response which will occur 0.2 seconds later
-            print "\t\tFA DFER: ",args
-            d = Deferred()
-            d.addCallback(fa_done)
-            task.deferLater(reactor, 0.2, later, d)
-            return d
-
-        def fb(args):
-            # Reply immediately
-            d = 'NOW'
-            print "\t\tFB DONE: ",args,d
-            return d
-
-        def fc(args):
-            # Reply immediately
-            d = 'OK'
-            print "\t\tFC DONE: ",args,args.event,d
-            return d
-
-        def gen():
-            print "GEN PRE"
-            result = yield 'fa'
-            print "GEN STEP1=%s" %(result,)
-            if result:
-                print "GEN STEP2"
-                result = yield 'fb{12}'
-                print "GEN STEP3=%s" %(result,)
-                yield 'fa'
-                print "GEN STEP4=%s" %(result,)
-            print "GEN DONE"
-
-        def gen2():
-            print "GEN2 PRE"
-            result = yield 'fa'
-            print "GEN2 STEP1=%s" %(result,)
-            result = yield Job( ('fa','fa') )
-            print "GEN DONE=%s" %(result)
-
-        c = Core()
-
-        # Register name of events
-        c.add_events( ( 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm' ) )
-
-        # Register actions and their handlers
-        c.add_actions( {
-            'fa': fa,
-            'fb': fb,
-            'fc': fc,
-        } )
-
-        ja = Job( ('fb','fb','fa'), name='h-rule' )
-        jf = JobFn( gen, name='i')
-
-        # Register jobs
-        c.add_jobs( {
-            'a' : 'fa',           # Test deferred handling
-            'b' : 'fb',           # Test non-deferred handling
-            'c' : None,           # Test empty rule
-            'd' : tuple(),        # Test other empty rule
-            'e' : ('fa', ),       # Testing list
-            'f' : ('fa', 'fb'),   # Testing list2
-            'g' : ('fa', 'fa'),   # Testing list3 (two deferreds)
-            'h' : ('fb{42}'),     # Testing args in jobs
-            'i' : ('fc'),         # Testing args in event
-            'j' : ja,             # Testing Job() types
-            'k' : jf,             # Testing generators
-            'l' : Job( ('fa',ja,ja,jf), name='j'),   # Testing recursive jobs
-            'm' : JobFn( gen2 ),  # Testing JobFn() yielding Job()s
-        } )
-        testlist = ( 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i{12,arg=34}', 'j', 'k', 'l', 'm' )
-
-
-        def start(fn):
-            print "\n\t\t\t\t** START **", fn
-            c.handle_event(fn)
-        def stop():
-            reactor.stop()
-
-        t = 1
-        for test in testlist:
-            task.deferLater(reactor, t, start, test)
-            t += 1.5
-        task.deferLater(reactor, t, stop)
-
-        print c.events
-        print c.actions
-        print c.jobs
-
-        reactor.run()
-
-
-    test_core()
-
-    import sys
-    sys.exit(0)

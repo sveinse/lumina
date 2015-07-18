@@ -20,64 +20,6 @@ from exceptions import *
 #     socat UNIX-connect:/tmp/TelldusEvents -
 #     socat UNIX-connect:/tmp/TelldusClient -
 
-# NOTE: The list of td actions is listed under get_action(), around line 392
-
-eventlist = (
-    # Remote control
-    dict(name='remote/g/on',  house=14244686, group=1, unit=1, method='turnon'),
-    dict(name='remote/g/off', house=14244686, group=1, unit=1, method='turnoff'),
-    dict(name='remote/1/on',  house=14244686, group=0, unit=1, method='turnon'),
-    dict(name='remote/1/off', house=14244686, group=0, unit=1, method='turnoff'),
-    dict(name='remote/2/on',  house=14244686, group=0, unit=2, method='turnon'),
-    dict(name='remote/2/off', house=14244686, group=0, unit=2, method='turnoff'),
-    dict(name='remote/3/on',  house=14244686, group=0, unit=3, method='turnon'),
-    dict(name='remote/3/off', house=14244686, group=0, unit=3, method='turnoff'),
-    dict(name='remote/4/on',  house=14244686, group=0, unit=4, method='turnon'),
-    dict(name='remote/4/off', house=14244686, group=0, unit=4, method='turnoff'),
-    dict(name='remote/5/on',  house=14244686, group=0, unit=5, method='turnon'),
-    dict(name='remote/5/off', house=14244686, group=0, unit=5, method='turnoff'),
-    dict(name='remote/6/on',  house=14244686, group=0, unit=6, method='turnon'),
-    dict(name='remote/6/off', house=14244686, group=0, unit=6, method='turnoff'),
-    dict(name='remote/7/on',  house=14244686, group=0, unit=7, method='turnon'),
-    dict(name='remote/7/off', house=14244686, group=0, unit=7, method='turnoff'),
-    dict(name='remote/8/on',  house=14244686, group=0, unit=8, method='turnon'),
-    dict(name='remote/8/off', house=14244686, group=0, unit=8, method='turnoff'),
-    dict(name='remote/9/on',  house=14244686, group=0, unit=9, method='turnon'),
-    dict(name='remote/9/off', house=14244686, group=0, unit=9, method='turnoff'),
-    dict(name='remote/10/on',  house=14244686, group=0, unit=10, method='turnon'),
-    dict(name='remote/10/off', house=14244686, group=0, unit=10, method='turnoff'),
-    dict(name='remote/11/on',  house=14244686, group=0, unit=11, method='turnon'),
-    dict(name='remote/11/off', house=14244686, group=0, unit=11, method='turnoff'),
-    dict(name='remote/12/on',  house=14244686, group=0, unit=12, method='turnon'),
-    dict(name='remote/12/off', house=14244686, group=0, unit=12, method='turnoff'),
-    dict(name='remote/13/on',  house=14244686, group=0, unit=13, method='turnon'),
-    dict(name='remote/13/off', house=14244686, group=0, unit=13, method='turnoff'),
-    dict(name='remote/14/on',  house=14244686, group=0, unit=14, method='turnon'),
-    dict(name='remote/14/off', house=14244686, group=0, unit=14, method='turnoff'),
-    dict(name='remote/15/on',  house=14244686, group=0, unit=15, method='turnon'),
-    dict(name='remote/15/off', house=14244686, group=0, unit=15, method='turnoff'),
-    dict(name='remote/16/on',  house=14244686, group=0, unit=16, method='turnon'),
-    dict(name='remote/16/off', house=14244686, group=0, unit=16, method='turnoff'),
-
-    # Loftstue upper
-    dict(name='wallsw1/on',   house=366702,   group=0, unit=1, method='turnon'),
-    dict(name='wallsw1/off',  house=366702,   group=0, unit=1, method='turnoff'),
-
-    # Loftstue lower
-    dict(name='wallsw2/on',   house=392498,   group=0, unit=1, method='turnon'),
-    dict(name='wallsw2/off',  house=392498,   group=0, unit=1, method='turnoff'),
-)
-
-templist = (
-    # Mandolyn devices
-    #dict(name='temp/ute', id=11),
-    #dict(name='temp/kjeller', id=12),
-
-    # Nexa/proove devices
-    #dict(name='temp/fryseskap', id=247),
-    #dict(name='temp/loftute', id=135),
-    #dict(name='temp/kino', id=151),
-)
 
 
 def getnextelement(data):
@@ -336,32 +278,84 @@ class TelldusOut(Protocol):
 class Telldus(Endpoint):
 
     # --- Interfaces
-    def get_events(self):
-        return [
-            'td/starting',
-            'td/connected',
-            'td/error',
-        ] + [ k['name'] for k in eventlist ] + [ k['name'] for k in templist ]
+    def register(self):
+        self.events = {
+            'td/starting'    : None,
+            'td/connected'   : None,
+            'td/error'       : None,
 
-    def get_actions(self):
-        return {
-            'td/state'     : lambda a : (self.inport.state, self.outport.state),
+            # Remote control
+            'remote/g/on'    : dict(house=14244686, group=1, unit=1, method='turnon'),
+            'remote/g/off'   : dict(house=14244686, group=1, unit=1, method='turnoff'),
+            'remote/1/on'    : dict(house=14244686, group=0, unit=1, method='turnon'),
+            'remote/1/off'   : dict(house=14244686, group=0, unit=1, method='turnoff'),
+            'remote/2/on'    : dict(house=14244686, group=0, unit=2, method='turnon'),
+            'remote/2/off'   : dict(house=14244686, group=0, unit=2, method='turnoff'),
+            'remote/3/on'    : dict(house=14244686, group=0, unit=3, method='turnon'),
+            'remote/3/off'   : dict(house=14244686, group=0, unit=3, method='turnoff'),
+            'remote/4/on'    : dict(house=14244686, group=0, unit=4, method='turnon'),
+            'remote/4/off'   : dict(house=14244686, group=0, unit=4, method='turnoff'),
+            'remote/5/on'    : dict(house=14244686, group=0, unit=5, method='turnon'),
+            'remote/5/off'   : dict(house=14244686, group=0, unit=5, method='turnoff'),
+            'remote/6/on'    : dict(house=14244686, group=0, unit=6, method='turnon'),
+            'remote/6/off'   : dict(house=14244686, group=0, unit=6, method='turnoff'),
+            'remote/7/on'    : dict(house=14244686, group=0, unit=7, method='turnon'),
+            'remote/7/off'   : dict(house=14244686, group=0, unit=7, method='turnoff'),
+            'remote/8/on'    : dict(house=14244686, group=0, unit=8, method='turnon'),
+            'remote/8/off'   : dict(house=14244686, group=0, unit=8, method='turnoff'),
+            'remote/9/on'    : dict(house=14244686, group=0, unit=9, method='turnon'),
+            'remote/9/off'   : dict(house=14244686, group=0, unit=9, method='turnoff'),
+            'remote/10/on'   : dict(house=14244686, group=0, unit=10, method='turnon'),
+            'remote/10/off'  : dict(house=14244686, group=0, unit=10, method='turnoff'),
+            'remote/11/on'   : dict(house=14244686, group=0, unit=11, method='turnon'),
+            'remote/11/off'  : dict(house=14244686, group=0, unit=11, method='turnoff'),
+            'remote/12/on'   : dict(house=14244686, group=0, unit=12, method='turnon'),
+            'remote/12/off'  : dict(house=14244686, group=0, unit=12, method='turnoff'),
+            'remote/13/on'   : dict(house=14244686, group=0, unit=13, method='turnon'),
+            'remote/13/off'  : dict(house=14244686, group=0, unit=13, method='turnoff'),
+            'remote/14/on'   : dict(house=14244686, group=0, unit=14, method='turnon'),
+            'remote/14/off'  : dict(house=14244686, group=0, unit=14, method='turnoff'),
+            'remote/15/on'   : dict(house=14244686, group=0, unit=15, method='turnon'),
+            'remote/15/off'  : dict(house=14244686, group=0, unit=15, method='turnoff'),
+            'remote/16/on'   : dict(house=14244686, group=0, unit=16, method='turnon'),
+            'remote/16/off'  : dict(house=14244686, group=0, unit=16, method='turnoff'),
 
-            'td/on'        : lambda a : self.turnOn(a.args[0]),
-            'td/off'       : lambda a : self.turnOff(a.args[0]),
-            'td/dim'       : lambda a : self.dim(a.args[0],a.args[1]),
+            # Loftstue upper
+            'wallsw1/on'     : dict(house=366702,   group=0, unit=1, method='turnon'),
+            'wallsw1/off'    : dict(house=366702,   group=0, unit=1, method='turnoff'),
 
-            'lys/on'       : lambda a : self.turnOn(100),
-            'lys/off'      : lambda a : self.turnOff(100),
-            'lys/dim'      : lambda a : self.dim(100, a.args[0]),
-            'lys/tak/on'   : lambda a : self.turnOn(101),
-            'lys/tak/off'  : lambda a : self.turnOff(101),
-            'lys/tak/dim'  : lambda a : self.dim(101, a.args[0]),
-            'lys/bord/on'  : lambda a : self.turnOn(105),
-            'lys/bord/off' : lambda a : self.turnOff(105),
-            'lys/bord/dim' : lambda a : self.dim(105, a.args[0]),
-            'led/pwr/on'   : lambda a : self.turnOn(106),
-            'led/pwr/off'  : lambda a : self.turnOff(106),
+            # Loftstue lower
+            'wallsw2/on'     : dict(house=392498,   group=0, unit=1, method='turnon'),
+            'wallsw2/off'    : dict(house=392498,   group=0, unit=1, method='turnoff'),
+
+            # Mandolyn devices
+            'temp/ute'       : dict(temp=11),
+            'temp/kjeller'   : dict(temp=12),
+
+            # Nexa/proove devices
+            'temp/fryseskap' : dict(temp=247),
+            'temp/loftute'   : dict(temp=135),
+            'temp/kino'      : dict(temp=151),
+        }
+
+        self.commands = {
+            'td/state'      : lambda a : (self.inport.state, self.outport.state),
+
+            'td/on'         : lambda a : self.turnOn(a.args[0]),
+            'td/off'        : lambda a : self.turnOff(a.args[0]),
+            'td/dim'        : lambda a : self.dim(a.args[0],a.args[1]),
+
+            'lys/on'        : lambda a : self.turnOn(100),
+            'lys/off'       : lambda a : self.turnOff(100),
+            'lys/dim'       : lambda a : self.dim(100, a.args[0]),
+            'lys/tak/on'    : lambda a : self.turnOn(101),
+            'lys/tak/off'   : lambda a : self.turnOff(101),
+            'lys/tak/dim'   : lambda a : self.dim(101, a.args[0]),
+            'lys/bord/on'   : lambda a : self.turnOn(105),
+            'lys/bord/off'  : lambda a : self.turnOff(105),
+            'lys/bord/dim'  : lambda a : self.dim(105, a.args[0]),
+            'led/pwr/on'    : lambda a : self.turnOn(106),
+            'led/pwr/off'   : lambda a : self.turnOff(106),
         }
 
 
@@ -434,29 +428,43 @@ class Telldus(Endpoint):
             # Check for matches in eventlist
             if args['protocol'] == 'arctech':
 
-                for ev in eventlist:
-                    if str(ev['house']) != args['house']:
-                        continue
-                    if str(ev['group']) != args['group']:
-                        continue
-                    if str(ev['unit']) != args['unit']:
-                        continue
-                    if ev['method'] != args['method']:
+                for (ev,d) in self.events.items():
+
+                    # Disregard objects without dict and without 'house' in dict
+                    if d is None or 'house' not in d:
                         continue
 
-                    self.event(ev['name'])
+                    # Find the matching entry
+                    if str(d['house']) != args['house']:
+                        continue
+                    if str(d['group']) != args['group']:
+                        continue
+                    if str(d['unit']) != args['unit']:
+                        continue
+                    if d['method'] != args['method']:
+                        continue
+
+                    # Match found, process it as an event
+                    self.event(ev)
                     return
 
             elif args['protocol'] == 'mandolyn' or args['protocol'] == 'fineoffset':
 
-                for ev in templist:
-                    if str(ev['id']) != args['id']:
+                for (ev,d) in self.events.items():
+
+                    # Disregard objects without dict and without 'temp' in dict
+                    if d is None or 'temp' not in d:
                         continue
 
+                    # Find the matching entry
+                    if str(d['temp']) != args['id']:
+                        continue
+
+                    # Match found, process it as an event
                     if 'humidity' in args:
-                        self.event("%s{%s,%s}" %(ev['name'],args['temp'],args['humidity']))
+                        self.event("%s{%s,%s}" %(ev,args['temp'],args['humidity']))
                     else:
-                        self.event("%s{%s}" %(ev['name'],args['temp']))
+                        self.event("%s{%s}" %(ev,args['temp']))
                     return
 
                 # Not interested in logging temp events we don't subscribe to

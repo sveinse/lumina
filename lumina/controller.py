@@ -1,3 +1,4 @@
+# -*- python -*-
 import os,sys
 import traceback
 from twisted.internet import reactor
@@ -6,7 +7,8 @@ from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from twisted.internet.defer import Deferred,maybeDeferred
 
-from core import Event,Core
+from core import Core
+from event import Event
 from exceptions import *
 
 
@@ -24,7 +26,7 @@ class EventProtocol(LineReceiver):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
         self.name = self.ip
         self.events = []
-        self.actions = []
+        self.commands = []
         self.requests = { }
         log.msg("Connect from %s" %(self.ip,), system='CTRL')
 
@@ -33,18 +35,24 @@ class EventProtocol(LineReceiver):
         log.msg("Lost connection from '%s' (%s)" %(self.name,self.ip), system='CTRL')
         if len(self.events):
             self.parent.remove_events(self.events)
-        if len(self.actions):
-            self.parent.remove_actions(self.actions)
-        # FIXME: Revoke all pending requests. Call errback?
+        if len(self.commands):
+            self.parent.remove_commands(self.commands)
+        # FIXME: Cancel all pending request?
 
 
     def lineReceived(self, data):
         ''' Handle messages from the clients '''
 
-        # Empty lines are simply ignored
+        # -- Empty lines are simply ignored
         if not len(data):
             return
 
+        # -- Special @ notation which makes the controller execute the incoming data as a command
+        if data.startswith('@'):
+            self.interactive(data)
+            return
+
+        # -- Parse the incoming message as an Event
         try:
             event = Event().parse(data)
             log.msg("   -->  %s" %(event,), system=self.name)
@@ -66,15 +74,15 @@ class EventProtocol(LineReceiver):
                 self.parent.add_events(evlist)
             return
 
-        # -- Register client actions
-        elif event.name == 'actions':
+        # -- Register client commands
+        elif event.name == 'commands':
             evlist = event.args[:]
             if len(evlist):
-                self.actions = evlist
-                actions = {}
+                self.commands = evlist
+                commands = {}
                 for a in evlist:
-                    actions[a] = lambda a : self.send(a)
-                self.parent.add_actions(actions)
+                    commands[a] = lambda a : self.send(a)
+                self.parent.add_commands(commands)
             return
 
         # -- Handle 'exit' event
@@ -82,19 +90,14 @@ class EventProtocol(LineReceiver):
             self.transport.loseConnection()
             return
 
-        # -- Handle error to a former request
+        # -- Handle error to a former command
         elif event.name == 'error':
             self.error(event)
             return
 
-        # -- Handle a reply to a former request
+        # -- Handle a reply to a former command
         elif event.name in self.requests:
             self.response(event)
-            return
-
-        # -- Special @ notation which makes the controller execute the incoming data as action
-        elif event.name.startswith('@'):
-            self.interactive(event)
             return
 
         # -- A new incoming (async) event.
@@ -102,7 +105,7 @@ class EventProtocol(LineReceiver):
             self.parent.handle_event(event)
 
 
-    # -- Send an action to the client
+    # -- Send a command to the client
     def send(self, event):
         d = Deferred()
         self.requests[event.name] = {
@@ -114,14 +117,13 @@ class EventProtocol(LineReceiver):
         return d
 
 
-    # -- Action timer handler
+    # -- TIMEOUT response handler
     def timedout(self, event):
         log.msg('   -->  TIMEOUT %s' %(event,), system=self.name)
         request = self.requests[event.name]
         d = request['defer']
         del self.requests[event.name]
 
-        # FIXME: See error handler response and make similar setup
         d.errback(TimeoutException())
 
 
@@ -139,8 +141,6 @@ class EventProtocol(LineReceiver):
     # -- ERROR response handler
     def error(self, event):
 
-        # FIXME: Make sure the Event() parser is able to produce proper failure object.
-        #        Perhaps Event() should make Exceptions upon receiving error frames
         failure = event.args[0]
         request = self.requests[failure]
         request['timer'].cancel()
@@ -161,24 +161,33 @@ class EventProtocol(LineReceiver):
 
 
     # -- Interactive mode (lines prefixed with '@')
-    def interactive(self, event):
+    def interactive(self, data):
 
         def raw_reply(reply,cls,event):
             cls.transport.write(">>> %s\n" %(str(reply),))
         def raw_error(reply,cls,event):
-            cls.transport.write(">>> %s FAILED: %s %s\n" %(event,reply.value.__class__.__name__,str(reply.value)))
+            cls.transport.write(">>> %s FAILED: %s %s\n" %(
+                event,reply.value.__class__.__name__,str(reply.value)))
             raise reply
 
-        newevent = Event(event.name[1:],*event.args,**event.kw)
-        fn = self.parent.get_actionfn(newevent.name)
-        if not fn:
-            self.transport.write('>>> %s ERROR: Event not found.\n' %(newevent,))
+        try:
+            event = Event().parse(data)
+            log.msg("   -->  %s" %(event,), system=self.name)
+        except SyntaxError as e:
+            log.msg("Protcol error. %s" %(e.message))
+            self.transport.write('>>> ERROR: Protocol error. %s\n' %(e.message))
             return
 
-        self.transport.write("<<< %s\n" %(newevent,))
-        result = maybeDeferred(fn, newevent)
-        result.addCallback(raw_reply, self, newevent)
-        result.addErrback(raw_error, self, newevent)
+        cmdevent = Event(event.name[1:],*event.args,**event.kw)
+        fn = self.parent.get_commandfn(cmdevent.name)
+        if not fn:
+            self.transport.write('>>> %s ERROR: Event not found.\n' %(cmdevent,))
+            return
+
+        self.transport.write("<<< %s\n" %(cmdevent,))
+        result = maybeDeferred(fn, cmdevent)
+        result.addCallback(raw_reply, self, cmdevent)
+        result.addErrback(raw_error, self, cmdevent)
 
 
 

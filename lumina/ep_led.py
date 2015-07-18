@@ -11,8 +11,10 @@ class Led(Endpoint):
     system = 'LED'
 
     # --- Interfaces
-    def get_actions(self):
-        return {
+    def register(self):
+        self.events = [ ]
+
+        self.commands = {
             'led/state'   : lambda a : self.state,
 
             'led/off'     : lambda a : self.command(0,0,0,0),
@@ -29,7 +31,7 @@ class Led(Endpoint):
     def setup(self):
         self.dmx = OlaClient()
         (old, self.state) = (self.state, 'active')
-        log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
+        log.msg("STATE change: '%s' --> '%s'" %(old,self.state), system=self.system)
 
 
     # --- Commands
@@ -40,4 +42,3 @@ class Led(Endpoint):
         data.append(int(b))
         data.append(int(w))
         self.dmx.SendDmx(self.universe, data, None)
-

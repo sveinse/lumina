@@ -1,3 +1,4 @@
+# -*- python -*-
 import os,sys
 import traceback
 
@@ -9,38 +10,41 @@ from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from twisted.internet.task import LoopingCall
 
-from core import Event,Core
+from core import Core
+from event import Event
 from exceptions import *
 
 
 class EventProtocol(LineReceiver):
     noisy = False
     delimiter='\n'
+    system = 'CLIENT'
+
 
     def connectionMade(self):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
         self.parent.protocol = self
-        log.msg("Connected to %s" %(self.ip,), system='CLIENT')
+        log.msg("Connected to %s" %(self.ip,), system=self.system)
 
         # -- Keepalive pings
         self.loop = LoopingCall(self.keepalive)
         self.loop.start(60, False)
 
         # -- Register name
-        log.msg("Registering name '%s'" %(self.parent.name,), system='CLIENT')
+        log.msg("Registering name '%s'" %(self.parent.name,), system=self.system)
         self.send_event(Event('name',self.parent.name))
 
         # -- Register events
         evlist = self.parent.events
         if len(evlist):
-            log.msg("Registering events %s" %(evlist), system='CLIENT')
+            log.msg("Registering events %s" %(evlist), system=self.system)
             self.send_event(Event('events', *evlist))
 
-        # -- Register actions
-        evlist = self.parent.actions.keys()
-        if len(evlist):
-            log.msg("Registering actions %s" %(evlist), system='CLIENT')
-            self.send_event(Event('actions', *evlist))
+        # -- Register commands
+        cmdlist = self.parent.commands.keys()
+        if len(cmdlist):
+            log.msg("Registering commands %s" %(cmdlist), system=self.system)
+            self.send_event(Event('commands', *cmdlist))
 
         # -- Flush any queue that might have been accumulated before
         #    connecting to the controller
@@ -48,13 +52,13 @@ class EventProtocol(LineReceiver):
 
 
     def connectionLost(self, reason):
-        log.msg("Lost connection with %s" %(self.ip), system='CLIENT')
+        log.msg("Lost connection with %s" %(self.ip), system=self.system)
         self.parent.protocol = None
         self.loop.stop()
 
 
     def lineReceived(self, data):
-        ''' Handle messages from the controller, which are actions that shall
+        ''' Handle messages from the controller, which are commands that shall
             be executed '''
 
         # Empty lines are simply ignored
@@ -63,7 +67,7 @@ class EventProtocol(LineReceiver):
 
         try:
             event = Event().parse(data)
-            log.msg("   -->  %s" %(event,), system='CLIENT')
+            log.msg("   -->  %s" %(event,), system=self.system)
         except SyntaxError as e:
             log.msg("Protocol error. %s" %(e.message))
             return
@@ -73,14 +77,15 @@ class EventProtocol(LineReceiver):
             self.transport.loseConnection()
             return
 
-        # -- Handle events from controller (actions)
+        # -- Handle commands from controller
         else:
-            # Get the the action function
-            fn = self.parent.get_actionfn(event.name)
+            # Get the the command function
+            fn = self.parent.get_commandfn(event.name)
             if not fn:
+                # This has already been logged in get_commandfn()
                 return
 
-            # Call the action function and setup proper response handlers.
+            # Call the command function and setup proper response handlers.
             result = maybeDeferred(fn, event)
             result.addCallback(self.send_reply, event)
             result.addErrback(self.send_error, event)
@@ -93,7 +98,7 @@ class EventProtocol(LineReceiver):
 
     def send_event(self, event):
         # No response is expected from events, so no need to setup any deferals
-        log.msg("   <--  %s" %(event,), system='CLIENT')
+        log.msg("   <--  %s" %(event,), system=self.system)
         self.transport.write(event.dump()+'\n')
 
 
@@ -111,7 +116,7 @@ class EventProtocol(LineReceiver):
         else:
             reply = Event(request.name,reply)
 
-        log.msg("   <--  %s" %(reply,), system='CLIENT')
+        log.msg("   <--  %s" %(reply,), system=self.system)
         self.transport.write(reply.dump()+'\n')
 
 
@@ -123,7 +128,7 @@ class EventProtocol(LineReceiver):
         # error syntax {event_name, exception_name, exception args}
         error = Event('error',request.name,reason.__class__.__name__,*reason.args)
 
-        log.msg("   <--  %s" %(error,), system='CLIENT')
+        log.msg("   <--  %s" %(error,), system=self.system)
         self.transport.write(error.dump()+'\n')
 
 
@@ -132,6 +137,7 @@ class EventFactory(ReconnectingClientFactory):
     noisy = False
     maxDelay=10
     factor=1.6180339887498948
+    system = 'CLIENT'
 
     def buildProtocol(self, addr):
         self.resetDelay()
@@ -140,16 +146,18 @@ class EventFactory(ReconnectingClientFactory):
         return proto
 
     def clientConnectionLost(self, connector, reason):
-        log.msg(reason.getErrorMessage(), system='CLIENT')
+        log.msg(reason.getErrorMessage(), system=self.system)
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
-        log.msg(reason.getErrorMessage(), system='CLIENT')
+        log.msg(reason.getErrorMessage(), system=self.system)
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
 
 
 class Client(Core):
+    system = 'CLIENT'
+
 
     def __init__(self,host,port,name):
         Core.__init__(self)
@@ -174,7 +182,7 @@ class Client(Core):
         # when the connection to the controller is made
         self.queue.append(event)
         if self.protocol is None:
-            log.msg("%s  --  Not connected to server, queueing" %(event), system='CLIENT')
+            log.msg("%s  --  Not connected to server, queueing" %(event), system=self.system)
 
         # Attempt sending the message
         self.send_events()

@@ -1,3 +1,4 @@
+# -*- python -*-
 from twisted.python import log
 from callback import Callback
 from twisted.internet.task import LoopingCall
@@ -5,19 +6,18 @@ from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 
 from endpoint import Endpoint
-from core import Event
+from event import Event
 
 
 class Demo(Endpoint):
 
     # --- Interfaces
-    def get_events(self):
-        return [
+    def register(self):
+        self.events = [
             'timer',
         ]
 
-    def get_actions(self):
-        return {
+        self.commands = {
             'immediate' : lambda a : Event('imme',3,4,5),
             'delay'     : lambda a : self.delay(2,Event().parse('delay{1,2,3}')),
             'fail1'     : lambda a : Exception("Failed"),

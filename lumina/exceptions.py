@@ -1,4 +1,4 @@
-
+# -*- python -*-
 
 class LuminaException(Exception):
     ''' Base exception class for Lumina '''

@@ -1,7 +1,7 @@
 #-*- python -*-
 
 from callback import Callback
-from core import Event
+from event import Event
 from twisted.python import log
 
 
@@ -10,8 +10,8 @@ class Endpoint(object):
     ''' Baseclass for endpoint functions '''
 
     cbevent = None
-    events = [ ]
-    actions = { }
+    events = { }
+    commands = { }
 
     # --- Initialization
     def setup(self):
@@ -37,8 +37,14 @@ class Endpoint(object):
         if self.cbevent is not None:
             self.cbevent.callback(Event(event,result,*args,**kw))
 
-    # --- Get list of events and actions
+    # --- Get list of events and commands
+    def register(self):
+        pass
     def get_events(self):
         return self.events
-    def get_actions(self):
-        return self.actions
+    def get_commands(self):
+        return self.commands
+
+    def get_command(self,command):
+        return self.commands[command]
+

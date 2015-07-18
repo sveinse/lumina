@@ -1,3 +1,4 @@
+# -*- python -*-
 import os,sys,atexit
 from twisted.internet import reactor
 from twisted.python import log
@@ -59,8 +60,9 @@ def daemonize(pidfile):
 def register(parent,obj):
     ''' Register endpoint handler '''
     obj.add_eventcallback(parent.handle_event)
+    obj.register()
     parent.add_events(obj.get_events())
-    parent.add_actions(obj.get_actions())
+    parent.add_commands(obj.get_commands())
     obj.setup()
     reactor.addSystemEventTrigger('before','shutdown',obj.close)
 
@@ -71,9 +73,9 @@ def register(parent,obj):
 def controller():
 
     from controller import Controller
-    from utils import Utils
     from logic import Logic
-    from telldus import Telldus
+    #from utils import Utils
+    #from telldus import Telldus
 
     # Main controller
     controller = Controller(port=8081)
@@ -85,8 +87,7 @@ def controller():
     controller.add_jobs(logic.jobs)
 
     # System Functions
-    register(controller, Utils())
-
+    #register(controller, Utils())
     #register(controller, Telldus())
 
 
@@ -97,10 +98,10 @@ def controller():
 def client_lys():
 
     from client import Client
-    from telldus import Telldus
-    from oppo import Oppo
-    from demo import Demo
-    from yamaha import Yamaha
+    from ep_telldus import Telldus
+    from ep_oppo import Oppo
+    from ep_demo import Demo
+    from ep_yamaha import Yamaha
 
     # Main controller
     controller = Client(host='localhost',port=8081,name='LYS')
@@ -109,7 +110,7 @@ def client_lys():
     # System Functions
     register(controller, Telldus())
     register(controller, Oppo('/dev/ttyUSB0'))
-    #register(controller, Yamaha('192.168.234.20'))
+    register(controller, Yamaha('192.168.234.20'))
 
 
 
@@ -119,8 +120,8 @@ def client_lys():
 def client_hw50(host,port):
 
     from client import Client
-    from hw50 import Hw50
-    from led import Led
+    from ep_hw50 import Hw50
+    from ep_led import Led
 
     # Main controller
     controller = Client(host=host,port=port,name='HW50')
@@ -139,11 +140,11 @@ def test():
 
     from controller import Controller
     from client import Client
-    from utils import Utils
     from logic import Logic
-    from telldus import Telldus
-    from demo import Demo
-    from yamaha import Yamaha
+    from ep_utils import Utils
+    from ep_telldus import Telldus
+    from ep_demo import Demo
+    from ep_yamaha import Yamaha
 
     # Main controller
     if True:
@@ -180,43 +181,3 @@ def test():
         #    'Unit': 'dB',
         #} )
         #y.protocol.command('GET', [ 'System', 'Signal_Info' ])
-        
-
-
-
-################################################################
-#
-#  TESTING
-#
-################################################################
-if __name__ == "__main__":
-
-    import os,sys
-    from twisted.python import log
-    from twisted.internet import reactor
-
-    from client import Client
-    from hw50 import Hw50
-    from oppo import Oppo
-    from utils import Utils
-    from controller import Controller
-
-    log.startLogging(sys.stdout)
-
-    #controller()
-
-    # Main controller
-    controller = Controller(port=8081)
-    controller.setup()
-
-    # Main controller
-    #controller = Client(host='localhost',port=8081,name='lys')
-    #controller.setup()
-
-    # System Functions
-    #register(controller, Utils())
-    #register(controller, Telldus())
-    register(controller, Oppo('/dev/ttyUSB0'))
-
-    log.msg('Server PID: %s' %(os.getpid()), system='CTRL')
-    reactor.run()

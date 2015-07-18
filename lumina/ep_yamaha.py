@@ -32,6 +32,7 @@ XML_RC_ERRORS = {
     5: 'Internal error',
 }
 
+POWER = [ 'System', 'Power_Control', 'Power' ]
 VOLUME = [ 'Main_Zone', 'Volume', 'Lvl' ]
 INPUT = [ 'Main_Zone', 'Input', 'Input_Sel' ]
 
@@ -45,6 +46,15 @@ def dB(value):
 
 def parse_dB(xml):
     return float(xml.find('Val').text) * 10 ** (-float(xml.find('Exp').text))
+
+def t(xml):
+    return xml.text
+
+def ison(xml):
+    if xml.text == 'On':
+        return 1
+    else:
+        return 0
 
 
 class YamahaSSDP(DatagramProtocol):
@@ -103,7 +113,6 @@ class YamahaSSDP(DatagramProtocol):
         except (ET.ParseError, SSDPException) as e:
             log.msg("Malformed XML, %s. XML='%s'" %(e.message,body), system='AVR')
             return
-
 
 
 
@@ -315,28 +324,29 @@ class Yamaha(Endpoint):
     system = 'AVR'
 
     # --- Interfaces
-    def get_events(self):
-        return [
+    def register(self):
+        self.events = [
             'avr/starting',      # Created avr object
             'avr/stopping',      # close() have been called
-            #'avr/connected',     # Connection with Avr has been made
-            #'avr/disconnected',  # Lost connection with Avr
             'avr/error',         # Connection failed
 
-            'avr/volume',        # Get volume
-            'avr/input',         # Get input
+            'avr/volume',        # Volume event
+            'avr/input',         # Input change event
+            'avr/power',         # Change in power
         ]
 
-    def get_actions(self):
-        return {
-            'avr/state'   : lambda a : self.protocol.state,
+        self.commands = {
+            'avr/state'     : lambda a : self.protocol.state,
 
             #'avr/raw'     : lambda a : self.protocol.command(*a.args),
-            #'avr/ison'    : lambda a : self.protocol.command('QPW'),
+
+            'avr/ison'      : lambda a : self.c(GET, POWER).addCallback(ison),
+            'avr/off'       : lambda a : self.c(PUT, POWER, 'Standby'),
+            'avr/on'        : lambda a : self.c(PUT, POWER, 'On'),
 
             'avr/volume'    : lambda a : self.c(GET, VOLUME).addCallback(parse_dB),
             'avr/setvolume' : lambda a : self.c(PUT, VOLUME, dB(a.args[0])),
-            'avr/input'     : lambda a : self.c(GET, INPUT),
+            'avr/input'     : lambda a : self.c(GET, INPUT).addCallback(t),
             'avr/setinput'  : lambda a : self.c(PUT, INPUT, a.args[0]),
         }
 
@@ -359,28 +369,17 @@ class Yamaha(Endpoint):
 
     # --- Convenience
     def c(self,*args,**kw):
-        self.protocol.command(*args,**kw)
+        return self.protocol.command(*args,**kw)
 
 
     # --- Callbacks
     def notification(self,notifications):
         if 'Volume' in notifications:
-            d = self.get_volume()
-            d.addCallback(self.event_as_arg,'avr/volume')
+            self.get_command('avr/volume')(None).addCallback(self.event_as_arg,'avr/volume')
         if 'Input' in notifications:
-            d = self.get_input()
-            d.addCallback(self.event_as_arg,'avr/input')
+            self.get_command('avr/input')(None).addCallback(self.event_as_arg,'avr/input')
+        if 'Power' in notifications:
+            self.get_command('avr/ison')(None).addCallback(self.event_as_arg,'avr/ison')
 
 
     # --- Commands
-    def get_volume(self):
-        d = self.protocol.command(GET, VOLUME)
-        d.addCallback(parse_dB)
-        return d
-    def set_volume(self, volume):
-        return self.protocol.command(PUT, VOLUME, dB(volume))
-
-    def get_input(self):
-        return self.protocol.command(GET, INPUT)
-    def set_input(self, input):
-        return self.protocol.command(PUT, INPUT, input)

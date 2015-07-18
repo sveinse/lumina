@@ -1,3 +1,4 @@
+# -*- python -*-
 from core import JobFn
 
 
@@ -10,10 +11,12 @@ class Logic(object):
 
         # Nexa fjernkontroll
         #'remote/1/on'   :   'oppo/play',
-        'remote/1/off'   : ( 'oppo/off', 'hw50/off' ),
+        'remote/1/off'   : ( 'oppo/off', 'hw50/off', 'avr/off' ),
 
-        'remote/4/on'    : ( 'lys/dim{30}', 'led/off' ),
-        'remote/4/off'   : ( 'lys/off', 'led/raw{0,0,0,10}' ),
+        'remote/3/on'    : ( 'lys/dim{30}' ),
+        'remote/3/off'   : ( 'lys/off' ),
+        'remote/4/on'    : ( 'led/raw{0,0,0,10}' ),
+        'remote/4/off'   : ( 'led/off' ),
         'remote/g/on'    : ( 'led/pwr/on', 'lys/on', 'led/blue' ),
         'remote/g/off'   : ( 'lys/off', 'led/off' ),
 

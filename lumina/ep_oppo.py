@@ -13,20 +13,11 @@ from queue import Queue
 from exceptions import *
 
 
-
-# Translation from Oppo commands to event commands
-eventlist = (
-    dict(name='oppo/off',      cmd='UPW', arg='0'),
-    dict(name='oppo/on',       cmd='UPW', arg='1'),
-    dict(name='oppo/play',     cmd='UPL', arg='PLAY'),
-    dict(name='oppo/pause',    cmd='UPL', arg='PAUS'),
-    dict(name='oppo/stop',     cmd='UPL', arg='STOP'),
-    dict(name='oppo/home',     cmd='UPL', arg='HOME'),
-    dict(name='oppo/nodisc',   cmd='UPL', arg='DISC'),
-    dict(name='oppo/loading',  cmd='UPL', arg='LOAD'),
-    dict(name='oppo/closing',  cmd='UPL', arg='CLOS'),
-    dict(name='oppo/audio',    cmd='UAT', arg=None),
-)
+def ison(result):
+    if result=='ON':
+        return 1
+    else:
+        return 0
 
 
 class OppoProtocol(LineReceiver):
@@ -120,17 +111,21 @@ class OppoProtocol(LineReceiver):
             return
 
         # Status update message we're interested in?
-        for ev in eventlist:
+        for (ev,d) in self.parent.events.items():
 
-            # Consider only responses listed in eventlist
-            if ev['cmd'] != cmd:
+            # Don't consider events that does not have a payload
+            if d is None:
                 continue
-            if ev['arg']:
-                if len(args)==0 or ev['arg'] != args[0]:
+
+            # Consider only response types in the events list
+            if d['cmd'] != cmd:
+                continue
+            if d['arg']:
+                if len(args)==0 or d['arg'] != args[0]:
                     continue
 
             # Pass on to factory to handle the event
-            self.parent.event(ev['name'],*args)
+            self.parent.event(ev,*args)
             return
 
         # Not interested in the received message
@@ -177,28 +172,38 @@ class Oppo(Endpoint):
     system = 'OPPO'
 
     # --- Interfaces
-    def get_events(self):
-        return [
-            'oppo/starting',      # Created oppo object
-            'oppo/stopping',      # close() have been called
-            'oppo/connected',     # Connection with Oppo has been made
-            'oppo/disconnected',  # Lost connection with Oppo
-            'oppo/error',         # Connection failed
-        ] + [ k['name'] for k in eventlist ]
+    def register(self):
+        self.events = {
+            'oppo/starting'     : None,  # Created oppo object
+            'oppo/stopping'     : None,  # close() have been called
+            'oppo/connected'    : None,  # Connection with Oppo has been made
+            'oppo/disconnected' : None,  # Lost connection with Oppo
+            'oppo/error'        : None,  # Connection failed
 
-    def get_actions(self):
-        return {
+            'oppo/off'     : dict(cmd='UPW', arg='0'),
+            'oppo/on'      : dict(cmd='UPW', arg='1'),
+            'oppo/play'    : dict(cmd='UPL', arg='PLAY'),
+            'oppo/pause'   : dict(cmd='UPL', arg='PAUS'),
+            'oppo/stop'    : dict(cmd='UPL', arg='STOP'),
+            'oppo/home'    : dict(cmd='UPL', arg='HOME'),
+            'oppo/nodisc'  : dict(cmd='UPL', arg='DISC'),
+            'oppo/loading' : dict(cmd='UPL', arg='LOAD'),
+            'oppo/closing' : dict(cmd='UPL', arg='CLOS'),
+            'oppo/audio'   : dict(cmd='UAT', arg=None),
+        }
+
+        self.commands = {
             'oppo/state'   : lambda a : self.protocol.state,
-            'oppo/ison'    : lambda a : self.protocol.command('QPW'),
+            'oppo/raw'     : lambda a : self.c(*a.args),
 
-            'oppo/raw'     : lambda a : self.protocol.command(*a.args),
+            'oppo/ison'    : lambda a : self.c('QPW').addCallback(ison),
 
-            'oppo/play'    : lambda a : self.protocol.command('PLA'),
-            'oppo/pause'   : lambda a : self.protocol.command('PAU'),
-            'oppo/stop'    : lambda a : self.protocol.command('STP'),
-            'oppo/on'      : lambda a : self.protocol.command('PON'),
-            'oppo/off'     : lambda a : self.protocol.command('POF'),
-            'oppo/verbose' : lambda a : self.protocol.command('SVM','2'),
+            'oppo/play'    : lambda a : self.c('PLA'),
+            'oppo/pause'   : lambda a : self.c('PAU'),
+            'oppo/stop'    : lambda a : self.c('STP'),
+            'oppo/on'      : lambda a : self.c('PON'),
+            'oppo/off'     : lambda a : self.c('POF'),
+            'oppo/verbose' : lambda a : self.c('SVM','2'),
         }
 
 
@@ -230,13 +235,9 @@ class Oppo(Endpoint):
             self.sp.loseConnection()
 
 
+    # --- Convenience
+    def c(self,*args,**kw):
+        self.protocol.command(*args,**kw)
+
+
     # --- Commands
-    def ison(self):
-        def _ison(result):
-            if result=='ON':
-                return 1
-            else:
-                return 0
-        d = self.protocol.command('QPW')
-        d.addCallback(_ison)
-        return d

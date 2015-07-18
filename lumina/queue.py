@@ -73,16 +73,3 @@ class Queue(object):
             self.timer.cancel()
             self.timer = None
         self.timer = reactor.callLater(timeout, fn, *args, **kw)
-
-
-
-################################################################
-#
-#  TESTING
-#
-################################################################
-if __name__ == "__main__":
-    from twisted.python.log import startLogging
-    startLogging(sys.stdout)
-
-    reactor.run()
