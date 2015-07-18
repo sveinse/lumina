@@ -146,7 +146,7 @@ def test():
     from yamaha import Yamaha
 
     # Main controller
-    if False:
+    if True:
         controller = Controller(port=8081)
         controller.setup()
 
@@ -166,10 +166,21 @@ def test():
         #register(controller, Demo())
         register(controller, Yamaha('192.168.234.20'))
 
-    if True:
+    if False:
+        def pr(val):
+            print 'RESPONSE',val
         y = Yamaha('192.168.234.20')
         y.setup()
-        y.protocol.command()
+        #d = y.protocol.command('GET', [ 'Main_Zone', 'Volume', 'Lvl' ])
+        d = y.get_volume()
+        d.addCallback(pr)
+        #y.protocol.command('PUT', [ 'Main_Zone', 'Volume', 'Lvl' ], {
+        #    'Val': -300,
+        #    'Exp': 1,
+        #    'Unit': 'dB',
+        #} )
+        #y.protocol.command('GET', [ 'System', 'Signal_Info' ])
+        
 
 
 

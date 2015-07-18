@@ -28,6 +28,15 @@ class Endpoint(object):
             self.cbevent = Callback()
         self.cbevent.addCallback(callback, *args, **kw)
 
+    def event_as_arg(self, result, event, *args, **kw):
+        ''' Can be used as deferred callbacks if it is wanted that the CB result
+            becomes an argument.
+                d.addCallback(event_as_arg,'some/event')
+                d.callback('123')  # <-- Will result in some/event{123}
+        '''
+        if self.cbevent is not None:
+            self.cbevent.callback(Event(event,result,*args,**kw))
+
     # --- Get list of events and actions
     def get_events(self):
         return self.events
