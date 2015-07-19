@@ -17,16 +17,25 @@ class Logic(object):
         'remote/3/off'   : ( 'lys/off' ),
         'remote/4/on'    : ( 'led/raw{0,0,0,10}' ),
         'remote/4/off'   : ( 'led/off' ),
-        'remote/g/on'    : ( 'led/pwr/on', 'lys/on', 'led/blue' ),
+
+        'remote/g/on'    : ( 'led/pwr/on', 'lys/on', 'led/raw{0,0,100,0}' ),
         'remote/g/off'   : ( 'lys/off', 'led/off' ),
 
+        'remote/5/on'    : ( 'led/raw{0,0,0,255}' ),
+        'remote/5/off'   : ( 'led/raw{0,0,0,17}' ),
+        'remote/6/on'    : ( 'led/raw{0,0,100,0}' ),
+        'remote/6/off'   : ( 'led/raw{0,0,0,17}' ),
+        'remote/7/on'    : ( 'led/raw{143,0,0,0}' ),
+        'remote/7/off'   : ( 'led/raw{9,0,0,0}' ),
+        'remote/8/on'    : ( 'led/raw{122,0,29,0}' ),
+        'remote/8/off'   : ( 'led/raw{10,0,4,0}' ),
 
         # Veggbryter overst hjemmekino
-        'wallsw1/on'     : ( 'led/pwr/on', 'lys/on', 'led/blue' ),
+        'wallsw1/on'     : ( 'led/pwr/on', 'lys/on', 'led/raw{0,0,100,0}' ),
         'wallsw1/off'    : ( 'lys/off', 'led/off' ),
 
         # Veggbryter nederst kino
-        'wallsw2/on'     : ( 'lys/dim{60}', 'led/raw{0,0,0,20}' ),
+        'wallsw2/on'     : ( 'lys/dim{60}', 'led/raw{0,0,0,30}' ),
         'wallsw2/off'    : ( 'lys/off', 'led/pwr/off' ),
 
         # Oppo regler
