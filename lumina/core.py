@@ -194,6 +194,7 @@ class Core(object):
     def __init__(self):
         self.events = []
         self.commands = {}
+        self.endpoints = []
         self.jobs = {}
 
         # Job handler
@@ -266,6 +267,16 @@ class Core(object):
                 job = Job( commands )
             self.jobs[name] = job
 
+
+    # --- ENDPOINT REGISTRATION
+    def register(self,endpoint):
+        endpoint.configure()
+        endpoint.add_eventcallback(self.handle_event)
+        self.add_events(endpoint.get_events())
+        self.add_commands(endpoint.get_commands())
+        endpoint.setup()
+        reactor.addSystemEventTrigger('before','shutdown',endpoint.close)
+        self.endpoints.append(endpoint)
 
 
     # --- JOB HANDLING

@@ -280,7 +280,7 @@ class Telldus(Endpoint):
     system = 'TD'
 
     # --- Interfaces
-    def register(self):
+    def configure(self):
         self.events = {
             'td/starting'    : None,
             'td/connected'   : None,

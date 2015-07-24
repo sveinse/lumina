@@ -55,27 +55,13 @@ def daemonize(pidfile):
 
 
 #
-# ***  Helper ***
-#
-def register(parent,obj):
-    ''' Register endpoint handler '''
-    obj.add_eventcallback(parent.handle_event)
-    obj.register()
-    parent.add_events(obj.get_events())
-    parent.add_commands(obj.get_commands())
-    obj.setup()
-    reactor.addSystemEventTrigger('before','shutdown',obj.close)
-
-
-#
 # ***  CONTROLLER  ***
 #
 def controller():
 
     from controller import Controller
     from logic import Logic
-    #from utils import Utils
-    #from telldus import Telldus
+    from web import Web
 
     # Main controller
     controller = Controller(port=8081)
@@ -87,8 +73,12 @@ def controller():
     controller.add_jobs(logic.jobs)
 
     # System Functions
-    #register(controller, Utils())
-    #register(controller, Telldus())
+    #controller.register(Utils())
+    #controller.register(Telldus())
+
+    # Web server
+    web = Web()
+    web.setup()
 
 
 
@@ -108,9 +98,9 @@ def client_lys():
     controller.setup()
 
     # System Functions
-    register(controller, Telldus())
-    register(controller, Oppo('/dev/ttyUSB0'))
-    register(controller, Yamaha('192.168.234.20'))
+    controller.register(Telldus())
+    controller.register(Oppo('/dev/ttyUSB0'))
+    controller.register(Yamaha('192.168.234.20'))
 
 
 
@@ -128,8 +118,8 @@ def client_hw50(host,port):
     controller.setup()
 
     # System Functions
-    register(controller, Hw50('/dev/ttyUSB0'))
-    register(controller, Led())
+    controller.register(Hw50('/dev/ttyUSB0'))
+    controller.register(Led())
 
 
 
@@ -145,6 +135,7 @@ def test():
     from ep_telldus import Telldus
     from ep_demo import Demo
     from ep_yamaha import Yamaha
+    from web import Web
 
     # Main controller
     if True:
@@ -156,16 +147,19 @@ def test():
         #logic.setup()
         #controller.add_jobs(logic.jobs)
 
-        #register(controller, Demo())
-        register(controller, Yamaha('192.168.234.20'))
+        #controller.register(Demo())
+        #controller.register(Yamaha('192.168.234.20'))
+
+        web = Web(port=8080)
+        web.setup(controller)
 
     # Main client
-    if False:
-        controller = Client(host='localhost',port=8081,name='test')
+    if True:
+        controller = Client(host='localhost',port=8081,name='TEST')
         controller.setup()
 
-        #register(controller, Demo())
-        register(controller, Yamaha('192.168.234.20'))
+        #controller.register(Demo())
+        controller.register(Yamaha('192.168.234.20'))
 
     if False:
         def pr(val):

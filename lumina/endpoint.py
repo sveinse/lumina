@@ -38,7 +38,7 @@ class Endpoint(object):
             self.cbevent.callback(Event(event,result,*args,**kw))
 
     # --- Get list of events and commands
-    def register(self):
+    def configure(self):
         pass
     def get_events(self):
         return self.events

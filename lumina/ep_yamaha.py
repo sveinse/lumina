@@ -325,7 +325,7 @@ class Yamaha(Endpoint):
     system = 'AVR'
 
     # --- Interfaces
-    def register(self):
+    def configure(self):
         self.events = [
             'avr/starting',      # Created avr object
             'avr/stopping',      # close() have been called

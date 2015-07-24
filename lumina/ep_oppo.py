@@ -15,9 +15,9 @@ from exceptions import *
 
 def ison(result):
     if result=='ON':
-        return 1
+        return True
     else:
-        return 0
+        return False
 
 
 class OppoProtocol(LineReceiver):
@@ -175,7 +175,7 @@ class Oppo(Endpoint):
     system = 'OPPO'
 
     # --- Interfaces
-    def register(self):
+    def configure(self):
         self.events = {
             'oppo/starting'     : None,  # Created oppo object
             'oppo/stopping'     : None,  # close() have been called

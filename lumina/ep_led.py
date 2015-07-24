@@ -11,7 +11,7 @@ class Led(Endpoint):
     system = 'LED'
 
     # --- Interfaces
-    def register(self):
+    def configure(self):
         self.events = [ ]
 
         self.commands = {

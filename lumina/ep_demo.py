@@ -12,7 +12,7 @@ from event import Event
 class Demo(Endpoint):
 
     # --- Interfaces
-    def register(self):
+    def configure(self):
         self.events = [
             'timer',
         ]

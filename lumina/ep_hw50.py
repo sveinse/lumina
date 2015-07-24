@@ -189,9 +189,9 @@ STATUS_ERROR2_HIGHLAND = 0x0020
 
 def ison(result):
     if result==STATUS_POWER_POWERON:
-        return 1
+        return True
     else:
-        return 0
+        return False
 
 
 def dump(data):
@@ -403,7 +403,7 @@ class Hw50(Endpoint):
 
 
     # --- Interfaces
-    def register(self):
+    def configure(self):
         self.events = [
             'hw50/starting',
             'hw50/stopping',

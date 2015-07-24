@@ -11,7 +11,7 @@ class Utils(Endpoint):
     system = 'UTIL'
 
     # --- Interfaces
-    def register(self):
+    def configure(self):
         self.events = [
             'starting',
             'stopping'
