@@ -4,6 +4,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__),'..'))
 
 from html import *
 
+
 if __name__ == "__main__":
     import sys
 

@@ -69,7 +69,7 @@ class EventProtocol(LineReceiver):
             event = Event().parse(data)
             log.msg("   -->  %s" %(event,), system=self.system)
         except SyntaxError as e:
-            log.msg("Protocol error. %s" %(e.message))
+            log.msg("Protocol error. %s" %(e.message), system=self.system)
             return
 
         # -- Handle 'exit' event
@@ -82,7 +82,8 @@ class EventProtocol(LineReceiver):
             # Get the the command function
             fn = self.parent.get_commandfn(event.name)
             if not fn:
-                # This has already been logged in get_commandfn()
+                log.msg("Unknown command '%s' from controller, ignoring" %(event.name,),
+                        system=self.system)
                 return
 
             # Call the command function and setup proper response handlers.
@@ -102,22 +103,22 @@ class EventProtocol(LineReceiver):
         self.transport.write(event.dump()+'\n')
 
 
-    def send_reply(self, reply, request):
-        #log.msg("REPLY to %s: %s" %(request.name, reply))
+    def send_reply(self, response, request):
+        #log.msg("REPLY to %s: %s" %(request.name, response), system=self.system)
 
         # Wrap common reply type into Event object that can be transferred
         # to the server.
-        if reply is None:
-            reply = Event(request.name)
-        #elif isinstance(reply, Event):
-        #    reply.name = request.name
-        elif type(reply) is list or type(reply) is tuple:
-            reply = Event(request.name,*reply)
+        if response is None:
+            response = Event(request.name)
+        #elif isinstance(response, Event):
+        #    response.name = request.name
+        elif type(response) is list or type(response) is tuple:
+            response = Event(request.name,*response)
         else:
-            reply = Event(request.name,reply)
+            response = Event(request.name,response)
 
-        log.msg("   <--  %s" %(reply,), system=self.system)
-        self.transport.write(reply.dump()+'\n')
+        log.msg("   <--  %s" %(response,), system=self.system)
+        self.transport.write(response.dump()+'\n')
 
 
     def send_error(self, failure, request):

@@ -81,14 +81,16 @@ class OppoProtocol(LineReceiver):
         # Short message format? Implies a reply type by design. Make it into a verbose reply
         if args[0] in ('OK', 'ER'):
             if not self.queue.active:
-                log.msg("Protocol error. Reply to unknown command ('%s')" %(data,), system=self.system)
+                log.msg("Protocol error. Reply to unknown command ('%s')" %(data,),
+                        system=self.system)
                 return
             args.insert(0,self.queue.active['command'])
 
         # Extract command
         cmd = args.pop(0)
         if len(cmd) != 3:
-            log.msg("Protocol error, invalid length on command ('%s')" %(data,), system=self.system)
+            log.msg("Protocol error, invalid length on command ('%s')" %(data,),
+                    system=self.system)
             return
 
         # From here on, consider this a valid frame and thus an active connection
@@ -99,7 +101,8 @@ class OppoProtocol(LineReceiver):
             result = args.pop(0)
 
             if self.queue.active is None or cmd != self.queue.active['command']:
-                log.msg("Protocol error, unknown command in reply ('%s')" %(data,), system=self.system)
+                log.msg("Protocol error, unknown command in reply ('%s')" %(data,),
+                        system=self.system)
                 return
 
             # Send reply back to caller

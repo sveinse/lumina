@@ -59,6 +59,7 @@ def ison(xml):
 
 class YamahaSSDP(DatagramProtocol):
     noisy = False
+    system = 'AVR'
 
     def __init__(self, parent, host, group):
         self.parent = parent
@@ -79,7 +80,7 @@ class YamahaSSDP(DatagramProtocol):
         if address[0] != self.host:
             return
 
-        #log.msg("Datagram %s received from %s" % (repr(datagram), repr(address)), system='AVR')
+        #log.msg("Datagram %s received from %s" % (repr(datagram), repr(address)), system=self.system)
 
         # Skip the header (which is HTTP like), and extract the body
         header=True
@@ -93,10 +94,10 @@ class YamahaSSDP(DatagramProtocol):
 
         # Ignore empty notifications
         if len(body)==0:
-            #log.msg("Ignoring empty notifications", system='AVR')
+            #log.msg("Ignoring empty notifications", system=self.system)
             return
 
-        #log.msg("Received '%s' from %s" % (body, repr(address)), system='AVR')
+        #log.msg("Received '%s' from %s" % (body, repr(address)), system=self.system)
 
         # Convert to XML
         try:
@@ -107,11 +108,11 @@ class YamahaSSDP(DatagramProtocol):
             mz = xml.find('Main_Zone')
             if mz is not None:
                 notifications = [ prop.text for prop in mz.iter('Property') ]
-                log.msg("AVR notification: %s" %(notifications,), system='AVR')
+                log.msg("AVR notification: %s" %(notifications,), system=self.system)
                 self.parent.notification(notifications)
 
         except (ET.ParseError, SSDPException) as e:
-            log.msg("Malformed XML, %s. XML='%s'" %(e.message,body), system='AVR')
+            log.msg("Malformed XML, %s. XML='%s'" %(e.message,body), system=self.system)
             return
 
 
@@ -274,7 +275,7 @@ class YamahaProtocol(Protocol):
                 self.queue.callback(xe)
 
         except (ET.ParseError, CommandFailedException) as e:
-            log.msg("Command failed. %s." %(e.message,), system='AVR')
+            log.msg("Command failed. %s." %(e.message,), system=self.system)
             self.queue.errback(e)
 
         # Process next command

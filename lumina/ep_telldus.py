@@ -34,7 +34,6 @@ def getnextelement(data):
         return (n[1][:l], n[1][l:])
     elif data and data[0]=='i':
         n = data.split('s',1)
-        #log.msg(n)
         l = int(n[0][1:])
         return (l,n[1])
     else:
@@ -139,6 +138,7 @@ class TelldusIn(Protocol):
     noisy = False
     name = 'Event'
     path = '/tmp/TelldusEvents'
+    system = 'TD/IN'
 
 
     def __init__(self,parent):
@@ -150,7 +150,7 @@ class TelldusIn(Protocol):
     def setstate(self,state,*args):
         (old, self.state) = (self.state, state)
         if state != old:
-            log.msg("STATE change: '%s' --> '%s'" %(old,state), system='TD/IN')
+            log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
         self.parent.changestate(self,self.state,*args)
 
 
@@ -175,7 +175,7 @@ class TelldusIn(Protocol):
 
 
     def dataReceived(self, data):
-        #log.msg("     >>>  (%s)'%s'" %(len(data),data), system='TD')
+        #log.msg("     >>>  (%s)'%s'" %(len(data),data), system=self.system)
 
         data = self.data + data
 
@@ -203,6 +203,7 @@ class TelldusOut(Protocol):
     name = 'Client'
     path = '/tmp/TelldusClient'
     timeout = 5
+    system = 'TD/OUT'
 
 
     # This object is connected when data is about to be sent and closed right after.
@@ -220,14 +221,14 @@ class TelldusOut(Protocol):
     def setstate(self,state,*args):
         (old, self.state) = (self.state, state)
         if state != old:
-            log.msg("STATE change: '%s' --> '%s'" %(old,state), system='TD/OUT')
+            log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
         self.parent.changestate(self,self.state,*args)
 
 
     def connectionMade(self):
         self.setstate('connected')
         data = self.queue.active['data']
-        log.msg("     <<<  (%s)'%s'" %(len(data),data), system='TD/OUT')
+        log.msg("     <<<  (%s)'%s'" %(len(data),data), system=self.system)
         self.transport.write(data)
 
 
@@ -243,9 +244,9 @@ class TelldusOut(Protocol):
 
     def dataReceived(self, data):
         self.setstate('active')
-        log.msg("     >>>  (%s)'%s'" %(len(data),data), system='TD/OUT')
+        log.msg("     >>>  (%s)'%s'" %(len(data),data), system=self.system)
         (elements, data) = parsestream(data)
-        #log.msg("          %s" %(elements), system='TD')
+        #log.msg("          %s" %(elements), system=self.system)
         self.disconnect()
         self.queue.callback(elements)
 
@@ -268,7 +269,7 @@ class TelldusOut(Protocol):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        log.msg("Command '%s' timed out" %(self.queue.active['command'],), system='TD/OUT')
+        log.msg("Command '%s' timed out" %(self.queue.active['command'],), system=self.system)
         self.setstate('inactive')
         self.queue.errback(TimeoutException())
         self.send_next()
@@ -276,6 +277,7 @@ class TelldusOut(Protocol):
 
 
 class Telldus(Endpoint):
+    system = 'TD'
 
     # --- Interfaces
     def register(self):
@@ -406,7 +408,7 @@ class Telldus(Endpoint):
     def parse_event(self, event):
         cmd = event[0]
 
-        #log.msg("     >>>  %s  %s" %(cmd,event[1:]), system='TD')
+        #log.msg("     >>>  %s  %s" %(cmd,event[1:]), system=self.inport.system)
 
         if cmd == 'TDSensorEvent':
             # ignoring sensor events as we handle them as raw device events
@@ -415,14 +417,15 @@ class Telldus(Endpoint):
         elif cmd == 'TDRawDeviceEvent':
 
             args = parserawargs(event[1])
-            #log.msg("     >>>  %s  %s" %(cmd,args), system='TD')
+            #log.msg("     >>>  %s  %s" %(cmd,args), system=self.inport.system)
 
             if 'protocol' not in args:
-                log.msg("Missing protocol from %s, dropping event" %(cmd), system='TD')
+                log.msg("Missing protocol from %s, dropping event" %(cmd),
+                        system=self.inport.system)
                 return
 
             #if args['protocol'] != 'arctech':
-            #    #log.msg("Ignoring unknown protocol '%s' in '%s', dropping event" %(args['protocol'],cmd))
+            #    #log.msg("Ignoring unknown protocol '%s' in '%s', dropping event" %(args['protocol'],cmd), system=self.inport.system)
             #    continue
 
             # Check for matches in eventlist
@@ -471,40 +474,4 @@ class Telldus(Endpoint):
                 return
 
         # Ignore the other events
-        log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system='TD')
-
-
-
-
-################################################################
-#
-#  TESTING
-#
-################################################################
-if __name__ == "__main__":
-    from twisted.python.log import startLogging
-    startLogging(sys.stdout)
-
-    def error(reason,td):
-        log.msg("ERROR",reason)
-        reactor.stop()
-
-    def ready(result,td):
-        log.msg("READY",result)
-        d = td.turnOn(1)
-        d = td.turnOn(2)
-        d = td.turnOn(3)
-
-    def event(result,td):
-        log.msg("EVENT",result)
-
-    td = Telldus()
-    d = td.setup()
-    td.addCallbackReady(ready,td)
-    td.addCallbackError(error,td)
-    td.addCallbackEvent(event,td)
-    d = td.turnOn(1)
-    d = td.turnOn(2)
-    d = td.turnOn(3)
-
-    reactor.run()
+        log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system=self.inport.system)

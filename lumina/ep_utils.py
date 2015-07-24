@@ -8,6 +8,7 @@ from endpoint import Endpoint
 
 
 class Utils(Endpoint):
+    system = 'UTIL'
 
     # --- Interfaces
     def register(self):
@@ -36,11 +37,11 @@ class Utils(Endpoint):
         return d
 
     def stop(self):
-        log.msg("SERVER STOPPING", system="MAIN")
+        log.msg("SERVER STOPPING", system=self.system)
         self.event('stopping')
         # This location is not perfect, as any deferred objects in the stopping event above
         # will not be executed before the reactor is stopped
         reactor.stop()
 
     def log(self,*args,**kw):
-        log.msg("LOG %s %s" %(args,kw), system="MAIN")
+        log.msg("LOG %s %s" %(args,kw), system=self.system)

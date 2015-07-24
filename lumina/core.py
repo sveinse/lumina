@@ -188,6 +188,8 @@ class JobFn(JobBase):
 
 
 class Core(object):
+    system='CORE'
+
 
     def __init__(self):
         self.events = []
@@ -208,7 +210,7 @@ class Core(object):
         if isinstance(events, dict):
             events=events.keys()
 
-        log.msg("Registering events: %s" %(tuple(events),), system='CORE')
+        log.msg("Registering events: %s" %(tuple(events),), system=self.system)
         for name in events:
             if name in self.events:
                 raise TypeError("Event '%s' already exists" %(name))
@@ -217,7 +219,7 @@ class Core(object):
     def remove_events(self, events):
         ''' Remove from the list of known events'''
 
-        log.msg("De-registering events: %s" %(tuple(events),), system='CORE')
+        log.msg("De-registering events: %s" %(tuple(events),), system=self.system)
         for name in events:
             if name not in self.events:
                 raise TypeError("Unknown event '%s'" %(name))
@@ -228,7 +230,7 @@ class Core(object):
     def add_commands(self, commands):
         ''' Add to the dict of known commands and register their callback fns '''
 
-        log.msg("Registering commands: %s" %(tuple(commands.keys()),), system='CORE')
+        log.msg("Registering commands: %s" %(tuple(commands.keys()),), system=self.system)
         for (name,fn) in commands.items():
             if name in self.commands:
                 raise TypeError("Command '%s' already exists" %(name))
@@ -237,7 +239,7 @@ class Core(object):
     def remove_commands(self, commands):
         ''' Remove from the dict of known commands '''
 
-        log.msg("De-registering commands: %s" %(tuple(commands),), system='CORE')
+        log.msg("De-registering commands: %s" %(tuple(commands),), system=self.system)
         for name in commands:
             if name not in self.commands:
                 raise TypeError("Unknown command '%s'" %(name))
@@ -245,21 +247,14 @@ class Core(object):
 
     def get_commandfn(self, command):
         ''' Get the command handler function '''
-
-        fn = self.commands.get(command)
-
-        # Known command?
-        if fn is None:
-            log.msg("Unknown command '%s', ignoring" %(command), system='CORE')
-
-        return fn
+        return self.commands.get(command)
 
 
     # --- JOBS
     def add_jobs(self,jobs):
         ''' Add list of jobs '''
 
-        log.msg("Registering handlers for events: %s" %(tuple(jobs.keys()),), system='CORE')
+        log.msg("Registering handlers for events: %s" %(tuple(jobs.keys()),), system=self.system)
         for (name,commands) in jobs.items():
             if name in self.jobs:
                 raise TypeError("Job '%s' already exists" %(name))
@@ -281,12 +276,12 @@ class Core(object):
 
         # If a job is running, put the new one in a queue
         if job.isempty():
-            log.msg("%s  --  Empty job" %(job.event), system='CORE')
-            #log.msg("   Empty job, skipping", system='CORE')
+            log.msg("%s  --  Empty job" %(job.event), system=self.system)
+            #log.msg("   Empty job, skipping", system=self.system)
             return
         self.queue.append(job)
-        log.msg("%s  --  %s" %(job.event,job), system='CORE')
-        #log.msg("   -- %s" %(job), system='CORE')
+        log.msg("%s  --  %s" %(job.event,job), system=self.system)
+        #log.msg("   -- %s" %(job), system=self.system)
 
         if not self.inprogress:
             return self._run_next_action()
@@ -331,7 +326,7 @@ class Core(object):
 
                 # Execute the given action object (if valid)
                 if action:
-                    log.msg("   --- RUN %s" %(action), system='CORE')
+                    log.msg("   --- RUN %s" %(action), system=self.system)
                     action.event = self.currentjob.event
                     result = action.execute()
 
@@ -348,4 +343,4 @@ class Core(object):
                 # to do.
                 self.currentjob = None
                 self.currentcommand = None
-                log.msg("   -- DONE", system='CORE')
+                log.msg("   -- DONE", system=self.system)

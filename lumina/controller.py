@@ -21,6 +21,7 @@ class EventProtocol(LineReceiver):
     noisy = False
     delimiter='\n'
     timeout=15
+    system = 'CTRL'
 
     def connectionMade(self):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
@@ -28,11 +29,11 @@ class EventProtocol(LineReceiver):
         self.events = []
         self.commands = []
         self.requests = { }
-        log.msg("Connect from %s" %(self.ip,), system='CTRL')
+        log.msg("Connect from %s" %(self.ip,), system=self.system)
 
 
     def connectionLost(self, reason):
-        log.msg("Lost connection from '%s' (%s)" %(self.name,self.ip), system='CTRL')
+        log.msg("Lost connection from '%s' (%s)" %(self.name,self.ip), system=self.system)
         if len(self.events):
             self.parent.remove_events(self.events)
         if len(self.commands):
@@ -57,13 +58,13 @@ class EventProtocol(LineReceiver):
             event = Event().parse(data)
             log.msg("   -->  %s" %(event,), system=self.name)
         except SyntaxError as e:
-            log.msg("Protcol error. %s" %(e.message))
+            log.msg("Protcol error. %s" %(e.message), system=self.system)
             return
 
         # -- Register client name
         if event.name == 'name':
             self.name = event.args[0]
-            log.msg("Client %s identified as '%s'" %(self.ip,self.name), system='CTRL')
+            log.msg("Client %s identified as '%s'" %(self.ip,self.name), system=self.system)
             return
 
         # -- Register client events
@@ -160,7 +161,7 @@ class EventProtocol(LineReceiver):
         d.errback(exc)
 
 
-    # -- Interactive mode (lines prefixed with '@')
+    # -- @INTERACTIVE mode (lines prefixed with '@')
     def interactive(self, data):
 
         def raw_reply(reply,cls,event):
@@ -174,7 +175,7 @@ class EventProtocol(LineReceiver):
             event = Event().parse(data)
             log.msg("   -->  %s" %(event,), system=self.name)
         except SyntaxError as e:
-            log.msg("Protcol error. %s" %(e.message))
+            log.msg("Protcol error. %s" %(e.message), system=self.system)
             self.transport.write('>>> ERROR: Protocol error. %s\n' %(e.message))
             return
 
@@ -202,6 +203,7 @@ class EventFactory(Factory):
 
 
 class Controller(Core):
+    system = 'CTRL'
 
     def __init__(self,port):
         Core.__init__(self)
@@ -219,16 +221,16 @@ class Controller(Core):
 
         # Is this a registered event?
         if event.name not in self.events:
-            log.msg("%s  --  Unregistered" %(event), system='CTRL')
+            log.msg("%s  --  Unregistered" %(event), system=self.system)
             return None
 
         # Known event?
         if event.name not in self.jobs:
-            log.msg("%s  --  Ignored, no job handler" %(event), system='CTRL')
-            #log.msg("   No job for event '%s', ignoring" %(event.name), system='CTRL')
+            log.msg("%s  --  Ignored, no job handler" %(event), system=self.system)
+            #log.msg("   No job for event '%s', ignoring" %(event.name), system=self.system)
             return None
 
-        log.msg("%s" %(event), system='CTRL')
+        log.msg("%s" %(event), system=self.system)
 
         # Get the job and run it
         job = self.jobs[event.name]
