@@ -1,5 +1,7 @@
 # -*- python -*-
 import re
+import json
+
 
 class Event(object):
     ''' Event object.
@@ -26,7 +28,24 @@ class Event(object):
         return "<EV:%s%s>" %(self.name,t)
 
 
-    def dump(self):
+    def dump_json(self):
+        js = {
+            'name': self.name,
+            'args': self.args,
+            'kw': self.kw,
+        }
+        return json.dumps(js)
+
+
+    def parse_json(self, s):
+        js = json.loads(s)
+        self.name = js.get('name')
+        self.args = js.get('args')
+        self.kw = js.get('kw')
+        return self
+
+
+    def dump_str(self):
         (s,t) = ([str(a) for a in self.args],'')
         for (k,v) in self.kw.items():
             s.append("%s=%s" %(k,v))
@@ -35,7 +54,7 @@ class Event(object):
         return "%s%s" %(self.name,t)
 
 
-    def parse(self, name, *args, **kw):
+    def parse_str(self, s):
         m = re.match(r'^([^{}]+)({(.*)})?$', name)
         if not m:
             raise SyntaxError("Invalid syntax '%s'" %(name))
@@ -50,9 +69,4 @@ class Event(object):
                     self.kw[k[0]] = k[1]
                 else:
                     self.args.append(arg)
-        # Update optional variable arguments from constructor. Append the args, and update
-        # the kw args. This will override any colliding kw options that might have been present
-        # in the text string.
-        self.args += args
-        self.kw.update(kw)
         return self

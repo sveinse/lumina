@@ -55,7 +55,7 @@ class EventProtocol(LineReceiver):
 
         # -- Parse the incoming message as an Event
         try:
-            event = Event().parse(data)
+            event = Event().parse_json(data)
             log.msg("   -->  %s" %(event,), system=self.name)
         except SyntaxError as e:
             log.msg("Protcol error. %s" %(e.message), system=self.system)
@@ -114,7 +114,7 @@ class EventProtocol(LineReceiver):
             'timer': reactor.callLater(self.timeout, self.timedout, event),
         }
         log.msg("   <--  %s" %(event,), system=self.name)
-        self.transport.write(event.dump()+'\n')
+        self.transport.write(event.dump_json()+'\n')
         return d
 
 
@@ -172,7 +172,7 @@ class EventProtocol(LineReceiver):
             raise reply
 
         try:
-            event = Event().parse(data)
+            event = Event().parse_str(data)
             log.msg("   -->  %s" %(event,), system=self.name)
         except SyntaxError as e:
             log.msg("Protcol error. %s" %(e.message), system=self.system)

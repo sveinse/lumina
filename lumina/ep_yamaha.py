@@ -52,9 +52,9 @@ def t(xml):
 
 def ison(xml):
     if xml.text == 'On':
-        return 1
+        return True
     else:
-        return 0
+        return False
 
 
 class YamahaSSDP(DatagramProtocol):
@@ -161,7 +161,7 @@ class YamahaProtocol(Protocol):
         myip = self.transport.getHost().host
         data = 'POST /YamahaRemoteControl/ctrl HTTP/1.1\r\nHost: %s\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Length: %s\r\n\r\n%s' %(myip,len(body),body)
         log.msg( "     <<<  %s" %(self.queue.active['chain']), system=self.system)
-        log.msg( "     <<<  '%s'" %(body,), system=self.system)
+        #log.msg( "     <<<  '%s'" %(body,), system=self.system)
         #log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
         self.data = ''
         self.dstate = 'http'
@@ -239,7 +239,7 @@ class YamahaProtocol(Protocol):
             if self.httperr == 400:
                 raise CommandFailedException('HTML err %s, Bad request, XML Parse error' %(self.httperr,))
 
-            log.msg( "     >>>  '%s'" %(body,), system=self.system)
+            #log.msg( "     >>>  '%s'" %(body,), system=self.system)
             xml = ET.fromstring(body)
             if xml.tag != ROOT:
                 raise CommandFailedException("'%s' is XML root, not '%s'" %(xml.tag,ROOT))

@@ -66,7 +66,7 @@ class EventProtocol(LineReceiver):
             return
 
         try:
-            event = Event().parse(data)
+            event = Event().parse_json(data)
             log.msg("   -->  %s" %(event,), system=self.system)
         except SyntaxError as e:
             log.msg("Protocol error. %s" %(e.message), system=self.system)
@@ -100,7 +100,7 @@ class EventProtocol(LineReceiver):
     def send_event(self, event):
         # No response is expected from events, so no need to setup any deferals
         log.msg("   <--  %s" %(event,), system=self.system)
-        self.transport.write(event.dump()+'\n')
+        self.transport.write(event.dump_json()+'\n')
 
 
     def send_reply(self, response, request):
@@ -118,7 +118,7 @@ class EventProtocol(LineReceiver):
             response = Event(request.name,response)
 
         log.msg("   <--  %s" %(response,), system=self.system)
-        self.transport.write(response.dump()+'\n')
+        self.transport.write(response.dump_json()+'\n')
 
 
     def send_error(self, failure, request):
@@ -130,7 +130,7 @@ class EventProtocol(LineReceiver):
         error = Event('error',request.name,reason.__class__.__name__,*reason.args)
 
         log.msg("   <--  %s" %(error,), system=self.system)
-        self.transport.write(error.dump()+'\n')
+        self.transport.write(error.dump_json()+'\n')
 
 
 

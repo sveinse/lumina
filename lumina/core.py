@@ -318,7 +318,7 @@ class Core(object):
                 name = self.currentjob.next()
                 action = None
                 if name:
-                    action = Action().parse(name)
+                    action = Action().parse_str(name)
                     action.fn = self.get_commandfn(action.name)
                     if action.fn is None:
                         action = None
