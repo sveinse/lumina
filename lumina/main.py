@@ -1,6 +1,5 @@
 # -*- python -*-
 import os,sys,atexit
-from twisted.internet import reactor
 from twisted.python import log
 
 
@@ -57,7 +56,7 @@ def daemonize(pidfile):
 #
 # ***  CONTROLLER  ***
 #
-def controller():
+def controller(webroot,webport):
 
     from controller import Controller
     from logic import Logic
@@ -77,8 +76,8 @@ def controller():
     #controller.register(Telldus())
 
     # Web server
-    web = Web()
-    web.setup()
+    web = Web(port=webport,webroot=webroot)
+    web.setup(controller)
 
 
 
@@ -150,7 +149,7 @@ def test():
         #controller.register(Demo())
         #controller.register(Yamaha('192.168.234.20'))
 
-        web = Web(port=8080)
+        web = Web(port=8080,webroot='www')
         web.setup(controller)
 
     # Main client

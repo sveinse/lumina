@@ -9,6 +9,7 @@ from endpoint import Endpoint
 
 class Utils(Endpoint):
     system = 'UTIL'
+    name = 'UTIL'
 
     # --- Interfaces
     def configure(self):

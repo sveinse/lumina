@@ -8,8 +8,10 @@ import argparse
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--daemon', action='store_true', help='Daemonize application')
-ap.add_argument('--pidfile', help="Set the pidfile", default='/var/run/lumina', metavar="FILENAME")
-ap.add_argument('--syslog', action='store_true', default=False, help="Enable syslog logging")
+ap.add_argument('--pidfile', default='/var/run/lumina', metavar='FILENAME', help='Set the pidfile')
+ap.add_argument('--syslog', action='store_true', default=False, help='Enable syslog logging')
+ap.add_argument('--webroot', default='/usr/share/lumina/www', metavar='PATH', help='Set the html server path')
+ap.add_argument('--webport', default='80', metavar='PORT', help='Set the port to run the html server')
 
 opts = ap.parse_args()
 if opts.daemon:
@@ -21,7 +23,7 @@ else:
     log.startLogging(sys.stdout)
 
 # Start main controller(s)
-controller()
+controller(webroot=opts.webroot, webport=int(opts.webport))
 client_lys()
 
 # Start twisted

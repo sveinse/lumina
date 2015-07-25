@@ -323,6 +323,7 @@ class YamahaProtocol(Protocol):
 
 class Yamaha(Endpoint):
     system = 'AVR'
+    name = 'YAMAHA'
 
     # --- Interfaces
     def configure(self):

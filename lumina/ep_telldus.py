@@ -278,6 +278,7 @@ class TelldusOut(Protocol):
 
 class Telldus(Endpoint):
     system = 'TD'
+    name = 'TELLDUS'
 
     # --- Interfaces
     def configure(self):
@@ -342,6 +343,7 @@ class Telldus(Endpoint):
 
         self.commands = {
             'td/state'      : lambda a : (self.inport.state, self.outport.state),
+            'td/ison'       : lambda a : self.ison(),
 
             'td/on'         : lambda a : self.turnOn(a.args[0]),
             'td/off'        : lambda a : self.turnOff(a.args[0]),
@@ -391,6 +393,12 @@ class Telldus(Endpoint):
 
 
     # --- Commands
+    def ison(self):
+        if self.inport.state in ('connected','active'):
+            return True
+        else:
+            return False
+
     def turnOn(self,num):
         cmd = ( 'tdTurnOn', num )
         return self.outport.command(cmd)

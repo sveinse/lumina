@@ -10,6 +10,7 @@ from event import Event
 
 
 class Demo(Endpoint):
+    name = 'DEMO'
 
     # --- Interfaces
     def configure(self):

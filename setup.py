@@ -11,6 +11,11 @@ setup(
     scripts = [ 'lumina-lys','lumina-hw50' ],
     packages = [ 'lumina' ],
 
+    data_files = [ ('share/lumina/www', ['www/index.html' ] ),
+                   ('share/lumina/www/css', ['www/css/lumina.css' ] ),
+                   ('share/lumina/www/js', ['www/js/lumina.js' ] ),
+               ]
+
     #entry_points={
     #    'console_scripts': [
     #        'luminad = lumina.lumina:main',

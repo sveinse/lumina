@@ -23,13 +23,16 @@ newversion: version
 	@echo " -- Svein Seldal <sveinse@seldal.com>  $$(date -R)" >>debian/changelog
 	cat debian/changelog
 
+# Specific options
+lys-OPTS=--webroot=www --webport=8080
+hw50-OPTS=
 
 # Rules for one client
 define client
 $(1)-sync:
 	rsync -av --del -e ssh ./ pi@$(1):/home/pi/lumina-dev/ --exclude="/debian/lumina" --exclude="/build" --exclude="/lumina.egg-info" --exclude="*.pyc"
 $(1)-run: $(1)-sync
-	ssh -t pi@$(1) -- /bin/sh -c '"cd /home/pi/lumina-dev/ && exec ./lumina-$(1)"'
+	ssh -t pi@$(1) -- /bin/sh -c '"cd /home/pi/lumina-dev/ && exec ./lumina-$(1) $($(1)-OPTS)"'
 $(1)-test: $(1)-sync
 	ssh -t pi@$(1) -- /bin/sh -c '"cd /home/pi/lumina-dev/ && exec ./lumina-test"'
 $(1)-build: $(1)-sync

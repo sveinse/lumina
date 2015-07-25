@@ -56,14 +56,17 @@ class EventProtocol(LineReceiver):
         # -- Parse the incoming message as an Event
         try:
             event = Event().parse_json(data)
-            log.msg("   -->  %s" %(event,), system=self.name)
+            evm = event.copy()
+            if event.name in ('events', 'commands'):
+                evm.args=['...%s args...' %(len(event.args))]
+            log.msg("   -->  %s" %(evm,), system=self.name)
         except SyntaxError as e:
             log.msg("Protcol error. %s" %(e.message), system=self.system)
             return
 
         # -- Register client name
         if event.name == 'name':
-            self.name = event.args[0]
+            self.name = 'R-' + event.args[0]
             log.msg("Client %s identified as '%s'" %(self.ip,self.name), system=self.system)
             return
 

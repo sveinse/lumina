@@ -4,7 +4,8 @@ Section: python
 Priority: optional
 Build-Depends: python-all (>= 2.6.6-3),
                debhelper (>= 7),
-               python-setuptools
+               python-setuptools,
+               dh-python
 Standards-Version: 3.9.1
 
 Package: python-lumina

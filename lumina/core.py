@@ -7,6 +7,7 @@
 #
 from twisted.internet.defer import Deferred
 from twisted.python import log
+from twisted.internet import reactor
 
 from types import *
 
@@ -211,7 +212,7 @@ class Core(object):
         if isinstance(events, dict):
             events=events.keys()
 
-        log.msg("Registering events: %s" %(tuple(events),), system=self.system)
+        log.msg("Registering %s events" %(len(events),), system=self.system)
         for name in events:
             if name in self.events:
                 raise TypeError("Event '%s' already exists" %(name))
@@ -220,7 +221,7 @@ class Core(object):
     def remove_events(self, events):
         ''' Remove from the list of known events'''
 
-        log.msg("De-registering events: %s" %(tuple(events),), system=self.system)
+        log.msg("De-registering %s events" %(len(events),), system=self.system)
         for name in events:
             if name not in self.events:
                 raise TypeError("Unknown event '%s'" %(name))
@@ -231,7 +232,7 @@ class Core(object):
     def add_commands(self, commands):
         ''' Add to the dict of known commands and register their callback fns '''
 
-        log.msg("Registering commands: %s" %(tuple(commands.keys()),), system=self.system)
+        log.msg("Registering %s commands" %(len(commands),), system=self.system)
         for (name,fn) in commands.items():
             if name in self.commands:
                 raise TypeError("Command '%s' already exists" %(name))
@@ -240,7 +241,7 @@ class Core(object):
     def remove_commands(self, commands):
         ''' Remove from the dict of known commands '''
 
-        log.msg("De-registering commands: %s" %(tuple(commands),), system=self.system)
+        log.msg("De-registering %s commands" %(len(commands),), system=self.system)
         for name in commands:
             if name not in self.commands:
                 raise TypeError("Unknown command '%s'" %(name))
@@ -255,7 +256,7 @@ class Core(object):
     def add_jobs(self,jobs):
         ''' Add list of jobs '''
 
-        log.msg("Registering handlers for events: %s" %(tuple(jobs.keys()),), system=self.system)
+        log.msg("Registering %s handlers for events" %(len(jobs),), system=self.system)
         for (name,commands) in jobs.items():
             if name in self.jobs:
                 raise TypeError("Job '%s' already exists" %(name))
@@ -270,6 +271,7 @@ class Core(object):
 
     # --- ENDPOINT REGISTRATION
     def register(self,endpoint):
+        log.msg("===  Registering endpoint %s" %(endpoint.name), system=self.system)
         endpoint.configure()
         endpoint.add_eventcallback(self.handle_event)
         self.add_events(endpoint.get_events())

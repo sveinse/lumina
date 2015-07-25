@@ -14,7 +14,7 @@ from exceptions import *
 
 
 def ison(result):
-    if result=='ON':
+    if result[0]=='ON':
         return True
     else:
         return False
@@ -48,7 +48,7 @@ class OppoProtocol(LineReceiver):
 
     def connectionLost(self,reason):
         self.setstate('closed')
-        self.parent.event('oppo/disconnected',reason)
+        self.parent.event('oppo/disconnected',reason.getErrorMessage())
 
 
     def lineReceived(self, data):
@@ -156,7 +156,7 @@ class OppoProtocol(LineReceiver):
         if self.queue.get_next() is not None:
             data = self.queue.active['data']
             log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
-            self.transport.write(data+self.delimiter)
+            self.transport.write(data.encode('ascii')+self.delimiter)
 
             # Set timeout
             self.queue.set_timeout(self.timeout, self.timedout)
@@ -173,6 +173,7 @@ class OppoProtocol(LineReceiver):
 
 class Oppo(Endpoint):
     system = 'OPPO'
+    name = 'OPPO'
 
     # --- Interfaces
     def configure(self):
@@ -240,7 +241,7 @@ class Oppo(Endpoint):
 
     # --- Convenience
     def c(self,*args,**kw):
-        self.protocol.command(*args,**kw)
+        return self.protocol.command(*args,**kw)
 
 
     # --- Commands

@@ -9,6 +9,7 @@ from twisted.python import log
 class Led(Endpoint):
     universe = 0
     system = 'LED'
+    name = 'LED'
 
     # --- Interfaces
     def configure(self):

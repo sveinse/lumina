@@ -31,19 +31,19 @@ class EventProtocol(LineReceiver):
         self.loop.start(60, False)
 
         # -- Register name
-        log.msg("Registering name '%s'" %(self.parent.name,), system=self.system)
+        log.msg("Registering client name '%s'" %(self.parent.name,), system=self.system)
         self.send_event(Event('name',self.parent.name))
 
         # -- Register events
         evlist = self.parent.events
         if len(evlist):
-            log.msg("Registering events %s" %(evlist), system=self.system)
+            log.msg("Registering %s client events" %(len(evlist)), system=self.system)
             self.send_event(Event('events', *evlist))
 
         # -- Register commands
         cmdlist = self.parent.commands.keys()
         if len(cmdlist):
-            log.msg("Registering commands %s" %(cmdlist), system=self.system)
+            log.msg("Registering %s client commands" %(len(cmdlist)), system=self.system)
             self.send_event(Event('commands', *cmdlist))
 
         # -- Flush any queue that might have been accumulated before
@@ -99,7 +99,10 @@ class EventProtocol(LineReceiver):
 
     def send_event(self, event):
         # No response is expected from events, so no need to setup any deferals
-        log.msg("   <--  %s" %(event,), system=self.system)
+        evm = event.copy()
+        if event.name in ('events', 'commands'):
+            evm.args=['...%s args...' %(len(event.args))]
+        log.msg("   <--  %s" %(evm,), system=self.system)
         self.transport.write(event.dump_json()+'\n')
 
 

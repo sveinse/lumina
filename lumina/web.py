@@ -2,76 +2,91 @@
 import os,sys
 import html
 
-from twisted.web.resource import Resource,NoResource
-from twisted.web.server import Site
+from twisted.web.resource import Resource,NoResource,ErrorPage
+from twisted.web.server import Site,NOT_DONE_YET
+import twisted.web.http as http
 from twisted.internet import reactor
 from twisted.web.static import File
 from twisted.python import log
+from twisted.internet.defer import Deferred,maybeDeferred
+import json
+
+from event import Event
+from exceptions import *
+
+class WebException(LuminaException):
+    pass
 
 
-class Rest(Resource):
+class PageCtrl(Resource):
     isLeaf = True
+    noisy = False
+    system = 'WEB'
 
-    #def getChild(self, name, request):
-    #    log.msg("getChild(%s,%s)" %(name,request))
-    #    return NoResource()
+    def __init__(self,path,controller):
+        self.path = '/' + path
+        self.controller = controller
 
-    def render_GET(self, request):
-        log.msg("render_GET: %s" %(request))
-        return ''
+    def reply_ok(self, result, request):
+        request.responseHeaders.addRawHeader(b'Content-Type', b'application/json')
+        response = result.dump_json()
+        #log.msg('RESPONSE:',request.responseHeaders)
+        #log.msg("RESPONSE: '%s'" %(response,))
+        request.write(response)
+        request.finish()
 
-#class EventPage(Resource):
-#    isLeaf = True
-#
-#    #def getChild(self, name, request):
-#    #    log.msg("getChild(%s,%s)" %(name,request))
-#    #    return NoResource()
-#
-#    def render_GET(self, request):
-#        log.msg("render_GET: %s" %(request))
-#        return ''
+    def reply_error(self, failure, request):
+        failtype = failure.trap(CommandException)
+        reason = failure.value
 
-#class ActionPage(Resource):
-#    isLeaf = True
-#
-#    def __init__(self,controller):
-#        self.controller = controller
-#        self.requests = []
-#
-#    def render_GET(self, request):
-#        self.requests.appned(request)
-#        return NOT_DONE_YET
-#
-#    def send(self, msg):
-#        for p in self.requests:
-#            p.write(msg)
+        request.write(json.dumps(failure))
+        request.finish()
 
+    def render_POST(self, request):
+        #log.msg('HEADERS:',request.requestHeaders)
 
-class PageRoot(Resource):
-    isLeaf = True
+        # Extract the command from the URI, and do some sanity checks
+        if not request.path.startswith(self.path):
+            raise WebException("Internal error: Request '%s' does not start with '%s'" %(
+                request.path,self.path))
+        command = request.path[len(self.path):]
+        if not command.startswith('/'):
+            return ErrorPage(http.BAD_REQUEST,'Error','Missing request').render(request)
+        command = command[1:]
+        if not len(command):
+            return ErrorPage(http.BAD_REQUEST,'Error','Too short request').render(request)
 
-    def __init__(self,path):
-        self.path = path
+        # Get the command function and run it
+        fn = self.controller.get_commandfn(command)
+        if not fn:
+            return ErrorPage(http.BAD_REQUEST,'Error','Unknown command').render(request)
 
-    def render_GET(self, request):
-        #log.msg("render_GET: %s" %(request))
-        params = {
-            'foo': 'bar'
-        }
-        with open(self.path, 'r') as f:
-            data = f.read().format(**params)
-        return data
+        content = request.content.read()
+        #log.msg("CONTENT: '%s'" %(content,))
+
+        event = Event(command) #.jparse(request.content.read())
+
+        result = maybeDeferred(fn, event)
+        result.addCallback(self.reply_ok,request)
+        result.addErrback(self.reply_error,request)
+
+        return NOT_DONE_YET
 
 
-class Www(object):
 
-    def __init__(self,port):
+class Web(object):
+
+    def __init__(self,port,webroot):
         self.port = port
+        self.webroot = webroot
 
-    def setup(self):
-        root = File('www')
-        root.putChild('', PageRoot('www/index.html'))
-        root.putChild('rest', Rest())
+    def setup(self, controller):
+        self.controller = controller
+
+        root = File(self.webroot)
+        root.noisy = False
+        root.putChild('', File(os.path.join(self.webroot,'index.html')))
+        root.putChild('ctrl', PageCtrl('ctrl',self.controller))
 
         self.site = Site(root)
         reactor.listenTCP(self.port, self.site)

@@ -252,7 +252,7 @@ class HW50Protocol(Protocol):
 
     def connectionLost(self,reason):
         self.setstate('closed')
-        self.parent.event('hw50/disconnected',reason)
+        self.parent.event('hw50/disconnected',reason.getErrorMessage())
 
 
     def dataReceived(self, data):
@@ -292,10 +292,13 @@ class HW50Protocol(Protocol):
 
                 # Process the frame here...
                 if self.queue.active:
-                    if cmd == ACK_OK:
-                        self.queue.callback(data)
-                    else:
+                    # Treat either A) Unknown frame type commands or
+                    #              B) ACK_RS types with non-ACK_OK responses
+                    # as errors
+                    if cmd not in TYPES or ( cmd == ACK_RS and item != ACK_OK ):
                         self.queue.errback(CommandFailedException(RESPONSES.get(item,item)))
+                    else:
+                        self.queue.callback(data)
                     self.send_next()
                     return
 
@@ -399,6 +402,7 @@ class HW50Protocol(Protocol):
 
 
 class Hw50(Endpoint):
+    name = 'HW50'
     system = 'HW50'
 
 
@@ -461,7 +465,7 @@ class Hw50(Endpoint):
 
     # --- Convenience
     def c(self,*args,**kw):
-        self.protocol.command(*args,**kw)
+        return self.protocol.command(*args,**kw)
 
 
     # --- Commands

@@ -1,271 +1,186 @@
 <!DOCTYPE html>
 <html lang="no">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Lumina Automation</title>
+        <title>Lumina Automation</title>
 
-    <!-- Bootstrap -->
-    <link href="css/bootstrap.css" rel="stylesheet">
+        <!-- Bootstrap -->
+        <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" id="css">
+        <!-- <link href="css/bootstrap.min.css" rel="stylesheet" id="css"> -->
 
-    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
-    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
-    <!--[if lt IE 9]>
-      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
-      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
-    <![endif]-->
+        <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+        <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+            <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+        <![endif]-->
 
-    <link href="css/lumina.css" rel="stylesheet">
-  </head>
+        <!-- Font awsome -->
+        <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
 
-  <body>
+        <!-- Lumina CSS -->
+        <link href="css/lumina.css" rel="stylesheet">
+    </head>
 
-   <nav class="navbar navbar-default navbar-static-top" role="navigation">
-      <div class="container">
-        <div class="navbar-header">
-          <div class="navbar-toogle">
-          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          </div>
-          <!--<a class="navbar-brand" href="/">Seldal Kino</a>-->
+    <body>
+
+        <nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+            <div class="container-fluid">
+                <!-- Brand and toggle get grouped for better mobile display -->
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <button type="button" class="navbar-toggle collapsed navbar-btn"><i class="fa fa-life-ring fa-lg"></i> Panikk</button>
+                    <a class="navbar-brand" href="/">Seldal Kino</a>
+                </div>
+
+                <!-- Collect the nav links, forms, and other content for toggling -->
+                <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                    <ul class="nav navbar-nav">
+                        <li class="active"><a href="#">
+                            <i class="fa fa-sitemap fa-lg"></i>
+                            Scener<span class="sr-only">(current)</span></a>
+                        </li>
+                        <li><a href="#">
+                            <i class="fa fa-lightbulb-o fa-lg"></i>
+                            Lys
+                            </a>
+                        </li>
+                        <li><a href="#">
+                            <i class="fa fa-volume-off fa-lg"></i>
+                            Forsterker
+                            </a>
+                        </li>
+                        <li><a href="#">
+                            <i class="fa fa-play-circle fa-lg"></i>
+                            Spiller
+                            </a>
+                        </li>
+                        <li><a href="#">
+                            <i class="fa fa-video-camera fa-lg"></i>
+                            Prosjektor
+                            </a>
+                        </li>
+                    </ul>
+
+                    <ul class="nav navbar-nav navbar-right">
+                        <!--<li><p class="navbar-text css-light" id="toggle-css"><i class="fa fa-toggle-on fa-lg" id="css-icon"></i></p></li>-->
+                        <li><button type="button" class="btn btn-danger navbar-btn"><i class="fa fa-life-ring fa-lg"></i> Panikk</button></li>
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+
+        <div class="container hide" id="error">
+            <div class="alert alert-danger alert-dismissable" role="alert">
+                <button type="button" class="close" aria-label="Close" id="error-close"><span aria-hidden="true">&times;</span></button>
+                <strong>Failed to communicate with server!</strong>
+                Failing commands:
+                <span id="error-text"></span>
+            </div>
         </div>
-        <!--<div class="navbar nav-right">
-            <span class="glyphicon glyphicon-volume-up" aria-hidden="true"></span>
-            -16.5dB
-            <span class="glyphicon glyphicon-play" aria-hidden="true"></span>
-            1:32:00
-        </div>-->
-        <div id="navbar" class="collapse navbar-collapse">
-          <ul class="nav navbar-nav">
-            <li id="nav_home" class="active"><a href="#" onclick="showpart(this)">
-                <span class="glyphicon glyphicon-home" aria-hidden="true"></span>
-                Hjem</a></li>
-            <li id="nav_lights"><a href="#" onclick="showpart(this)">
-                <span class="glyphicon glyphicon-asterisk" aria-hidden="true"></span>
-                Lys
-                <span class="label label-danger hidden" id="no_telldus"><span class="glyphicon glyphicon-warning-sign" aria-hidden="true"></span></span>
-            </a></li>
-            <li id="nav_power"><a href="#" onclick="showpart(this)">
-                <span class="glyphicon glyphicon-asterisk" aria-hidden="true"></span>
-                Strøm</a></li>
-            <li id="nav_projector"><a href="#" onclick="showpart(this)">
-                <span class="glyphicon glyphicon-facetime-video" aria-hidden="true"></span>
-                Prosjektor
-                <span class="label label-success"><span class="glyphicon glyphicon-off" aria-hidden="true"></span></span></a></li>
-            <li id="nav_player"><a href="#" onclick="showpart(this)">
-                <span class="glyphicon glyphicon-play" aria-hidden="true"></span>
-                Spiller</a></li>
-            <li id="nav_receiver"><a href="#" onclick="showpart(this)">
-                <span class="glyphicon glyphicon-volume-up" aria-hidden="true"></span>
-                Forsterker
-                <span class="label label-success"><span class="glyphicon glyphicon-off" aria-hidden="true"></span> PÅ</span></a></li>
-          </ul>
-          <div class="nav navbar-nav navbar-right">
-            <li><a href="#"><span class="glyphicon glyphicon-check" aria-hidden="true"></span> Oppo</a></li>
-            <li><a href="#"><span class="glyphicon glyphicon-volume-up" aria-hidden="true"></span> -16.5dB</a></li>
-            <li><a href="#"><span class="glyphicon glyphicon-play" aria-hidden="true"></span> 1:32:00</a></li>
-          </div>
 
-          <!--<ul class="nav navbar-nav navbar-right">
-            <li><a href="../navbar/">Default</a></li>
-            <li class="active"><a href="./">Static top <span class="sr-only">(current)</span></a></li>
-            <li><a href="../navbar-fixed-top/">Fixed top</a></li>
-          </ul>-->
-        </div><!--/.nav-collapse -->
-        <!--<ul class="nav navbar-nav navbar-right">
-          <li class="active"><a href="#">
-              <span class="glyphicon glyphicon-home" aria-hidden="true"></span>
-              Hjem</a></li>
-            <li><a href="#lys">
-                <span class="glyphicon glyphicon-asterisk" aria-hidden="true"></span>
-                Lys</a></li>
-        </ul>-->
-          <!--<div class="nav navbar-nav navbar-right">
-            <span class="glyphicon glyphicon-volume-up" aria-hidden="true"></span>
-            -16.5dB
-            <span class="glyphicon glyphicon-play" aria-hidden="true"></span>
-            1:32:00
-          </div>-->
+        <div class="container">
+            <span id="body_scener" class="show">
+                <h2><i class="fa fa-lightbulb-o fa-lg fa-fw"></i>
+                    Lys
+                    <sup><small><span class="label label-default td-on-icon">?</span></small></sup>
+                </h2>
+                <p></p>
+                <div class="btn-toolbar" role="toolbar" aria-label="...">
+                    <div class="btn-group btn-group-lg" role="group">
+                        <button type="button" class="btn btn-default lu-lys-off">
+                            <i class="fa fa-lightbulb-o fa-lg"></i>
+                            Av
+                        </button>
+                        <button type="button" class="btn btn-default lu-lys-on">
+                            <i class="fa fa-lightbulb-o fa-lg"></i>
+                            På
+                        </button>
+                    </div>
+                </div>
 
-      </div>
-    </nav>
-
-
-   <div class="container">
-
-     <div class="alert alert-danger" id="no_telldus" role="alert">
-       <strong>
-         <span class="glyphicon glyphicon-warning-sign" aria-hidden="true"></span>
-         Advarsel!
-       </strong>
-       Ingen forbindelse med Telldus.
-     </div>
-
-      <!--<div class="page-header">
-        <h1>Hello, world!</h1>
-      </div>-->
-
-      <!--
-      <span class="label label-success"><span class="glyphicon glyphicon-off" aria-hidden="true"></span> Forsterker</span>
-      <span class="label label-default"><span class="glyphicon glyphicon-ban-circle" aria-hidden="true"></span> Prosjektor</span>
-      <span class="label label-success"><span class="glyphicon glyphicon-off" aria-hidden="true"></span> Spiller</span>
-      -->
-
-      <span id="menu_home" class="show">
-      <h2>Hva ønsker du å gjøre?</h2>
-      <p>
-        <div class="btn-toolbar" role="toolbar" aria-label="...">
-          <div class="btn-group btn-group-lg" role="group">
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Slå alt av</button>
-          </div>
-          <div class="btn-group btn-group-lg" role="group">
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span> Se på Blu-ray</button>
-          </div>
-          <div class="btn-group btn-group-lg" role="group">
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span> Se på Netflix</button>
-          </div>
-          <div class="btn-group btn-group-lg" role="group">
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-music" aria-hidden="true"></span> Høre på Sonos</button>
-          </div>
-          <div class="btn-group" role="group">
-            <button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-              Annet...
-              <span class="caret"></span>
-            </button>
-            <ul class="dropdown-menu" role="menu">
-              <li><a href="#">Dropdown link</a></li>
-              <li><a href="#">Dropdown link</a></li>
-            </ul>
-          </div>
+                <h2><i class="fa fa-picture-o fa-lg fa-fw"></i>
+                    Visning
+                </h2>
+                <p></p>
+                <div class="btn-toolbar" role="toolbar" aria-label="...">
+                    <div class="btn-group btn-group-lg" role="group">
+                        <button type="button" class="btn btn-default">
+                            <i class="fa fa-circle-o-notch fa-lg"></i>
+                            Alt AV
+                        </button>
+                        <button type="button" class="btn btn-default">
+                            <i class="fa fa-power-off fa-lg"></i>
+                            Alt PÅ
+                        </button>
+                    </div>
+                </div>
+                <hr>
+            </span>
         </div>
-      </p>
-      </span>
 
-      <span id="menu_lights" class="show">
-      <h2>Lys</h2>
-      <p>
-        <div class="btn-toolbar" role="toolbar" aria-label="...">
-          <div class="btn-group-vertical btn-group-lg" role="group">
-            Alt lys
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> På</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Dim</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Av</button>
-          </div>
-          <div class="btn-group-vertical btn-group-lg" role="group">
-            Taklys
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> På</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Dim</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Av</button>
-          </div>
+        <div class="container">
+            <span id="body_lys" class="show">
+                <h2><i class="fa fa-lightbulb-o fa-lg fa-fw"></i>
+                    Lys
+                    <sup><small><span class="label label-default td-on-icon">?</span></small></sup>
+                </h2>
+                <p></p>
+                <hr>
+            </span>
         </div>
-      </p>
-      </span>
 
-      <span id="menu_power" class="hidden">
-      <h2>Strøm</h2>
-      <p>
-        <div class="btn-toolbar" role="toolbar" aria-label="...">
-          <div class="btn-group-vertical btn-group-lg" role="group">
-            Alt lys
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> På</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Dim</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Av</button>
-          </div>
-          <div class="btn-group-vertical btn-group-lg" role="group">
-            Taklys
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> På</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Dim</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Av</button>
-          </div>
+        <div class="container">
+            <span id="body_avr" class="show">
+                <h2><i class="fa fa-volume-off fa-lg fa-fw"></i>
+                    Forsterker
+                    <sup><small><span class="label label-default avr-on-icon">?</span></small></sup>
+                </h2>
+                <p></p>
+                <hr>
+            </span>
         </div>
-      </p>
-      </span>
 
-      <span id="menu_projector" class="hidden">
-      <h2>Prosjektor
-        <small><span class="label label-success"><span class="glyphicon glyphicon-off" aria-hidden="true"></span> PÅ</span></small>
-      </h2>
-      <p>
-        <div class="btn-toolbar" role="toolbar" aria-label="...">
-          <div class="btn-group btn-group-lg" role="group">
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Av</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> På</button>
-          </div>
+        <div class="container">
+            <span id="body_oppo" class="show">
+                <h2><i class="fa fa-play-circle fa-lg fa-fw"></i>
+                    Spiller
+                    <sup><small><span class="label label-default oppo-on-icon">?</span></small></sup>
+                </h2>
+                <p></p>
+                <hr>
+            </span>
         </div>
-      </p>
-      </span>
 
-      <span id="menu_player" class="hidden">
-      <h2>Spiller</h2>
-      <p>
-        <div class="btn-toolbar" role="toolbar" aria-label="...">
-          <div class="btn-group btn-group-lg" role="group">
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Av</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> På</button>
-          </div>
+        <div class="container">
+            <span id="body_hw50" class="show">
+                <h2><i class="fa fa-video-camera fa-lg fa-fw"></i>
+                    Prosjektor
+                    <sup><small><span class="label label-default hw50-on-icon">?</span></small></sup>
+                </h2>
+                <p></p>
+                <hr>
+            </span>
         </div>
-      </p>
-      </span>
 
-      <span id="menu_receiver" class="hidden">
-      <h2>Forsterker
-        <small><span class="label label-success"><span class="glyphicon glyphicon-off" aria-hidden="true"></span> PÅ</span></small>
-      </h2>
-      <p>
-        <div class="btn-toolbar" role="toolbar" aria-label="...">
-          <div class="btn-group btn-group-lg" role="group">
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> Av</button>
-            <button type="button" class="btn btn-default">
-              <span class="glyphicon glyphicon-off" aria-hidden="true"></span> På</button>
-          </div>
-        </div>
-      </p>
-      </span>
 
-    </div>
-
-    <footer class="footer">
-      <div class="container">
-        <p class="text-muted">{foo}</p>
-      </div>
-    </footer>
-
-    <!-- Bootstrap core JavaScript
-    ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->
-    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-    <!-- Include all compiled plugins (below), or include individual files as needed -->
-    <script src="js/bootstrap.min.js"></script>
-
-    <script src="js/lumina.js"></script>
-
+        <!-- Bootstrap core JavaScript
+        ================================================== -->
+        <!-- Placed at the end of the document so the pages load faster -->
+        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+        <!-- Include all compiled plugins (below), or include individual files as needed -->
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+        <!-- Lumina JS -->
+        <script src="js/lumina.js"></script>
   </body>
 </html>

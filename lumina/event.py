@@ -1,6 +1,7 @@
 # -*- python -*-
 import re
 import json
+from twisted.python import log
 
 
 class Event(object):
@@ -17,6 +18,10 @@ class Event(object):
         self.name = name
         self.args = args[:]
         self.kw = kw.copy()
+
+
+    def copy(self):
+        return Event(self.name,*self.args,**self.kw)
 
 
     def __repr__(self):
@@ -38,7 +43,7 @@ class Event(object):
 
 
     def parse_json(self, s):
-        js = json.loads(s)
+        js = json.loads(s,encoding='ascii')
         self.name = js.get('name')
         self.args = js.get('args')
         self.kw = js.get('kw')
@@ -55,9 +60,9 @@ class Event(object):
 
 
     def parse_str(self, s):
-        m = re.match(r'^([^{}]+)({(.*)})?$', name)
+        m = re.match(r'^([^{}]+)({(.*)})?$', s)
         if not m:
-            raise SyntaxError("Invalid syntax '%s'" %(name))
+            raise SyntaxError("Invalid syntax '%s'" %(s))
         self.name = m.group(1)
         self.args = []
         self.kw = {}
