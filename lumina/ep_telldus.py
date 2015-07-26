@@ -252,9 +252,7 @@ class TelldusOut(Protocol):
 
 
     def command(self, cmd):
-        log.msg(cmd)
         data = generate(cmd)
-        log.msg(data)
         d = self.queue.add(data=data, command=cmd)
         self.send_next()
         return d
