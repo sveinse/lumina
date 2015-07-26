@@ -20,7 +20,8 @@ def daemonize(pidfile):
     except IOError:
         pid = None
     if pid:
-        sys.stderr.write("%s: pidfile '%s' exists. Refusing to start daemon\n" %(sys.argv[0],pidfile))
+        sys.stderr.write("%s: pidfile '%s' exists. Refusing to start daemon\n" %(
+            sys.argv[0],pidfile))
         sys.exit(1)
 
     # Fork #1
@@ -70,6 +71,7 @@ def controller(webroot,webport):
     logic = Logic()
     logic.setup()
     controller.add_jobs(logic.jobs)
+    controller.add_commands(logic.alias)
 
     # System Functions
     #controller.register(Utils())
@@ -142,18 +144,19 @@ def test():
         controller.setup()
 
         # Logic/rules handler
-        #logic = Logic()
-        #logic.setup()
+        logic = Logic()
+        logic.setup()
         #controller.add_jobs(logic.jobs)
+        controller.add_commands(logic.alias)
 
         #controller.register(Demo())
         #controller.register(Yamaha('192.168.234.20'))
 
-        web = Web(port=8080,webroot='www')
-        web.setup(controller)
+        #web = Web(port=8080,webroot='www')
+        #web.setup(controller)
 
     # Main client
-    if True:
+    if False:
         controller = Client(host='localhost',port=8081,name='TEST')
         controller.setup()
 

@@ -29,7 +29,12 @@ class PageCtrl(Resource):
 
     def reply_ok(self, result, request):
         request.responseHeaders.addRawHeader(b'Content-Type', b'application/json')
-        response = result.dump_json()
+        if isinstance(result,Event):
+            response = result.dump_json()
+        else:
+            response=''
+            for r in response:
+                response += r.dump_json()
         #log.msg('RESPONSE:',request.responseHeaders)
         #log.msg("RESPONSE: '%s'" %(response,))
         request.write(response)
@@ -56,20 +61,18 @@ class PageCtrl(Resource):
         if not len(command):
             return ErrorPage(http.BAD_REQUEST,'Error','Too short request').render(request)
 
-        # Get the command function and run it
-        fn = self.controller.get_commandfn(command)
-        if not fn:
-            return ErrorPage(http.BAD_REQUEST,'Error','Unknown command').render(request)
-
         content = request.content.read()
         #log.msg("CONTENT: '%s'" %(content,))
 
         event = Event(command) #.jparse(request.content.read())
 
-        result = maybeDeferred(fn, event)
-        result.addCallback(self.reply_ok,request)
-        result.addErrback(self.reply_error,request)
-
+        # Get the command function and run it
+        try:
+            result = self.controller.run_command(event)
+            result.addCallback(self.reply_ok,request)
+            result.addErrback(self.reply_error,request)
+        except CommandError as e:
+            return ErrorPage(http.BAD_REQUEST,'Error in %s' %(event.name,),e.message).render(request)
         return NOT_DONE_YET
 
 

@@ -83,6 +83,9 @@ class EventProtocol(LineReceiver):
             evlist = event.args[:]
             if len(evlist):
                 self.commands = evlist
+                # Register the received list of commands and point them
+                # to this instance's send function. This will simply send
+                # the message to the client.
                 commands = {}
                 for a in evlist:
                     commands[a] = lambda a : self.send(a)
@@ -182,16 +185,13 @@ class EventProtocol(LineReceiver):
             self.transport.write('>>> ERROR: Protocol error. %s\n' %(e.message))
             return
 
-        cmdevent = Event(event.name[1:],*event.args,**event.kw)
-        fn = self.parent.get_commandfn(cmdevent.name)
-        if not fn:
-            self.transport.write('>>> %s ERROR: Event not found.\n' %(cmdevent,))
-            return
-
-        self.transport.write("<<< %s\n" %(cmdevent,))
-        result = maybeDeferred(fn, cmdevent)
-        result.addCallback(raw_reply, self, cmdevent)
-        result.addErrback(raw_error, self, cmdevent)
+        event.name = event.name[1:]
+        try:
+            result = self.parent.run_command(event)
+            result.addCallback(raw_reply, self, event)
+            result.addErrback(raw_error, self, event)
+        except CommandError as e:
+            self.transport.write('>>> %s ERROR: %s\n' %(event,e.message))
 
 
 
@@ -227,15 +227,7 @@ class Controller(Core):
             log.msg("%s  --  Unregistered" %(event), system=self.system)
             return None
 
-        # Known event?
-        if event.name not in self.jobs:
-            log.msg("%s  --  Ignored, no job handler" %(event), system=self.system)
-            #log.msg("   No job for event '%s', ignoring" %(event.name), system=self.system)
-            return None
-
         log.msg("%s" %(event), system=self.system)
 
-        # Get the job and run it
-        job = self.jobs[event.name]
-        job.event = event
-        self.run_job(job)
+        # Run the job
+        self.run_job(event)

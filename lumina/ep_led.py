@@ -17,11 +17,7 @@ class Led(Endpoint):
 
         self.commands = {
             'led/state'   : lambda a : self.state,
-
-            'led/off'     : lambda a : self.command(0,0,0,0),
-            'led/white'   : lambda a : self.command(0,0,0,255),
-            'led/blue'    : lambda a : self.command(0,0,255,0),
-            'led/raw'     : lambda a : self.command(a.args[0],a.args[1],a.args[2],a.args[3]),
+            'led'         : lambda a : self.command(a.args[0],a.args[1],a.args[2],a.args[3]),
         }
 
 
@@ -30,13 +26,13 @@ class Led(Endpoint):
         self.state = 'init'
 
     def setup(self):
-        self.dmx = OlaClient()
         (old, self.state) = (self.state, 'active')
         log.msg("STATE change: '%s' --> '%s'" %(old,self.state), system=self.system)
 
 
     # --- Commands
     def command(self,r,g,b,w):
+        self.dmx = OlaClient()
         data = array.array('B')
         data.append(int(r))
         data.append(int(g))

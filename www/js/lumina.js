@@ -56,10 +56,16 @@ $(document).ready(function() {
         update_connect_icon(".td-on-icon",result);
     });
 
-    $(".lu-lys-off").click(function() {
-        do_post('lys/off');
+    $(".lu-light-on").click(function() {
+        do_post('light/on');
     });
-    $(".lu-lys-on").click(function() {
-        do_post('lys/on');
+    $(".lu-light-off").click(function() {
+        do_post('light/off');
+    });
+    $(".lu-elec-on").click(function() {
+        do_post('elec/on');
+    });
+    $(".lu-elec-off").click(function() {
+        do_post('elec/off');
     });
 });

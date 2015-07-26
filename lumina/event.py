@@ -64,10 +64,10 @@ class Event(object):
         if not m:
             raise SyntaxError("Invalid syntax '%s'" %(s))
         self.name = m.group(1)
-        self.args = []
-        self.kw = {}
         opts = m.group(3)
         if opts:
+            self.args = []
+            self.kw = {}
             for arg in opts.split(','):
                 if '=' in arg:
                     k = arg.split('=')

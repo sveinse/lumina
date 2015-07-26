@@ -1,8 +1,52 @@
 # -*- python -*-
-from core import JobFn
+from event import Event as E
 
 
 class Logic(object):
+
+    alias = {
+        # Command        -> Action function
+        # Command        -> ( list of 'command' | Event() | alias_function )
+        #                     Alias function called with one argument. Allows
+        #                     getting the command's parameters passed into the
+        #                     alias function. It must return list, string,
+        #                     Event() or other alias function.
+
+        'light/full'      : ( 'led/pwr/on', 'spot/on', 'led/white/on' ),
+        'light/normal'    : ( 'led/pwr/on', 'spot/on', 'led/blue/normal' ),
+        'light/weak'      : ( 'spot/dim{30}', 'led/blue/dim{17}' ),
+        'light/pause'     : ( 'spot/off', 'led/white/dim{10}' ),
+        'light/off'       : ( 'spot/off', 'led/off' ),
+        'light/pwr/off'   : ( 'spot/off', 'led/pwr/off' ),
+
+        'spot/on'         : ( 'td/on{100}', ),
+        'spot/off'        : ( 'td/off{100}', ),
+        'spot/dim'        : ( lambda a : ( E('td/dim',100,a.args[0]), ), ),
+
+        #'light/roof/on'   : ( 'td/on{101}', ),
+        #'light/roof/off'  : ( 'td/off{101}', ),
+        #'light/roof/on'  : ( 'td/on{102}', ),
+        #'light/roof/off' : ( 'td/off{102}', ),
+        #'light/roof/on'  : ( 'td/on{103}', ),
+        #'light/roof/off' : ( 'td/off{103}', ),
+        #'light/roof/on'  : ( 'td/on{104}', ),
+        #'light/roof/off' : ( 'td/off{104}', ),
+        #'light/table/on'  : ( 'td/on{105}', ),
+        #'light/table/off' : ( 'td/off{105}', ),
+
+        'led/pwr/on'      : ( 'td/on{106}', ),
+        'led/pwr/off'     : ( 'td/off{106}', ),
+        'led/white/on'    : ( 'led{0,0,0,255}', ),
+        'led/white/normal': ( 'led{0,0,0,100}', ),
+        'led/white/dim'   : ( lambda a : ( E('led',0,0,0,a.args[0]), ), ),
+        'led/blue/normal' : ( 'led{0,0,100,0}', ),
+        'led/off'         : ( 'led{0,0,0,0}', ),
+
+        'elec/on'         : ( 'oppo/on', 'hw50/on', 'avr/on' ),
+        'elec/off'        : ( 'oppo/off', 'hw50/off', 'avr/off' ),
+
+    }
+
     jobs = {
         # Event -> Action(s)
 
@@ -10,53 +54,40 @@ class Logic(object):
         'oppo/connected' : 'oppo/verbose',
 
         # Nexa fjernkontroll
-        'remote/1/on'    : ( 'oppo/on', 'hw50/on', 'avr/on' ),
-        'remote/1/off'   : ( 'oppo/off', 'hw50/off', 'avr/off' ),
+        'remote/1/on'    : 'elec/on',
+        'remote/1/off'   : 'elec/off',
 
-        'remote/3/on'    : ( 'lys/dim{30}' ),
-        'remote/3/off'   : ( 'lys/off' ),
-        'remote/4/on'    : ( 'led/raw{0,0,0,10}' ),
-        'remote/4/off'   : ( 'led/off' ),
+        'remote/3/on'    : 'spot/dim{30}',
+        'remote/3/off'   : 'spot/off',
+        'remote/4/on'    : 'led/white/dim{10}',
+        'remote/4/off'   : 'led/off',
 
-        'remote/g/on'    : ( 'led/pwr/on', 'lys/on', 'led/raw{0,0,100,0}' ),
-        'remote/g/off'   : ( 'lys/off', 'led/off' ),
+        'remote/g/on'    : 'light/normal',
+        'remote/g/off'   : 'light/off',
 
-        'remote/5/on'    : ( 'led/raw{0,0,0,255}' ),
-        'remote/5/off'   : ( 'led/raw{0,0,0,17}' ),
-        'remote/6/on'    : ( 'led/raw{0,0,100,0}' ),
-        'remote/6/off'   : ( 'led/raw{0,0,0,17}' ),
-        'remote/7/on'    : ( 'led/raw{143,0,0,0}' ),
-        'remote/7/off'   : ( 'led/raw{9,0,0,0}' ),
-        'remote/8/on'    : ( 'led/raw{122,0,29,0}' ),
-        'remote/8/off'   : ( 'led/raw{10,0,4,0}' ),
+        'remote/5/on'    : 'led{0,0,0,255}',
+        'remote/5/off'   : 'led{0,0,0,17}',
+        'remote/6/on'    : 'led{0,0,100,0}',
+        'remote/6/off'   : 'led{0,0,0,17}',
+        'remote/7/on'    : 'led{143,0,0,0}',
+        'remote/7/off'   : 'led{9,0,0,0}',
+        'remote/8/on'    : 'led{122,0,29,0}',
+        'remote/8/off'   : 'led{10,0,4,0}',
 
         # Veggbryter overst hjemmekino
-        'wallsw1/on'     : ( 'led/pwr/on', 'lys/on', 'led/raw{0,0,100,0}' ),
-        'wallsw1/off'    : ( 'lys/off', 'led/off' ),
+        'wallsw1/on'     : 'light/normal',
+        'wallsw1/off'    : 'light/off',
 
         # Veggbryter nederst kino
-        'wallsw2/on'     : ( 'lys/dim{60}', 'led/raw{0,0,0,30}' ),
-        'wallsw2/off'    : ( 'lys/off', 'led/pwr/off' ),
+        'wallsw2/on'     : None,
+        'wallsw2/off'    : 'light/pwr/off',
 
         # Oppo regler
-        'oppo/pause'     : ( 'lys/off', 'led/raw{0,0,0,10}' ),
-        'oppo/play'      : ( 'lys/off', 'led/off' ),
-        'oppo/stop'      : ( 'lys/dim{30}', 'led/raw{0,0,0,10}' ),
-
+        'oppo/pause'     : 'light/pause',
+        'oppo/play'      : 'light/off',
+        'oppo/stop'      : 'light/weak',
     }
 
 
     def setup(self):
-        self.jobs.update( {
-            'test': JobFn(self.gen),
-            } )
-
-
-    def gen(self):
-        print 'GENERATOR START'
-        yield 'delay{2}'
-        status = yield 'hw50/status_power'
-        print 'STATUS', status
-        lamp = yield 'hw50/lamp_timer'
-        print 'LAMP', lamp
-        #yield 'stop'
+        pass

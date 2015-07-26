@@ -16,3 +16,7 @@ class TimeoutException(CommandException):
 class ClientException(LuminaException):
     ''' Unknown error received from client '''
     pass
+
+class CommandError(LuminaException):
+    ''' Error processing commands '''
+    pass

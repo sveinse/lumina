@@ -79,17 +79,13 @@ class EventProtocol(LineReceiver):
 
         # -- Handle commands from controller
         else:
-            # Get the the command function
-            fn = self.parent.get_commandfn(event.name)
-            if not fn:
-                log.msg("Unknown command '%s' from controller, ignoring" %(event.name,),
-                        system=self.system)
-                return
-
-            # Call the command function and setup proper response handlers.
-            result = maybeDeferred(fn, event)
-            result.addCallback(self.send_reply, event)
-            result.addErrback(self.send_error, event)
+            try:
+                # Call the command function and setup proper response handlers.
+                result = self.parent.run_command(event)
+                result.addCallback(self.send_reply, event)
+                result.addErrback(self.send_error, event)
+            except CommandError as e:
+                log.msg("Error in command '%s'. %s" %(event.name,e.message),system=self.system)
             return
 
 

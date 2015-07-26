@@ -4,6 +4,26 @@ sys.path.append(os.path.join(os.path.dirname(__file__),'..'))
 
 from core import *
 
+alias = {
+        'base'            : lambda a : None,
+        'sure'            : lambda a : None,
+        'lambda'          : ( lambda a : 'base', ),
+
+        'test'            : ( lambda a : ( E('base',100,a.args[0]),E('sure') ), ),
+        'test2'           : ( lambda a : ( E('test',a.args[0]), ), ),
+        'test3'           : ( lambda a : ( E('base',a.kw['sure']), ), ),
+        'test4'           : ( 'test{0}', 'test2{0}', 'test3{sure=yes}' ),
+
+        'forever'         : ( 'forever', ),
+        'forevera'        : ( 'foreverb', ),
+        'foreverb'        : ( 'forevera', ),
+        'foreverx'        : ( lambda a : ( 'forevery', ), ),
+        'forevery'        : ( lambda a : ( 'foreverx', ), ),
+
+        'empty'           : ( ),
+        'null'            : None,
+}
+
 
 if __name__ == "__main__":
 

@@ -252,7 +252,9 @@ class TelldusOut(Protocol):
 
 
     def command(self, cmd):
+        log.msg(cmd)
         data = generate(cmd)
+        log.msg(data)
         d = self.queue.add(data=data, command=cmd)
         self.send_next()
         return d
@@ -337,29 +339,17 @@ class Telldus(Endpoint):
 
             # Nexa/proove devices
             'temp/fryseskap' : dict(temp=247),
-            'temp/loftute'   : dict(temp=135),
-            'temp/kino'      : dict(temp=151),
+            'temp/kino/ute'  : dict(temp=135),
+            'temp/kino/inne' : dict(temp=151),
         }
 
         self.commands = {
-            'td/state'      : lambda a : (self.inport.state, self.outport.state),
-            'td/ison'       : lambda a : self.ison(),
+            'td/state'       : lambda a : (self.inport.state, self.outport.state),
+            'td/ison'        : lambda a : self.ison(),
 
-            'td/on'         : lambda a : self.turnOn(a.args[0]),
-            'td/off'        : lambda a : self.turnOff(a.args[0]),
-            'td/dim'        : lambda a : self.dim(a.args[0],a.args[1]),
-
-            'lys/on'        : lambda a : self.turnOn(100),
-            'lys/off'       : lambda a : self.turnOff(100),
-            'lys/dim'       : lambda a : self.dim(100, a.args[0]),
-            'lys/tak/on'    : lambda a : self.turnOn(101),
-            'lys/tak/off'   : lambda a : self.turnOff(101),
-            'lys/tak/dim'   : lambda a : self.dim(101, a.args[0]),
-            'lys/bord/on'   : lambda a : self.turnOn(105),
-            'lys/bord/off'  : lambda a : self.turnOff(105),
-            'lys/bord/dim'  : lambda a : self.dim(105, a.args[0]),
-            'led/pwr/on'    : lambda a : self.turnOn(106),
-            'led/pwr/off'   : lambda a : self.turnOff(106),
+            'td/on'          : lambda a : self.turnOn(int(a.args[0])),
+            'td/off'         : lambda a : self.turnOff(int(a.args[0])),
+            'td/dim'         : lambda a : self.dim(int(a.args[0]),int(a.args[1])),
         }
 
 
