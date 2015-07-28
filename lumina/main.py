@@ -101,7 +101,7 @@ def client_lys():
     # System Functions
     controller.register(Telldus())
     controller.register(Oppo('/dev/ttyUSB0'))
-    controller.register(Yamaha('192.168.234.20'))
+    controller.register(Yamaha('10.5.5.11'))
 
 
 
@@ -150,7 +150,7 @@ def test():
         controller.add_commands(logic.alias)
 
         #controller.register(Demo())
-        #controller.register(Yamaha('192.168.234.20'))
+        #controller.register(Yamaha('10.5.5.11'))
 
         #web = Web(port=8080,webroot='www')
         #web.setup(controller)
@@ -161,12 +161,12 @@ def test():
         controller.setup()
 
         #controller.register(Demo())
-        controller.register(Yamaha('192.168.234.20'))
+        controller.register(Yamaha('10.5.5.11'))
 
     if False:
         def pr(val):
             print 'RESPONSE',val
-        y = Yamaha('192.168.234.20')
+        y = Yamaha('10.5.5.11')
         y.setup()
         #d = y.protocol.command('GET', [ 'Main_Zone', 'Volume', 'Lvl' ])
         d = y.get_volume()

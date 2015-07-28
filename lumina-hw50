@@ -10,7 +10,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--daemon', action='store_true', help='Daemonize application')
 ap.add_argument('--pidfile', help="Set the pidfile", default='/var/run/lumina', metavar="FILENAME")
 ap.add_argument('--syslog', action='store_true', default=False, help="Enable syslog logging")
-ap.add_argument('--host', nargs='?', default='lys', help='Server to connect to')
+ap.add_argument('--host', nargs='?', default='lys.local', help='Server to connect to')
 ap.add_argument('--port', nargs='?', default='8081', help='Port to connect to')
 
 opts = ap.parse_args()
