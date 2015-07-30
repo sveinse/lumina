@@ -97,21 +97,45 @@ class Core(object):
     def run_command(self, command):
         ''' Run the command (which should be an Event object) '''
 
+        # Get the list of commands to run
         fnlist = self.get_commandfnlist(command)
-        log.msg("RUN: ",fnlist,system=self.system)
+        #log.msg("RUN: ",fnlist,system=self.system)
 
-        if not len(fnlist):
-            raise CommandError("Nothing to run for command '%s'" %(command.name))
+        # Compile a list of all the events which is going to be run (for printing)
+        evlist = [ x[1] for x in fnlist ]
+        log.msg("%s RUNS %s" %(command,evlist), system=self.system)
+
+        # Check if we have functions for all the events and make a list
+        # of them to run.
+        runlist = []
+        err= []
+        for (fn,ev) in fnlist:
+            if fn is None:
+                log.msg("    Unknown sub-command '%s'" %(ev.name,), system=self.system)
+                err.append(ev.name)
+            else:
+                runlist.append( (fn,ev) )
+
+        # We need at least one command to run.
+        if not len(runlist):
+            if len(err):
+                raise CommandError("'%s' error: Unknown command(s): %s" %(command.name, err,))
+            else:
+                raise CommandError("'%s' error: Nothing to run" %(command.name))
+        if len(err):
+            log.msg("    ^^^ IGNORING unknown commands", system=self.system)
 
         # Call all of the commands.
         # NOTE: This runs ALL commands in parallell. No ordering.
         # FIXME: How to handle dependencies and/or serial execution?
-        deflist = [ maybeDeferred(x[0],x[1]) for x in fnlist ]
+        deflist = [ maybeDeferred(x[0],x[1]) for x in runlist ]
 
         # One command to run? Then let's just return it
         if len(deflist) == 1:
             return deflist[0]
 
+        # Otherwise make a composite which will fire when all of the deferreds have
+        # fired
         d = DeferredList(deflist)
         return d
 
@@ -119,17 +143,13 @@ class Core(object):
     def get_commandfnlist(self, command, depth=0):
         ''' Get a list of (fn,event) tuples for the given command (Event() object
             expected '''
-        #log.msg("CCC ",'.'*(depth+1),command,command.args)
-
-        # Get our command
-        try:
-            fn = self.commands[command.name]
-        except KeyError:
-            raise CommandError("Command '%s' is not a valid command" %(command.name,))
+        #log.msg("CCC ",depth,'.'*(depth+1),command,command.args)
 
         # If the function is callable, then this is the wanted dispatcher
-        # for the command
-        if callable(fn):
+        # for the command. Also return if fn is None, because that either means
+        # no command registered with None function or no entry in list of commands.
+        fn = self.commands.get(command.name)
+        if fn is None or callable(fn):
             return [ (fn,command), ]
         elif fn is None:
             return [ ]
@@ -170,7 +190,7 @@ class Core(object):
         # to compile a list of (fn,event) tuples.
         fnlist = []
         for f in eventlist:
-            fnlist += self.get_commandfnlist(f,depth+1)
+            fnlist += self.get_commandfnlist(f,depth=depth+1)
         return fnlist
 
 

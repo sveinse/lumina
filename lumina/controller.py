@@ -48,6 +48,8 @@ class EventProtocol(LineReceiver):
         if not len(data):
             return
 
+        log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system=self.system)
+
         # -- Special @ notation which makes the controller execute the incoming data as a command
         if data.startswith('@'):
             self.interactive(data)
@@ -120,7 +122,9 @@ class EventProtocol(LineReceiver):
             'timer': reactor.callLater(self.timeout, self.timedout, event),
         }
         log.msg("   <--  %s" %(event,), system=self.name)
-        self.transport.write(event.dump_json()+'\n')
+        data=event.dump_json()+'\n'
+        log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
+        self.transport.write(data)
         return d
 
 
@@ -136,6 +140,9 @@ class EventProtocol(LineReceiver):
 
     # -- OK response handler
     def response(self, event):
+        # FIXME: If the same event.name has been issued twice, then this way of
+        # looking up the calling request will randomly fail. I think a sequence number
+        # will have to be introduced here.
         request = self.requests[event.name]
         d = request['defer']
         request['timer'].cancel()
@@ -181,6 +188,7 @@ class EventProtocol(LineReceiver):
             event = Event().parse_str(data)
             log.msg("   -->  %s" %(event,), system=self.name)
         except SyntaxError as e:
+            log.msg(traceback.format_exc(), system=self.system)
             log.msg("Protcol error. %s" %(e.message), system=self.system)
             self.transport.write('>>> ERROR: Protocol error. %s\n' %(e.message))
             return
@@ -191,6 +199,7 @@ class EventProtocol(LineReceiver):
             result.addCallback(raw_reply, self, event)
             result.addErrback(raw_error, self, event)
         except CommandError as e:
+            log.msg(traceback.format_exc(), system=self.system)
             self.transport.write('>>> %s ERROR: %s\n' %(event,e.message))
 
 
