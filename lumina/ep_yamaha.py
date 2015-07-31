@@ -1,6 +1,5 @@
 # -*-python-*-
 import os,sys,re
-import traceback
 
 from twisted.internet import reactor
 from twisted.python import log

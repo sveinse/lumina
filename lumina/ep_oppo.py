@@ -1,6 +1,5 @@
 # -*-python-*-
 import os,sys
-import traceback
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.internet.protocol import Protocol
@@ -229,7 +228,7 @@ class Oppo(Endpoint):
                                  rtscts=0)
             self.event('oppo/starting')
         except SerialException as e:
-            log.msg(traceback.format_exc(), system=self.system)
+            log.err(system=self.system)
             self.protocol.setstate('error')
             self.event('oppo/error',e.message)
 

@@ -25,12 +25,16 @@ class Event(object):
 
 
     def __repr__(self):
-        (s,t) = ([str(a) for a in self.args],'')
+        t=''
+        if len(self.args) < 5:
+            s = [str(a) for a in self.args]
+        else:
+            s = [ '...%s args...' %(len(self.args)) ]
         for (k,v) in self.kw.items():
             s.append("%s=%s" %(k,v))
         if s:
-            t=' {' + ','.join(s) + '}'
-        return "<EV:%s%s>" %(self.name,t)
+            t='{' + ','.join(s) + '}'
+        return "%s%s" %(self.name,t)
 
 
     def dump_json(self):
@@ -45,8 +49,10 @@ class Event(object):
     def parse_json(self, s):
         js = json.loads(s,encoding='ascii')
         self.name = js.get('name')
-        self.args = js.get('args')
-        self.kw = js.get('kw')
+        self.args = js.get('args',[])
+        self.kw = js.get('kw',{})
+        if self.name is None:
+            raise ValueError("Missing event name")
         return self
 
 

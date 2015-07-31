@@ -1,15 +1,14 @@
 # -*- python -*-
 import os,sys
-import traceback
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
-from twisted.python import log
 from twisted.internet.defer import Deferred,maybeDeferred
 
 from core import Core
 from event import Event
 from exceptions import *
+from log import *
 
 
 validClientExceptions = (
@@ -30,14 +29,18 @@ class EventProtocol(LineReceiver):
         self.events = []
         self.commands = []
         self.requests = { }
-        log.msg("Connect from %s" %(self.ip,), system=self.system)
+        log("Connect from %s" %(self.ip,), system=self.system)
 
 
     def connectionLost(self, reason):
-        log.msg("Lost connection from '%s' (%s)" %(self.name,self.ip), system=self.system)
+        log("Lost connection from '%s' (%s)" %(self.name,self.ip), system=self.system)
         if len(self.events):
+            log("%s de-registering %s events" %(self.name, len(self.events)),
+                system=self.system)
             self.parent.remove_events(self.events)
         if len(self.commands):
+            log("%s de-registering %s commands" %(self.name, len(self.commands)),
+                system=self.system)
             self.parent.remove_commands(self.commands)
         # FIXME: Cancel all pending request?
 
@@ -49,7 +52,7 @@ class EventProtocol(LineReceiver):
         if not len(data):
             return
 
-        log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system=self.system)
+        lograwin(data, system=self.system)
 
         # -- Special @ notation which makes the controller execute the incoming data as a command
         if data.startswith('@'):
@@ -59,24 +62,26 @@ class EventProtocol(LineReceiver):
         # -- Parse the incoming message as an Event
         try:
             event = Event().parse_json(data)
-            evm = event.copy()
-            if event.name in ('events', 'commands'):
-                evm.args=['...%s args...' %(len(event.args))]
-            log.msg("   -->  %s" %(evm,), system=self.name)
-        except SyntaxError as e:
-            log.msg("Protcol error. %s" %(e.message), system=self.system)
+            #logdatain(event, system=self.name)
+
+        except (SyntaxError,ValueError) as e:
+            # Raised if the parse_json didn't succeed
+            err(system=self.system)
+            log("Protcol error on incoming message: %s" %(e.message), system=self.system)
             return
 
         # -- Register client name
         if event.name == 'name':
             self.name = 'R-' + event.args[0]
-            log.msg("Client %s identified as '%s'" %(self.ip,self.name), system=self.system)
+            log("***  Registering client %s (%s)" %(self.name,self.ip), system=self.system)
             return
 
         # -- Register client events
         elif event.name == 'events':
             evlist = event.args[:]
             if len(evlist):
+                log("%s registering %s events" %(self.name,len(evlist)),
+                    system=self.system)
                 self.events = evlist
                 self.parent.add_events(evlist)
             return
@@ -85,6 +90,8 @@ class EventProtocol(LineReceiver):
         elif event.name == 'commands':
             evlist = event.args[:]
             if len(evlist):
+                log("%s registering %s commands" %(self.name,len(evlist)),
+                    system=self.system)
                 self.commands = evlist
                 # Register the received list of commands and point them
                 # to this instance's send function. This will simply send
@@ -123,17 +130,17 @@ class EventProtocol(LineReceiver):
         event.kw['seq'] = self.seq
         self.requests[self.seq] = event
 
-        log.msg("   <--  %s" %(event,), system=self.name)
+        #logdataout(event, system=self.name)
 
         data=event.dump_json()+'\n'
-        log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
+        lograwout(data, system=self.system)
         self.transport.write(data)
         return event.defer
 
 
     # -- TIMEOUT response handler
     def timedout(self, event):
-        log.msg('   -->  TIMEOUT %s' %(event,), system=self.name)
+        logtimeout(event, system=self.name)
         request = self.requests.pop(event.kw['seq'])
 
         request.defer.errback(TimeoutException())
@@ -180,10 +187,10 @@ class EventProtocol(LineReceiver):
 
         try:
             event = Event().parse_str(data)
-            log.msg("   -->  %s" %(event,), system=self.name)
+            logdatain(event, system=self.name)
         except SyntaxError as e:
-            log.msg(traceback.format_exc(), system=self.system)
-            log.msg("Protcol error. %s" %(e.message), system=self.system)
+            err(system=self.system)
+            log("Protcol error: %s" %(e.message), system=self.system)
             self.transport.write('>>> ERROR: Protocol error. %s\n' %(e.message))
             return
 
@@ -193,7 +200,7 @@ class EventProtocol(LineReceiver):
             result.addCallback(raw_reply, self, event)
             result.addErrback(raw_error, self, event)
         except CommandError as e:
-            log.msg(traceback.format_exc(), system=self.system)
+            err(system=self.system)
             self.transport.write('>>> %s ERROR: %s\n' %(event,e.message))
 
 
@@ -225,12 +232,12 @@ class Controller(Core):
     def handle_event(self, event):
         ''' Event dispatcher. Event contains messages coming from the device endpoints. '''
 
+        logevent(event, system='EVENT')
+
         # Is this a registered event?
         if event.name not in self.events:
-            log.msg("%s  --  Unregistered" %(event), system=self.system)
+            log("     --:  Unknown event, ignoring", system='EVENT')
             return None
-
-        log.msg("%s" %(event), system=self.system)
 
         # Run the job
         self.run_job(event)

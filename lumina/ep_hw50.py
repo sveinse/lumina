@@ -453,7 +453,7 @@ class Hw50(Endpoint):
                                  rtscts=0)
             self.event('hw50/starting')
         except SerialException as e:
-            log.msg(traceback.format_exc(), system=self.system)
+            log.err(system=self.system)
             self.protocol.setstate('error')
             self.event('hw50/error',e.message)
 

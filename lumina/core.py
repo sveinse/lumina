@@ -54,7 +54,7 @@ class Core(object):
         if isinstance(events, dict):
             events=events.keys()
 
-        log.msg("Registering %s events" %(len(events),), system=self.system)
+        #log.msg("Registering %s events" %(len(events),), system=self.system)
         for name in events:
             if name in self.events:
                 raise TypeError("Event '%s' already exists" %(name))
@@ -63,7 +63,7 @@ class Core(object):
     def remove_events(self, events):
         ''' Remove from the list of known events'''
 
-        log.msg("De-registering %s events" %(len(events),), system=self.system)
+        #log.msg("De-registering %s events" %(len(events),), system=self.system)
         for name in events:
             if name not in self.events:
                 raise TypeError("Unknown event '%s'" %(name))
@@ -74,7 +74,7 @@ class Core(object):
     def add_commands(self, commands):
         ''' Add to the dict of known commands and register their callback fns '''
 
-        log.msg("Registering %s commands" %(len(commands),), system=self.system)
+        #log.msg("Registering %s commands" %(len(commands),), system=self.system)
         for (name,fn) in commands.items():
             if name in self.commands:
                 raise TypeError("Command '%s' already exists" %(name))
@@ -83,7 +83,7 @@ class Core(object):
     def remove_commands(self, commands):
         ''' Remove from the dict of known commands '''
 
-        log.msg("De-registering %s commands" %(len(commands),), system=self.system)
+        #log.msg("De-registering %s commands" %(len(commands),), system=self.system)
         for name in commands:
             if name not in self.commands:
                 raise TypeError("Unknown command '%s'" %(name))
@@ -102,8 +102,8 @@ class Core(object):
         #log.msg("RUN: ",fnlist,system=self.system)
 
         # Compile a list of all the events which is going to be run (for printing)
-        evlist = [ x[1] for x in fnlist ]
-        log.msg("%s RUNS %s" %(command,evlist), system=self.system)
+        if not ( len(fnlist)==1 and command.name == fnlist[0][1].name ):
+            log.msg("%s RUNS %s" %(command,[ x[1] for x in fnlist ]), system='COMMAND')
 
         # Check if we have functions for all the events and make a list
         # of them to run.
@@ -128,6 +128,7 @@ class Core(object):
         # Call all of the commands.
         # NOTE: This runs ALL commands in parallell. No ordering.
         # FIXME: How to handle dependencies and/or serial execution?
+        log.msg("RUN:  %s" %([ x[1] for x in runlist ]), system='COMMAND')
         deflist = [ maybeDeferred(x[0],x[1]) for x in runlist ]
 
         # One command to run? Then let's just return it
@@ -216,7 +217,7 @@ class Core(object):
 
         name = self.jobs.get(event.name)
         if name is None:
-            #log.msg("%s  --  Ignored, no job handler" %(event), system=self.system)
+            log.msg("     --:  Ignored", system='EVENT')
             return
 
         # Copy the original event, and parse in name and optional args from
@@ -225,5 +226,5 @@ class Core(object):
         job.parse_str(name)
 
         # Run it
-        log.msg("%s  --  Running '%s'" %(event,job), system=self.system)
+        log.msg("     --:  Running %s" %(job,), system='EVENT')
         return self.run_command(job)
