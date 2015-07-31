@@ -156,12 +156,12 @@ def test():
         #web.setup(controller)
 
     # Main client
-    if False:
+    if True:
         controller = Client(host='localhost',port=8081,name='TEST')
         controller.setup()
 
-        #controller.register(Demo())
-        controller.register(Yamaha('10.5.5.11'))
+        controller.register(Demo())
+        #controller.register(Yamaha('10.5.5.11'))
 
     if False:
         def pr(val):

@@ -22,6 +22,7 @@ class EventProtocol(LineReceiver):
     delimiter='\n'
     timeout=15
     system = 'CTRL'
+    seq = 0
 
     def connectionMade(self):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
@@ -105,7 +106,7 @@ class EventProtocol(LineReceiver):
             return
 
         # -- Handle a reply to a former command
-        elif event.name in self.requests:
+        elif 'seq' in event.kw:
             self.response(event)
             return
 
@@ -116,50 +117,42 @@ class EventProtocol(LineReceiver):
 
     # -- Send a command to the client
     def send(self, event):
-        d = Deferred()
-        self.requests[event.name] = {
-            'defer': d,
-            'timer': reactor.callLater(self.timeout, self.timedout, event),
-        }
+        self.seq += 1
+        event.defer = Deferred()
+        event.timer = reactor.callLater(self.timeout, self.timedout, event)
+        event.kw['seq'] = self.seq
+        self.requests[self.seq] = event
+
         log.msg("   <--  %s" %(event,), system=self.name)
+
         data=event.dump_json()+'\n'
         log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
         self.transport.write(data)
-        return d
+        return event.defer
 
 
     # -- TIMEOUT response handler
     def timedout(self, event):
         log.msg('   -->  TIMEOUT %s' %(event,), system=self.name)
-        request = self.requests[event.name]
-        d = request['defer']
-        del self.requests[event.name]
+        request = self.requests.pop(event.kw['seq'])
 
-        d.errback(TimeoutException())
+        request.defer.errback(TimeoutException())
 
 
     # -- OK response handler
     def response(self, event):
-        # FIXME: If the same event.name has been issued twice, then this way of
-        # looking up the calling request will randomly fail. I think a sequence number
-        # will have to be introduced here.
-        request = self.requests[event.name]
-        d = request['defer']
-        request['timer'].cancel()
-        del self.requests[event.name]
+        request = self.requests.pop(event.kw['seq'])
 
         # FIXME: Perhaps the payload should be a separate object(type), not the event itself?
-        d.callback(event)
+        request.timer.cancel()
+        request.defer.callback(event)
 
 
     # -- ERROR response handler
     def error(self, event):
 
         failure = event.args[0]
-        request = self.requests[failure]
-        request['timer'].cancel()
-        d = request['defer']
-        del self.requests[failure]
+        request = self.requests.pop(failure)
 
         # Parse exception types
         ename = event.args[1]
@@ -171,7 +164,8 @@ class EventProtocol(LineReceiver):
         else:
             exc = ClientException(eargs)
 
-        d.errback(exc)
+        request.timer.cancel()
+        request.defer.errback(exc)
 
 
     # -- @INTERACTIVE mode (lines prefixed with '@')

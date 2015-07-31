@@ -65,6 +65,8 @@ class EventProtocol(LineReceiver):
         if not len(data):
             return
 
+        log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system=self.system)
+
         try:
             event = Event().parse_json(data)
             log.msg("   -->  %s" %(event,), system=self.system)
@@ -99,7 +101,10 @@ class EventProtocol(LineReceiver):
         if event.name in ('events', 'commands'):
             evm.args=['...%s args...' %(len(event.args))]
         log.msg("   <--  %s" %(evm,), system=self.system)
-        self.transport.write(event.dump_json()+'\n')
+
+        data=event.dump_json()+'\n'
+        log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
+        self.transport.write(data)
 
 
     def send_reply(self, response, request):
@@ -116,8 +121,10 @@ class EventProtocol(LineReceiver):
         else:
             response = Event(request.name,response)
 
-        log.msg("   <--  %s" %(response,), system=self.system)
-        self.transport.write(response.dump_json()+'\n')
+        # Copy the sequence number from the request
+        response.kw['seq'] = request.kw['seq']
+
+        self.send_event(response)
 
 
     def send_error(self, failure, request):
@@ -127,9 +134,7 @@ class EventProtocol(LineReceiver):
         # Wrap in error Event object to be able to send back to the controller
         # error syntax {event_name, exception_name, exception args}
         error = Event('error',request.name,reason.__class__.__name__,*reason.args)
-
-        log.msg("   <--  %s" %(error,), system=self.system)
-        self.transport.write(error.dump_json()+'\n')
+        self.send_event(error)
 
 
 
