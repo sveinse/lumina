@@ -20,3 +20,5 @@ class ClientException(LuminaException):
 class CommandError(LuminaException):
     ''' Error processing commands '''
     pass
+class UnknownCommandError(CommandError):
+    pass

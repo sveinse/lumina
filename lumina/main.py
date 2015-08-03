@@ -136,6 +136,7 @@ def test():
     from ep_telldus import Telldus
     from ep_demo import Demo
     from ep_yamaha import Yamaha
+    from ep_test import Test
     from web import Web
 
     # Main controller
@@ -146,21 +147,23 @@ def test():
         # Logic/rules handler
         logic = Logic()
         logic.setup()
-        #controller.add_jobs(logic.jobs)
+        controller.add_jobs(logic.jobs)
         controller.add_commands(logic.alias)
 
+        #controller.register(Test())
         #controller.register(Demo())
         #controller.register(Yamaha('10.5.5.11'))
 
-        #web = Web(port=8080,webroot='www')
-        #web.setup(controller)
+        web = Web(port=8080,webroot='www')
+        web.setup(controller)
 
     # Main client
     if True:
         controller = Client(host='localhost',port=8081,name='TEST')
         controller.setup()
 
-        controller.register(Demo())
+        controller.register(Test())
+        #controller.register(Demo())
         #controller.register(Yamaha('10.5.5.11'))
 
     if False:

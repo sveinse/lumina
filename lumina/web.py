@@ -28,7 +28,7 @@ class PageCtrl(Resource):
         self.controller = controller
 
     def reply_ok(self, result, request):
-        request.responseHeaders.addRawHeader(b'Content-Type', b'application/json')
+        log.msg("RESPONSE: ",result)
         if isinstance(result,Event):
             response = result.dump_json()
         else:
@@ -37,6 +37,7 @@ class PageCtrl(Resource):
                 response += r.dump_json()
         #log.msg('RESPONSE:',request.responseHeaders)
         #log.msg("RESPONSE: '%s'" %(response,))
+        request.responseHeaders.addRawHeader(b'Content-Type', b'application/json')
         request.write(response)
         request.finish()
 
@@ -44,7 +45,8 @@ class PageCtrl(Resource):
         failtype = failure.trap(CommandException)
         reason = failure.value
 
-        request.write(json.dumps(failure))
+        error = Event('error',request.name,reason.__class__.__name__,*reason.args)
+        request.write(error.dump_json())
         request.finish()
 
     def render_POST(self, request):
@@ -72,6 +74,7 @@ class PageCtrl(Resource):
             result.addCallback(self.reply_ok,request)
             result.addErrback(self.reply_error,request)
         except CommandError as e:
+            log.err(system=self.system)
             return ErrorPage(http.BAD_REQUEST,'Error in %s' %(event.name,),e.message).render(request)
         return NOT_DONE_YET
 

@@ -5,7 +5,7 @@
 #   - Bor man implementere linking til parent/mother objektet, slik at man f.eks. kan holde
 #     metrics, som hvor mange ganger et event har blitt fyrt av?
 #
-from twisted.internet.defer import Deferred,DeferredList,maybeDeferred
+from twisted.internet.defer import Deferred,DeferredList,maybeDeferred,CancelledError
 from twisted.python import log
 from twisted.internet import reactor
 
@@ -16,6 +16,67 @@ from exceptions import *
 
 
 MAX_DEPTH = 10
+DEFAULT_TIMEOUT = 10
+
+
+def unknown_command(command):
+    ''' Callback for any unknown commands '''
+    #log.msg("    %s: Ignoring unknown command" %(command), system=command.system)
+    raise CommandException("Unknown command")
+
+
+def empty_command(command):
+    ''' Callback for any empty (None) commands '''
+    log.msg("    %s: Ignoring empty command" %(command,), system=command.system)
+
+
+def transform_timeout(failure):
+    ''' Transform a CancelledError into a TimeoutException '''
+    failure.trap(CancelledError)
+    raise TimeoutException()
+
+
+def command_ok(result, command):
+    ''' Save the results into the command object '''
+    command.success = True
+    command.result = result
+    if command.fn is not empty_command:
+        # To prevent double-logging on empty commands
+        log.msg("    %s: %s" %(command,result), system=command.system)
+    return command
+
+
+def command_error(failure, command):
+    ''' Save the error into the command object '''
+    cls = failure.value.__class__.__name__
+    text = str(failure.value)
+    command.success = False
+    command.result = Event('error',command.name,cls,text)
+    log.msg("    %s FAILED: %s [%s]" %(command.name,text,cls), system=command.system)
+
+    if not failure.check(CommandException):
+        log.msg(failure.getTraceback(), system=command.system)
+        return failure
+
+
+def list_ok(result, command, commandlist):
+    # If command is an alias or composite command, save the results in the
+    # command object
+    if not len(commandlist):
+        command.success = True
+        command.result = None
+    elif command.id != commandlist[0].id:
+        command.success = [ c.success for c in commandlist ].count(True)
+        command.result = commandlist
+
+    # This is what we send back to the calling function
+    return command
+
+
+def list_error(failure, command, commandlist):
+    # Report the actual error back to the caller
+    return failure.value.subFailure
+
 
 
 class Core(object):
@@ -89,56 +150,57 @@ class Core(object):
                 raise TypeError("Unknown command '%s'" %(name))
             del self.commands[name]
 
-    def get_commandfn(self, command):
-        ''' Get the command handler function '''
-        return self.commands.get(command)
+
+    def run_command(self, command, timeout=DEFAULT_TIMEOUT):
+
+        # Get the next command
+        fn = self.get_commandfn(command)
+        if not callable(fn):
+            raise CommandError("%s lacks runnable function" %(command))
+
+        command.fn = fn
+        log.msg("HOI %s" %(command))
+        return maybeDeferred(command.fn, command
+                             ).addCallback(command_ok,command
+                             ).addErrback(transform_timeout
+                             ).addErrback(command_error,command)
 
 
-    def run_command(self, command):
-        ''' Run the command (which should be an Event object) '''
-
-        # Get the list of commands to run
-        fnlist = self.get_commandfnlist(command)
-        #log.msg("RUN: ",fnlist,system=self.system)
+    def run_commandlist(self, command, commandlist, timeout=DEFAULT_TIMEOUT):
+        ''' Run the commandlist (which should be an Event object) '''
 
         # Compile a list of all the events which is going to be run (for printing)
-        if not ( len(fnlist)==1 and command.name == fnlist[0][1].name ):
-            log.msg("%s RUNS %s" %(command,[ x[1] for x in fnlist ]), system='COMMAND')
-
-        # Check if we have functions for all the events and make a list
-        # of them to run.
-        runlist = []
-        err= []
-        for (fn,ev) in fnlist:
-            if fn is None:
-                log.msg("    Unknown sub-command '%s'" %(ev.name,), system=self.system)
-                err.append(ev.name)
-            else:
-                runlist.append( (fn,ev) )
+        if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
+            log.msg("%s RUNS %s" %(command,commandlist), system=command.system)
+        else:
+            log.msg("RUN %s" %(commandlist), system=command.system)
 
         # We need at least one command to run.
-        if not len(runlist):
-            if len(err):
-                raise CommandError("'%s' error: Unknown command(s): %s" %(command.name, err,))
-            else:
-                raise CommandError("'%s' error: Nothing to run" %(command.name))
-        if len(err):
-            log.msg("    ^^^ IGNORING unknown commands", system=self.system)
+        #if not len(commandlist):
+        #    raise CommandError("'%s' error: Nothing to run" %(command.name))
 
         # Call all of the commands.
-        # NOTE: This runs ALL commands in parallell. No ordering.
-        # FIXME: How to handle dependencies and/or serial execution?
-        log.msg("RUN:  %s" %([ x[1] for x in runlist ]), system='COMMAND')
-        deflist = [ maybeDeferred(x[0],x[1]) for x in runlist ]
-
-        # One command to run? Then let's just return it
-        if len(deflist) == 1:
-            return deflist[0]
-
-        # Otherwise make a composite which will fire when all of the deferreds have
-        # fired
-        d = DeferredList(deflist)
+        d = DeferredList([ maybeDeferred(cmd.fn,cmd
+                                     ).addCallback(command_ok,cmd
+                                     ).addErrback(transform_timeout
+                                     ).addErrback(command_error,cmd)
+                           for cmd in commandlist ],
+                         consumeErrors=True, fireOnOneErrback=True)
+        d.addCallback(list_ok, command, commandlist)
+        d.addErrback(list_error, command, commandlist)
+        command.timer = reactor.callLater(timeout, d.cancel)
         return d
+
+
+    def get_commandfn(self, command):
+        ''' Get the command function for the given command '''
+        fn = self.commands.get(command.name, unknown_command)
+
+        # Existing command, but with no fn handler
+        if fn is None:
+            fn = empty_command
+
+        return fn
 
 
     def get_commandfnlist(self, command, depth=0):
@@ -147,20 +209,22 @@ class Core(object):
         #log.msg("CCC ",depth,'.'*(depth+1),command,command.args)
 
         # If the function is callable, then this is the wanted dispatcher
-        # for the command. Also return if fn is None, because that either means
-        # no command registered with None function or no entry in list of commands.
-        fn = self.commands.get(command.name)
-        if fn is None or callable(fn):
-            return [ (fn,command), ]
-        elif fn is None:
-            return [ ]
+        # for the command. Also return if the command is unknown or explicitly set
+        # to None.
+        fn = self.get_commandfn(command)
+        if callable(fn):
+            command.fn = fn
+            #log.msg("=== ",depth,'.'*(depth+1),[ command ])
+            return [ command ]
+
+        # ...otherwise the returned object is a composite and needs to be flattened/expanded
 
         # Make sure this function isn't run too many times in case of loops in
         # the aliases
-        if depth > MAX_DEPTH:
-            raise RuntimeError('Too many command alias levels (%s). Loop?' %(depth,))
+        if depth >= MAX_DEPTH:
+            raise CommandError('Too many command alias levels (%s). Loop?' %(depth,))
 
-        # The fn from commands is an alias, we need to flatten it
+        # Flatten the alias
         alias = list(fn[::-1])
         eventlist = []
         while len(alias):
@@ -169,13 +233,16 @@ class Core(object):
             # If callable alias, it is a function that will either return
             #    A) Another function, Event() or string object
             #    B) A list or tuple containing A)
-            # The point is to make it possible for alias/multiple commands to
+            # The point is to enable aliases/composite commands to
             # pass on the argument from the original command
+            # E.g.
+            #       'command': ( lambda a: ('first', Event('second',a.args[0]), )
             if callable(fn):
                 try:
                     alias.append(fn(command))
                 except (KeyError,IndexError) as e:
-                    raise CommandError("Alias function failed when processing '%s'. Missing argument?" %(command.name,))
+                    raise CommandError("Alias function failed when processing '%s'. Missing argument?" %(
+                        command.name,))
 
             # If list or tuple, expand the list and reiterate
             elif isinstance(fn, list) or isinstance(fn, tuple):
@@ -183,7 +250,7 @@ class Core(object):
 
             # Append the Event object (or make one) to the eventlist
             elif isinstance(fn, Event):
-                eventlist.append(fn)
+                eventlist.append(fn.copy())
             else:
                 eventlist.append(Event().parse_str(fn))
 
@@ -192,6 +259,7 @@ class Core(object):
         fnlist = []
         for f in eventlist:
             fnlist += self.get_commandfnlist(f,depth=depth+1)
+        #log.msg("=== ",depth,'.'*(depth+1),fnlist)
         return fnlist
 
 

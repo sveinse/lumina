@@ -1,8 +1,10 @@
 # -*- python -*-
 import re
 import json
+#import json_mod
 from twisted.python import log
 
+id = 0
 
 class Event(object):
     ''' Event object.
@@ -18,6 +20,11 @@ class Event(object):
         self.name = name
         self.args = args[:]
         self.kw = kw.copy()
+        self.fn = None
+        self.success = None
+        self.result = None
+        global id
+        id = self.id = id+1
 
 
     def copy(self):
@@ -32,16 +39,25 @@ class Event(object):
             s = [ '...%s args...' %(len(self.args)) ]
         for (k,v) in self.kw.items():
             s.append("%s=%s" %(k,v))
+        if self.success is not None:
+            s.append('=%s: %s' %(self.success,self.result))
         if s:
             t='{' + ','.join(s) + '}'
-        return "%s%s" %(self.name,t)
+        return "%s.%s%s" %(self.name,self.id,t)
+
+
+    #def to_json(self):
+    #    return "{'id': 12}"
 
 
     def dump_json(self):
         js = {
             'name': self.name,
             'args': self.args,
-            'kw': self.kw,
+            'success': self.success,
+            'id': self.id,
+            'result': self.result,
+            #'kw': self.kw,
         }
         return json.dumps(js)
 
@@ -50,7 +66,10 @@ class Event(object):
         js = json.loads(s,encoding='ascii')
         self.name = js.get('name')
         self.args = js.get('args',[])
-        self.kw = js.get('kw',{})
+        #self.kw = js.get('kw',{})
+        self.success = js.get('success',None)
+        self.id = js.get('id')
+        self.result = js.get('result')
         if self.name is None:
             raise ValueError("Missing event name")
         return self
@@ -66,6 +85,7 @@ class Event(object):
 
 
     def parse_str(self, s):
+        s=s.encode('ascii')
         m = re.match(r'^([^{}]+)({(.*)})?$', s)
         if not m:
             raise SyntaxError("Invalid syntax '%s'" %(s))

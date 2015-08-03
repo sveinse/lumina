@@ -79,7 +79,7 @@ class Logic(object):
         'wallsw1/off'    : 'light/off',
 
         # Veggbryter nederst kino
-        'wallsw2/on'     : None,
+        'wallsw2/on'     : 'light/weak',
         'wallsw2/off'    : 'light/pwr/off',
 
         # Oppo regler

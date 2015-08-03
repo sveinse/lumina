@@ -2,7 +2,7 @@
 
 from twisted.python.log import msg,err
 
-LOG_RAW=False
+LOG_RAW=True
 LOG_DATA=True
 
 def log(*args,**kw):

@@ -42,6 +42,8 @@ def dB(value):
     return { 'Val': int(float(value)*10),
              'Exp': 1,
              'Unit': 'dB' }
+def dB_t(text):
+    return { 'Val': text }
 
 def parse_dB(xml):
     return float(xml.find('Val').text) * 10 ** (-float(xml.find('Exp').text))
@@ -161,7 +163,7 @@ class YamahaProtocol(Protocol):
         data = 'POST /YamahaRemoteControl/ctrl HTTP/1.1\r\nHost: %s\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Length: %s\r\n\r\n%s' %(myip,len(body),body)
         log.msg( "     <<<  %s" %(self.queue.active['chain']), system=self.system)
         #log.msg( "     <<<  '%s'" %(body,), system=self.system)
-        #log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
+        log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
         self.data = ''
         self.dstate = 'http'
         self.length = 0
@@ -184,7 +186,7 @@ class YamahaProtocol(Protocol):
     def dataReceived(self, data):
         self.setstate('active')
         self.data += data
-        #log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system=self.system)
+        log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system=self.system)
 
         # Body part of the frame
         if self.dstate == 'body':
@@ -345,11 +347,15 @@ class Yamaha(Endpoint):
             'avr/off'       : lambda a : self.c(PUT, POWER, 'Standby'),
             'avr/on'        : lambda a : self.c(PUT, POWER, 'On'),
 
-            'avr/volume'    : lambda a : self.c(GET, VOLUME).addCallback(parse_dB),
-            'avr/setvolume' : lambda a : self.c(PUT, VOLUME, dB(a.args[0])),
-            'avr/input'     : lambda a : self.c(GET, INPUT).addCallback(t),
-            'avr/setinput'  : lambda a : self.c(PUT, INPUT, a.args[0]),
-        }
+            'avr/volume'      : lambda a : self.c(GET, VOLUME).addCallback(parse_dB),
+            'avr/volume/up'   : lambda a : self.c(PUT, VOLUME, dB_t('Up')),
+            'avr/volume/down' : lambda a : self.c(PUT, VOLUME, dB_t('Down')),
+            'avr/setvolume'   : lambda a : self.c(PUT, VOLUME, dB(a.args[0])),
+            'avr/input'       : lambda a : self.c(GET, INPUT).addCallback(t),
+            'avr/setinput'    : lambda a : self.c(PUT, INPUT, a.args[0]),
+
+            'avr/fail' : lambda a : self.c(PUT, VOLUME, 'Down'),
+       }
 
 
     # --- Initialization

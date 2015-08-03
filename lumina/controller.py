@@ -21,11 +21,10 @@ class EventProtocol(LineReceiver):
     delimiter='\n'
     timeout=15
     system = 'CTRL'
-    seq = 0
 
     def connectionMade(self):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
-        self.name = self.ip
+        self.name = self.system + ':' + self.ip
         self.events = []
         self.commands = []
         self.requests = { }
@@ -35,12 +34,10 @@ class EventProtocol(LineReceiver):
     def connectionLost(self, reason):
         log("Lost connection from '%s' (%s)" %(self.name,self.ip), system=self.system)
         if len(self.events):
-            log("%s de-registering %s events" %(self.name, len(self.events)),
-                system=self.system)
+            log("De-registering %s events" %(len(self.events)), system=self.name)
             self.parent.remove_events(self.events)
         if len(self.commands):
-            log("%s de-registering %s commands" %(self.name, len(self.commands)),
-                system=self.system)
+            log("De-registering %s commands" %(len(self.commands)), system=self.name)
             self.parent.remove_commands(self.commands)
         # FIXME: Cancel all pending request?
 
@@ -52,7 +49,7 @@ class EventProtocol(LineReceiver):
         if not len(data):
             return
 
-        lograwin(data, system=self.system)
+        lograwin(data, system=self.name)
 
         # -- Special @ notation which makes the controller execute the incoming data as a command
         if data.startswith('@'):
@@ -62,26 +59,25 @@ class EventProtocol(LineReceiver):
         # -- Parse the incoming message as an Event
         try:
             event = Event().parse_json(data)
-            #logdatain(event, system=self.name)
+            logdatain(event, system=self.name)
 
         except (SyntaxError,ValueError) as e:
             # Raised if the parse_json didn't succeed
-            err(system=self.system)
-            log("Protcol error on incoming message: %s" %(e.message), system=self.system)
+            err(system=self.name)
+            log("Protcol error on incoming message: %s" %(e.message), system=self.name)
             return
 
         # -- Register client name
         if event.name == 'name':
-            self.name = 'R-' + event.args[0]
-            log("***  Registering client %s (%s)" %(self.name,self.ip), system=self.system)
+            self.name = self.system + ':' + event.args[0]
+            log("***  Registering client %s (%s)" %(event.args[0],self.ip), system=self.name)
             return
 
         # -- Register client events
         elif event.name == 'events':
             evlist = event.args[:]
             if len(evlist):
-                log("%s registering %s events" %(self.name,len(evlist)),
-                    system=self.system)
+                log("Registering %s events" %(len(evlist)), system=self.name)
                 self.events = evlist
                 self.parent.add_events(evlist)
             return
@@ -90,8 +86,7 @@ class EventProtocol(LineReceiver):
         elif event.name == 'commands':
             evlist = event.args[:]
             if len(evlist):
-                log("%s registering %s commands" %(self.name,len(evlist)),
-                    system=self.system)
+                log("Registering %s commands" %(len(evlist)), system=self.name)
                 self.commands = evlist
                 # Register the received list of commands and point them
                 # to this instance's send function. This will simply send
@@ -113,7 +108,7 @@ class EventProtocol(LineReceiver):
             return
 
         # -- Handle a reply to a former command
-        elif 'seq' in event.kw:
+        elif event.id in self.requests:
             self.response(event)
             return
 
@@ -124,16 +119,16 @@ class EventProtocol(LineReceiver):
 
     # -- Send a command to the client
     def send(self, event):
-        self.seq += 1
+        #self.seq += 1
         event.defer = Deferred()
-        event.timer = reactor.callLater(self.timeout, self.timedout, event)
-        event.kw['seq'] = self.seq
-        self.requests[self.seq] = event
+        #event.timer = reactor.callLater(self.timeout, self.timedout, event)
+        #event.kw['seq'] = self.seq
+        self.requests[event.id] = event
 
-        #logdataout(event, system=self.name)
+        logdataout(event, system=self.name)
 
         data=event.dump_json()+'\n'
-        lograwout(data, system=self.system)
+        lograwout(data, system=self.name)
         self.transport.write(data)
         return event.defer
 
@@ -141,18 +136,19 @@ class EventProtocol(LineReceiver):
     # -- TIMEOUT response handler
     def timedout(self, event):
         logtimeout(event, system=self.name)
-        request = self.requests.pop(event.kw['seq'])
+        request = self.requests.pop(event.id)
 
         request.defer.errback(TimeoutException())
 
 
     # -- OK response handler
     def response(self, event):
-        request = self.requests.pop(event.kw['seq'])
+        log("RESP",event)
+        request = self.requests.pop(event.id)
 
         # FIXME: Perhaps the payload should be a separate object(type), not the event itself?
-        request.timer.cancel()
-        request.defer.callback(event)
+        #request.timer.cancel()
+        request.defer.callback(event.result)
 
 
     # -- ERROR response handler
@@ -171,7 +167,7 @@ class EventProtocol(LineReceiver):
         else:
             exc = ClientException(eargs)
 
-        request.timer.cancel()
+        #request.timer.cancel()
         request.defer.errback(exc)
 
 
@@ -179,29 +175,36 @@ class EventProtocol(LineReceiver):
     def interactive(self, data):
 
         def raw_reply(reply,cls,event):
-            cls.transport.write(">>> %s\n" %(str(reply),))
-        def raw_error(reply,cls,event):
-            cls.transport.write(">>> %s FAILED: %s %s\n" %(
-                event,reply.value.__class__.__name__,str(reply.value)))
-            raise reply
+            if not isinstance(reply.success,bool):
+                (result,reply.result)=(reply.result,'(...)')
+                for r in result:
+                    cls.transport.write("     %s\n" %(str(r),))
+            cls.transport.write(">>>  %s\n" %(str(reply),))
+        def raw_error(failure,cls,event):
+            cls.transport.write(">>>  %s FAILED: %s %s\n" %(
+                event.name,failure.value.__class__.__name__,str(failure.value)))
 
         try:
             event = Event().parse_str(data)
+            event.system = self.system
             logdatain(event, system=self.name)
         except SyntaxError as e:
             err(system=self.system)
-            log("Protcol error: %s" %(e.message), system=self.system)
-            self.transport.write('>>> ERROR: Protocol error. %s\n' %(e.message))
+            log("Protcol error: %s" %(e.message), system=self.name)
+            self.transport.write('>>>  ERROR: Protocol error. %s\n' %(e.message))
             return
 
         event.name = event.name[1:]
         try:
-            result = self.parent.run_command(event)
-            result.addCallback(raw_reply, self, event)
-            result.addErrback(raw_error, self, event)
+            cmdlist = self.parent.get_commandfnlist(event)
+            self.transport.write('<<<  %s\n' %(cmdlist))
+            defer = self.parent.run_commandlist(event, cmdlist)
+            defer.addCallback(raw_reply, self, event)
+            defer.addErrback(raw_error, self, event)
         except CommandError as e:
+            # Handles any errors before the commands are run
             err(system=self.system)
-            self.transport.write('>>> %s ERROR: %s\n' %(event,e.message))
+            self.transport.write('>>>  %s ERROR: %s\n' %(event,e.message))
 
 
 

@@ -90,24 +90,6 @@
 
         <div class="container">
             <span id="body_scener" class="show">
-                <h2><i class="fa fa-lightbulb-o fa-lg fa-fw"></i>
-                    Lys
-                    <sup><small><span class="label label-default td-on-icon">?</span></small></sup>
-                </h2>
-                <p></p>
-                <div class="btn-toolbar" role="toolbar" aria-label="...">
-                    <div class="btn-group btn-group-lg" role="group">
-                        <button type="button" class="btn btn-default lu-light-off">
-                            <i class="fa fa-lightbulb-o fa-lg"></i>
-                            Av
-                        </button>
-                        <button type="button" class="btn btn-default lu-light-on">
-                            <i class="fa fa-lightbulb-o fa-lg"></i>
-                            På
-                        </button>
-                    </div>
-                </div>
-
                 <h2><i class="fa fa-picture-o fa-lg fa-fw"></i>
                     Visning
                 </h2>
@@ -115,11 +97,11 @@
                 <div class="btn-toolbar" role="toolbar" aria-label="...">
                     <div class="btn-group btn-group-lg" role="group">
                         <button type="button" class="btn btn-default lu-elec-off">
-                            <i class="fa fa-circle-o-notch fa-lg"></i>
+                            <i class="fa fa-circle-o fa-lg"></i>
                             Alt AV
                         </button>
                         <button type="button" class="btn btn-default lu-elec-on">
-                            <i class="fa fa-power-off fa-lg"></i>
+                            <i class="fa fa-circle-o fa-lg"></i>
                             Alt PÅ
                         </button>
                     </div>
@@ -135,6 +117,26 @@
                     <sup><small><span class="label label-default td-on-icon">?</span></small></sup>
                 </h2>
                 <p></p>
+                <div class="btn-toolbar" role="toolbar" aria-label="...">
+                    <div class="btn-group btn-group-lg" role="group">
+                        <button type="button" class="btn btn-default lu-light-off">
+                            <i class="fa fa-circle-o fa-lg"></i>
+                            Av
+                        </button>
+                        <button type="button" class="btn btn-default lu-light-weak">
+                            <i class="fa fa-circle-o fa-lg"></i>
+                            Svakt
+                        </button>
+                        <button type="button" class="btn btn-default lu-light-normal">
+                            <i class="fa fa-circle-o fa-lg"></i>
+                            På
+                        </button>
+                        <button type="button" class="btn btn-default lu-light-full">
+                            <i class="fa fa-circle-o fa-lg"></i>
+                            Fullt
+                        </button>
+                    </div>
+                </div>
                 <hr>
             </span>
         </div>
@@ -143,9 +145,34 @@
             <span id="body_avr" class="show">
                 <h2><i class="fa fa-volume-off fa-lg fa-fw"></i>
                     Forsterker
-                    <sup><small><span class="label label-default avr-on-icon">?</span></small></sup>
+                    <sup><small><span class="label label-default lu-avr-on-icon">?</span></small></sup>
                 </h2>
                 <p></p>
+                <ol class="breadcrumb">
+                    <li><span class="label label-default lu-avr-on-icon">?</span></li>
+                    <li><i class="fa fa-volume-up"></i> <span class="lu-avr-volume"></span></li>
+                    <li><i class="fa fa-sign-in"></i> <span class="lu-avr-input"</span></li>
+                </ol>
+                <div class="btn-group btn-group-lg" role="group">
+                    <button type="button" class="btn btn-default lu-avr-off">
+                        <i class="fa fa-circle-o fa-lg"></i>
+                        Av
+                    </button>
+                    <button type="button" class="btn btn-default lu-avr-on">
+                        <i class="fa fa-circle-o fa-lg"></i>
+                        På
+                    </button>
+                </div>
+                <div class="btn-group btn-group-lg" role="group">
+                    <button type="button" class="btn btn-default lu-avr-volume-down">
+                        <i class="fa fa-circle-o fa-lg"></i>
+                        Ned
+                    </button>
+                    <button type="button" class="btn btn-default lu-avr-volume-up">
+                        <i class="fa fa-circle-o fa-lg"></i>
+                        Opp
+                    </button>
+                </div>
                 <hr>
             </span>
         </div>
@@ -154,7 +181,7 @@
             <span id="body_oppo" class="show">
                 <h2><i class="fa fa-play-circle fa-lg fa-fw"></i>
                     Spiller
-                    <sup><small><span class="label label-default oppo-on-icon">?</span></small></sup>
+                    <sup><small><span class="label label-default lu-oppo-on-icon">?</span></small></sup>
                 </h2>
                 <p></p>
                 <hr>
@@ -165,12 +192,36 @@
             <span id="body_hw50" class="show">
                 <h2><i class="fa fa-video-camera fa-lg fa-fw"></i>
                     Prosjektor
-                    <sup><small><span class="label label-default hw50-on-icon">?</span></small></sup>
+                    <sup><small><span class="label label-default lu-hw50-on-icon">?</span></small></sup>
                 </h2>
                 <p></p>
                 <hr>
             </span>
         </div>
+
+        <div class="container">
+            <span id="body_div" class="show">
+                <h2><i class="fa fa-bug fa-lg fa-fw"></i>
+                    Debug
+                </h2>
+                <p></p>
+
+                <!-- CUSTOM COMMAND INPUT -->
+                <div class="well">
+                    <form class="form-inline" id="lu-command">
+                        <div class="form-group">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="lu-command-input" placeholder="Command">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Send</button>
+                        <p class="form-control-static"><code id="lu-command-output"></code></p>
+                    </form>
+                </div>
+                <hr>
+            </span>
+        </div>
+
 
 
         <!-- Bootstrap core JavaScript

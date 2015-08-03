@@ -87,7 +87,10 @@ class EventProtocol(LineReceiver):
             try:
 
                 # Call the command function and setup proper response handlers.
-                defer = self.parent.run_command(request)
+                request.system = self.system
+                cmdlist = self.parent.get_commandfnlist(request)
+                defer = self.parent.run_commandlist(request, cmdlist)
+                #defer = self.parent.run_command(request)
                 defer.addCallback(self.send_reply, request)
                 defer.addErrback(self.send_error, request)
 
@@ -114,21 +117,23 @@ class EventProtocol(LineReceiver):
 
 
     def send_reply(self, response, request):
-        #log("REPLY to %s: %s" %(request.name, response), system=self.system)
+        log("REPLY to %s: %s" %(request.name, response), system=self.system)
+
+        # FIXME: Check what object being returned to controller with new setup
 
         # Wrap common reply type into Event object that can be transferred
         # to the server.
-        if response is None:
-            response = Event(request.name)
-        #elif isinstance(response, Event):
-        #    response.name = request.name
-        elif type(response) is list or type(response) is tuple:
-            response = Event(request.name,*response)
-        else:
-            response = Event(request.name,response)
+        #if response is None:
+        #    response = Event(request.name)
+        ##elif isinstance(response, Event):
+        ##    response.name = request.name
+        #elif type(response) is list or type(response) is tuple:
+        #    response = Event(request.name,*response)
+        #else:
+        #    response = Event(request.name,response)
 
         # Copy the sequence number from the request
-        response.kw['seq'] = request.kw['seq']
+        #response.kw['seq'] = request.kw['seq']
 
         self.send_event(response)
 
@@ -154,6 +159,7 @@ class EventFactory(ReconnectingClientFactory):
         self.resetDelay()
         proto = EventProtocol()
         proto.parent = self.parent
+        proto.system = self.parent.system
         return proto
 
     def clientConnectionLost(self, connector, reason):
@@ -177,11 +183,13 @@ class Client(Core):
         self.name = name
         self.protocol = None
         self.queue = []
+        self.system = name
 
 
     def setup(self):
         self.factory = EventFactory()
         self.factory.parent = self
+        self.factory.system = self.system
         reactor.connectTCP(self.host, self.port, self.factory)
 
 
