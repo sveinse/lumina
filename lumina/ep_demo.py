@@ -20,7 +20,7 @@ class Demo(Endpoint):
 
         self.commands = {
             'immediate' : lambda a : Event('imme',3,4,5),
-            'delay'     : lambda a : self.delay(2,Event().parse_str('delay{1,2,3}')),
+            'delay'     : lambda a : self.delay(2,Event().load_str('delay{1,2,3}')),
             'fail1'     : lambda a : Exception("Failed"),
             'fail2'     : lambda a : self.err(),
             'fail3'     : lambda a : self.delay(2,Exception("Failed")),

@@ -14,8 +14,8 @@ class Logic(object):
 
         'light/full'      : ( 'led/pwr/on', 'spot/on', 'led/white/on' ),
         'light/normal'    : ( 'led/pwr/on', 'spot/on', 'led/blue/normal' ),
-        'light/weak'      : ( 'spot/dim{30}', 'led/blue/dim{17}' ),
-        'light/pause'     : ( 'spot/off', 'led/white/dim{10}' ),
+        'light/weak'      : ( 'led/pwr/on', 'spot/dim{30}', 'led/blue/dim{15}' ),
+        'light/pause'     : ( 'led/pwr/on', 'spot/off', 'led/white/dim{10}' ),
         'light/off'       : ( 'spot/off', 'led/off' ),
         'light/pwr/off'   : ( 'spot/off', 'led/pwr/off' ),
 
@@ -40,6 +40,7 @@ class Logic(object):
         'led/white/normal': ( 'led{0,0,0,100}', ),
         'led/white/dim'   : ( lambda a : ( E('led',0,0,0,a.args[0]), ), ),
         'led/blue/normal' : ( 'led{0,0,100,0}', ),
+        'led/blue/dim'    : ( lambda a : ( E('led',0,0,a.args[0],0), ), ),
         'led/off'         : ( 'led{0,0,0,0}', ),
 
         'elec/on'         : ( 'oppo/on', 'hw50/on', 'avr/on' ),
@@ -66,9 +67,9 @@ class Logic(object):
         'remote/g/off'   : 'light/off',
 
         'remote/5/on'    : 'led{0,0,0,255}',
-        'remote/5/off'   : 'led{0,0,0,17}',
+        'remote/5/off'   : 'led{0,0,0,15}',
         'remote/6/on'    : 'led{0,0,100,0}',
-        'remote/6/off'   : 'led{0,0,0,17}',
+        'remote/6/off'   : 'led{0,0,17,0}',
         'remote/7/on'    : 'led{143,0,0,0}',
         'remote/7/off'   : 'led{9,0,0,0}',
         'remote/8/on'    : 'led{122,0,29,0}',

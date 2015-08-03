@@ -150,9 +150,9 @@ def test():
         controller.add_jobs(logic.jobs)
         controller.add_commands(logic.alias)
 
-        #controller.register(Test())
+        #controller.register(Test(prefix='s'))
         #controller.register(Demo())
-        #controller.register(Yamaha('10.5.5.11'))
+        controller.register(Yamaha('10.5.5.11'))
 
         web = Web(port=8080,webroot='www')
         web.setup(controller)
@@ -162,7 +162,7 @@ def test():
         controller = Client(host='localhost',port=8081,name='TEST')
         controller.setup()
 
-        controller.register(Test())
+        #controller.register(Test(prefix='r'),)
         #controller.register(Demo())
         #controller.register(Yamaha('10.5.5.11'))
 

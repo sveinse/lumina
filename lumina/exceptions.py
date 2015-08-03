@@ -2,10 +2,9 @@
 
 class LuminaException(Exception):
     ''' Base exception class for Lumina '''
-    pass
 
 class CommandException(LuminaException):
-    pass
+    ''' Command execution exception base class '''
 class NotConnectedException(CommandException):
     pass
 class CommandFailedException(CommandException):
@@ -13,12 +12,11 @@ class CommandFailedException(CommandException):
 class TimeoutException(CommandException):
     pass
 
-class ClientException(LuminaException):
-    ''' Unknown error received from client '''
+class CommandRunException(LuminaException):
+    ''' Error running a command '''
+class UnknownCommandException(CommandRunException):
     pass
 
-class CommandError(LuminaException):
-    ''' Error processing commands '''
-    pass
-class UnknownCommandError(CommandError):
-    pass
+
+class ClientException(LuminaException):
+    ''' Unknown error received from client '''

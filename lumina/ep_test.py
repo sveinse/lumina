@@ -8,6 +8,8 @@ from endpoint import Endpoint
 from event import Event as E
 from exceptions import *
 
+
+
 class Test(Endpoint):
     system = 'TEST'
     name = 'TEST'
@@ -16,60 +18,72 @@ class Test(Endpoint):
     def configure(self):
         self.events = [ ]
 
-        recycle = E('t/recycle')
-        self.commands = {
+        recycle = E('r/recycle')
+
+        commands = {
             # Fails with nothing to run
-            't/empty'  : ( ),
-            't/null'   : None,
+            '/empty'   : ( ),
+            '/null'    : None,
 
             # Basic command support
-            't/none'   : lambda a : None,
-            't/true'   : lambda a : True,
-            't/false'  : lambda a : False,
-            't/list'   : lambda a : ( True, False),
+            '/none'    : lambda a : None,
+            '/true'    : lambda a : True,
+            '/false'   : lambda a : False,
+            '/list'    : lambda a : ( True, False),
 
-            't/log'    : lambda a : self.log(a),
-            't/args'   : ( 't/log{1,2,3}', 't/log{42,sure=yes}' ),
-            't/arg3'   : ( lambda a : ( E('t/log',1,3,a.args[0]), ), ),
+            # Argument testing
+            '/log'     : lambda a : self.log(a),
+            '/arg'     : lambda a : self.delay(a.args[0]),
+            '/arg2'    : ( lambda a : E('r/arg',a.args[0]), ),
+            '/args'    : ( 'r/log{1,2,3}', 'r/log{42,sure=yes}' ),
+            '/arg3'    : ( lambda a : ( E('r/log',1,3,a.args[0]), ), ),
 
             # Aliases
-            't/alias'     : ( 't/true', ),
-            't/alias2'    : ( 't/true', 't/null', 't/empty', 't/nonexist' ),
-            't/aliaserr'  : ( 't/nonexist', ),
-            't/aliaserr2' : ( 't/true', 't/nonexist', ),
+            '/alias'     : ( 'r/true', ),
+            '/alias2'    : ( 'r/true', 'r/null', 'r/empty', 'r/nonexist' ),
+            '/aliaserr'  : ( 'r/nonexist', ),
+            '/aliaserr2' : ( 'r/true', 'r/nonexist', ),
 
             # It should catch these
-            't/loop'   : ( 't/loop', ),
-            't/loop1'  : ( 't/loop2', ),
-            't/loop2'  : ( 't/loop1', ),
-            't/loopx'  : ( lambda a : ( 't/loopy', ), ),
-            't/loopy'  : ( lambda a : ( 't/loopx', ), ),
+            '/loop'   : ( 'r/loop', ),
+            '/loop1'  : ( 'r/loop2', ),
+            '/loop2'  : ( 'r/loop1', ),
+            '/loopx'  : ( lambda a : ( 'r/loopy', ), ),
+            '/loopy'  : ( lambda a : ( 'r/loopx', ), ),
 
             # Composite ok and failure objects
-            't/ok'     : lambda a : True,
-            't/ok3'    : ( 't/ok', 't/ok', 't/ok' ),
+            '/ok'     : lambda a : True,
+            '/ok3'    : ( 'r/ok', 'r/ok', 'r/ok' ),
+            '/fail1'  : ( 'r/ok', 'r/fail', 'r/ok' ),
+            '/fail2'  : ( 'r/ok', 'r/arg', 'r/ok' ),
+            '/fail3'  : ( 'r/fail', 'r/fail', 'r/fail' ),
 
             # Failure and failure composites
-            't/fail'   : lambda a : self.fail(),
-            't/fail1'  : ( 't/ok', 't/fail', 't/ok' ),
-            't/fail3'  : ( 't/fail', 't/fail', 't/fail' ),
+            '/fail'    : lambda a : self.fail(),
 
             # Test timeout
-            't/forever'  : lambda a : self.forever(),
-            't/forever2' : ( 't/forever', 't/forever' ),
+            '/forever'  : lambda a : self.forever(),
+            '/forever2' : ( 'r/forever', 'r/forever' ),
 
             # Reuse objects (called twice should not be dangerous)
-            't/reuse'  : ( recycle, ),
+            '/reuse'   : ( recycle, ),
 
             # Delays
-            't/delay'  : lambda a : self.delay(a.args[0]),
-            't/delay2' : ( 't/delay{3}', 't/delay{2}' , 't/delay{1}' ),
+            '/delay'   : lambda a : self.delay(a.args[0]),
+            '/delay2'  : ( 'r/delay{3}', 'r/delay{2}' , 'r/delay{1}' ),
         }
+        prefix = self.prefix
+        self.commands = {}
+        for (cmd,data) in commands.items():
+            if prefix == 'r' and not callable(data):
+                continue
+            self.commands[prefix + cmd] = data
 
 
     # --- Initialization
-    def __init__(self):
+    def __init__(self,prefix='r'):
         self.state = 'init'
+        self.prefix = prefix
 
 
     # --- Commands

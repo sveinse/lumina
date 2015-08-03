@@ -22,7 +22,10 @@ DEFAULT_TIMEOUT = 10
 def unknown_command(command):
     ''' Callback for any unknown commands '''
     #log.msg("    %s: Ignoring unknown command" %(command), system=command.system)
-    raise CommandException("Unknown command")
+
+    # FIXME: This command should use an exception type which will fail. CommandException
+    # is a subtype of Command
+    raise UnknownCommandException()
 
 
 def empty_command(command):
@@ -36,44 +39,25 @@ def transform_timeout(failure):
     raise TimeoutException()
 
 
-def command_ok(result, command):
-    ''' Save the results into the command object '''
-    command.success = True
-    command.result = result
-    if command.fn is not empty_command:
-        # To prevent double-logging on empty commands
-        log.msg("    %s: %s" %(command,result), system=command.system)
-    return command
-
-
-def command_error(failure, command):
-    ''' Save the error into the command object '''
-    cls = failure.value.__class__.__name__
-    text = str(failure.value)
-    command.success = False
-    command.result = Event('error',command.name,cls,text)
-    log.msg("    %s FAILED: %s [%s]" %(command.name,text,cls), system=command.system)
-
-    if not failure.check(CommandException):
-        log.msg(failure.getTraceback(), system=command.system)
-        return failure
-
-
 def list_ok(result, command, commandlist):
+    #log.msg("LIST_OK")
+
     # If command is an alias or composite command, save the results in the
     # command object
-    if not len(commandlist):
-        command.success = True
-        command.result = None
-    elif command.id != commandlist[0].id:
+    if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
         command.success = [ c.success for c in commandlist ].count(True)
-        command.result = commandlist
 
     # This is what we send back to the calling function
     return command
 
 
 def list_error(failure, command, commandlist):
+    #log.msg("LIST_ERROR")
+
+    # Ensure the success count is updated on failing lists
+    if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
+        command.success = [ c.success for c in commandlist ].count(True)
+
     # Report the actual error back to the caller
     return failure.value.subFailure
 
@@ -156,14 +140,15 @@ class Core(object):
         # Get the next command
         fn = self.get_commandfn(command)
         if not callable(fn):
-            raise CommandError("%s lacks runnable function" %(command))
+            raise CommandRunException("%s lacks runnable function" %(command))
 
+        # FIXME: Client commands must timeout in case the controller has lost
+        #        interest in it.
         command.fn = fn
-        log.msg("HOI %s" %(command))
         return maybeDeferred(command.fn, command
-                             ).addCallback(command_ok,command
+                             ).addCallback(command.cmd_ok
                              ).addErrback(transform_timeout
-                             ).addErrback(command_error,command)
+                             ).addErrback(command.cmd_error)
 
 
     def run_commandlist(self, command, commandlist, timeout=DEFAULT_TIMEOUT):
@@ -172,18 +157,23 @@ class Core(object):
         # Compile a list of all the events which is going to be run (for printing)
         if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
             log.msg("%s RUNS %s" %(command,commandlist), system=command.system)
+            command.result = commandlist
         else:
             log.msg("RUN %s" %(commandlist), system=command.system)
+            command.result = None
 
         # We need at least one command to run.
         #if not len(commandlist):
-        #    raise CommandError("'%s' error: Nothing to run" %(command.name))
+        #    raise CommandRunException("'%s' error: Nothing to run" %(command.name))
+
+        #command.result = commandlist
+        command.success = False
 
         # Call all of the commands.
         d = DeferredList([ maybeDeferred(cmd.fn,cmd
-                                     ).addCallback(command_ok,cmd
+                                     ).addCallback(cmd.cmd_ok
                                      ).addErrback(transform_timeout
-                                     ).addErrback(command_error,cmd)
+                                     ).addErrback(cmd.cmd_error)
                            for cmd in commandlist ],
                          consumeErrors=True, fireOnOneErrback=True)
         d.addCallback(list_ok, command, commandlist)
@@ -222,7 +212,7 @@ class Core(object):
         # Make sure this function isn't run too many times in case of loops in
         # the aliases
         if depth >= MAX_DEPTH:
-            raise CommandError('Too many command alias levels (%s). Loop?' %(depth,))
+            raise CommandRunException('Too many command alias levels (%s). Loop?' %(depth,))
 
         # Flatten the alias
         alias = list(fn[::-1])
@@ -241,7 +231,8 @@ class Core(object):
                 try:
                     alias.append(fn(command))
                 except (KeyError,IndexError) as e:
-                    raise CommandError("Alias function failed when processing '%s'. Missing argument?" %(
+                    raise CommandRunException(
+                        "Alias function failed when processing '%s'. Missing argument?" %(
                         command.name,))
 
             # If list or tuple, expand the list and reiterate
@@ -250,9 +241,13 @@ class Core(object):
 
             # Append the Event object (or make one) to the eventlist
             elif isinstance(fn, Event):
-                eventlist.append(fn.copy())
+                ev = fn.copy()
+                ev.system = command.system
+                eventlist.append(ev)
             else:
-                eventlist.append(Event().parse_str(fn))
+                ev = Event().load_str(fn)
+                ev.system = command.system
+                eventlist.append(ev)
 
         # eventlist is now a list of Event() objects. Let's iterate over the list
         # to compile a list of (fn,event) tuples.
@@ -271,12 +266,6 @@ class Core(object):
         for (name,command) in jobs.items():
             if name in self.jobs:
                 raise TypeError("Job '%s' already exists" %(name))
-
-            # This is done to allow job lists to be specified as text lists or lists
-            #if isinstance(commands, JobBase):
-            #    job = commands
-            #else:
-            #    job = Job( commands )
             self.jobs[name] = command
 
 
@@ -291,8 +280,9 @@ class Core(object):
         # Copy the original event, and parse in name and optional args from
         # the job
         job = event.copy()
-        job.parse_str(name)
+        job.load_str(name)
 
         # Run it
         log.msg("     --:  Running %s" %(job,), system='EVENT')
-        return self.run_command(job)
+        cmdlist = self.get_commandfnlist(job)
+        return self.run_commandlist(job, cmdlist)

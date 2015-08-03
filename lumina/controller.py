@@ -12,7 +12,7 @@ from log import *
 
 
 validClientExceptions = (
-    CommandFailedException,
+    CommandException,
 )
 
 
@@ -58,11 +58,11 @@ class EventProtocol(LineReceiver):
 
         # -- Parse the incoming message as an Event
         try:
-            event = Event().parse_json(data)
+            event = Event().load_json(data)
             logdatain(event, system=self.name)
 
         except (SyntaxError,ValueError) as e:
-            # Raised if the parse_json didn't succeed
+            # Raised if the load_json didn't succeed
             err(system=self.name)
             log("Protcol error on incoming message: %s" %(e.message), system=self.name)
             return
@@ -102,14 +102,12 @@ class EventProtocol(LineReceiver):
             self.transport.loseConnection()
             return
 
-        # -- Handle error to a former command
-        elif event.name == 'error':
-            self.error(event)
-            return
-
         # -- Handle a reply to a former command
         elif event.id in self.requests:
-            self.response(event)
+            if event.success:
+                self.response(event)
+            else:
+                self.error(event)
             return
 
         # -- A new incoming (async) event.
@@ -121,30 +119,32 @@ class EventProtocol(LineReceiver):
     def send(self, event):
         #self.seq += 1
         event.defer = Deferred()
+        event.gen_id()
         #event.timer = reactor.callLater(self.timeout, self.timedout, event)
         #event.kw['seq'] = self.seq
         self.requests[event.id] = event
 
         logdataout(event, system=self.name)
 
-        data=event.dump_json()+'\n'
+        data=event.dump_json()
         lograwout(data, system=self.name)
-        self.transport.write(data)
+        self.transport.write(data+'\n')
         return event.defer
 
 
     # -- TIMEOUT response handler
-    def timedout(self, event):
-        logtimeout(event, system=self.name)
-        request = self.requests.pop(event.id)
+    #def timedout(self, event):
+    #    logtimeout(event, system=self.name)
+    #    request = self.requests.pop(event.id)
 
-        request.defer.errback(TimeoutException())
+    #    request.defer.errback(TimeoutException())
 
 
     # -- OK response handler
     def response(self, event):
-        log("RESP",event)
+        #log("RESP",event)
         request = self.requests.pop(event.id)
+        request.del_id()
 
         # FIXME: Perhaps the payload should be a separate object(type), not the event itself?
         #request.timer.cancel()
@@ -154,18 +154,21 @@ class EventProtocol(LineReceiver):
     # -- ERROR response handler
     def error(self, event):
 
-        failure = event.args[0]
-        request = self.requests.pop(failure)
+        result = event.result
+        request = self.requests.pop(event.id)
+        request.del_id()
 
         # Parse exception types
-        ename = event.args[1]
-        eargs = event.args[2:]
+        ename = result[0]
+        eargs = result[1:]
         el = [ e.__name__ for e in validClientExceptions ]
         if ename in el:
             ei = el.index(ename)
-            exc = validClientExceptions[ei](eargs)
+            exc = validClientExceptions[ei](*eargs)
         else:
-            exc = ClientException(eargs)
+            # Unknow exceptions are mapped to this type
+            eargs.insert(0,ename)
+            exc = ClientException(*eargs)
 
         #request.timer.cancel()
         request.defer.errback(exc)
@@ -185,7 +188,7 @@ class EventProtocol(LineReceiver):
                 event.name,failure.value.__class__.__name__,str(failure.value)))
 
         try:
-            event = Event().parse_str(data)
+            event = Event().load_str(data)
             event.system = self.system
             logdatain(event, system=self.name)
         except SyntaxError as e:
@@ -201,7 +204,7 @@ class EventProtocol(LineReceiver):
             defer = self.parent.run_commandlist(event, cmdlist)
             defer.addCallback(raw_reply, self, event)
             defer.addErrback(raw_error, self, event)
-        except CommandError as e:
+        except CommandException as e:
             # Handles any errors before the commands are run
             err(system=self.system)
             self.transport.write('>>>  %s ERROR: %s\n' %(event,e.message))

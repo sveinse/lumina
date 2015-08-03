@@ -43,7 +43,9 @@ def dB(value):
              'Exp': 1,
              'Unit': 'dB' }
 def dB_t(text):
-    return { 'Val': text }
+    return { 'Val': text,
+             'Exp': '',
+             'Unit': '' }
 
 def parse_dB(xml):
     return float(xml.find('Val').text) * 10 ** (-float(xml.find('Exp').text))
@@ -152,18 +154,24 @@ class YamahaProtocol(Protocol):
 
     def setstate(self,state,*args):
         (old, self.state) = (self.state, state)
-        if state != old:
-            log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
+        #if state != old:
+        #    log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
 
 
     def connectionMade(self):
         self.setstate('connected')
         body = self.queue.active['body']
         myip = self.transport.getHost().host
-        data = 'POST /YamahaRemoteControl/ctrl HTTP/1.1\r\nHost: %s\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Length: %s\r\n\r\n%s' %(myip,len(body),body)
-        log.msg( "     <<<  %s" %(self.queue.active['chain']), system=self.system)
-        #log.msg( "     <<<  '%s'" %(body,), system=self.system)
-        log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
+        data = '''POST /YamahaRemoteControl/ctrl HTTP/1.1\r
+Host: %s\r
+Content-Type: text/xml; charset="utf-8"\r
+Content-Length: %s\r
+Connection: keep-alive\r
+\r
+%s''' %(myip,len(body),body)
+        #log.msg( "     <<<  %s" %(self.queue.active['chain']), system=self.system)
+        log.msg( "     <<<  '%s'" %(body,), system=self.system)
+        #log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
         self.data = ''
         self.dstate = 'http'
         self.length = 0
@@ -186,7 +194,7 @@ class YamahaProtocol(Protocol):
     def dataReceived(self, data):
         self.setstate('active')
         self.data += data
-        log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system=self.system)
+        #log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system=self.system)
 
         # Body part of the frame
         if self.dstate == 'body':
@@ -227,7 +235,7 @@ class YamahaProtocol(Protocol):
     def slurp_body(self):
 
         # Enough data?
-        if len(self.data) < self.length:
+        if not len(self.data) or len(self.data) < self.length:
             return
         body = self.data[0:self.length]
         self.dstate = 'done'
@@ -240,7 +248,7 @@ class YamahaProtocol(Protocol):
             if self.httperr == 400:
                 raise CommandFailedException('HTML err %s, Bad request, XML Parse error' %(self.httperr,))
 
-            #log.msg( "     >>>  '%s'" %(body,), system=self.system)
+            log.msg("     >>>  '%s'" %(body,), system=self.system)
             xml = ET.fromstring(body)
             if xml.tag != ROOT:
                 raise CommandFailedException("'%s' is XML root, not '%s'" %(xml.tag,ROOT))
@@ -268,7 +276,7 @@ class YamahaProtocol(Protocol):
                     raise CommandFailedException("Response XML does not match request on level '%s'" %(c,))
                 xe = sub
 
-            log.msg("     >>>  '%s'" %(ET.tostring(xe),), system=self.system)
+            #log.msg("     >>>  '%s'" %(ET.tostring(xe),), system=self.system)
 
             if cmd == PUT:
                 self.queue.callback(xe.text)

@@ -31,19 +31,19 @@ class EventProtocol(LineReceiver):
 
         # -- Register name
         log("Registering client %s" %(self.parent.name,), system=self.system)
-        self.send_event(Event('name',self.parent.name))
+        self.send(Event('name',self.parent.name))
 
         # -- Register events
         evlist = self.parent.events
         if len(evlist):
             #log("Registering %s client events" %(len(evlist)), system=self.system)
-            self.send_event(Event('events', *evlist))
+            self.send(Event('events', *evlist))
 
         # -- Register commands
         cmdlist = self.parent.commands.keys()
         if len(cmdlist):
             #log("Registering %s client commands" %(len(cmdlist)), system=self.system)
-            self.send_event(Event('commands', *cmdlist))
+            self.send(Event('commands', *cmdlist))
 
         # -- Flush any queue that might have been accumulated before
         #    connecting to the controller
@@ -68,36 +68,31 @@ class EventProtocol(LineReceiver):
 
         # -- Parse the incoming message
         try:
-            request = Event().parse_json(data)
-            logdatain(request, system=self.system)
+            command = Event().load_json(data)
+            command.system = self.system
+            logdatain(command, system=self.system)
 
         except (SyntaxError,ValueError) as e:
-            # Raised if the parse_json didn't succeed
+            # Raised if the load_json didn't succeed
             err(system=self.system)
             log("Protocol error on incoming message: %s" %(e.message), system=self.system)
             return
 
         # -- Handle 'exit' event
-        if request.name == 'exit':
+        if command.name == 'exit':
             self.transport.loseConnection()
             return
 
         # -- Handle commands from controller
         else:
             try:
-
                 # Call the command function and setup proper response handlers.
-                request.system = self.system
-                cmdlist = self.parent.get_commandfnlist(request)
-                defer = self.parent.run_commandlist(request, cmdlist)
-                #defer = self.parent.run_command(request)
-                defer.addCallback(self.send_reply, request)
-                defer.addErrback(self.send_error, request)
+                defer = self.parent.run_command(command)
+                defer.addBoth(lambda r,c: self.send(c),command)
 
-            except CommandError as e:
-                # Raised if composing the commands fails
-                err(system=self.system)
-                log("Error in command '%s'. %s" %(request.name,e.message),system=self.system)
+            except CommandException as e:
+                command.cmd_except(e)
+                self.send(command)
             return
 
 
@@ -105,47 +100,14 @@ class EventProtocol(LineReceiver):
         self.transport.write('\n')
 
 
-    def send_event(self, event):
-
+    def send(self, event):
         # Logging
         logdataout(event, system=self.system)
 
         # Encoding and transmittal
-        data=event.dump_json()+'\n'
+        data=event.dump_json()
         lograwout(data, system=self.system)
-        self.transport.write(data)
-
-
-    def send_reply(self, response, request):
-        log("REPLY to %s: %s" %(request.name, response), system=self.system)
-
-        # FIXME: Check what object being returned to controller with new setup
-
-        # Wrap common reply type into Event object that can be transferred
-        # to the server.
-        #if response is None:
-        #    response = Event(request.name)
-        ##elif isinstance(response, Event):
-        ##    response.name = request.name
-        #elif type(response) is list or type(response) is tuple:
-        #    response = Event(request.name,*response)
-        #else:
-        #    response = Event(request.name,response)
-
-        # Copy the sequence number from the request
-        #response.kw['seq'] = request.kw['seq']
-
-        self.send_event(response)
-
-
-    def send_error(self, failure, request):
-        failtype = failure.trap(CommandException)
-        reason = failure.value
-
-        # Wrap in error Event object to be able to send back to the controller
-        # error syntax {event_name, exception_name, exception args}
-        error = Event('error',request.name,reason.__class__.__name__,*reason.args)
-        self.send_event(error)
+        self.transport.write(data+'\n')
 
 
 
@@ -214,4 +176,4 @@ class Client(Core):
             return None
         while(len(self.queue)):
             event = self.queue.pop(0)
-            self.protocol.send_event(event)
+            self.protocol.send(event)

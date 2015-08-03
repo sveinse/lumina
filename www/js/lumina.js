@@ -1,6 +1,6 @@
 function update_on_icon(id,result)
 {
-    if (result.args[0] == true) {
+    if (result.result == true) {
         $(id).html('<i class="fa fa-power-off"></i>');
         $(id).removeClass("label-default");
         $(id).addClass("label-success");
@@ -13,7 +13,7 @@ function update_on_icon(id,result)
 
 function update_connect_icon(id,result)
 {
-    if (result.args[0] == true) {
+    if (result.result == true) {
         $(id).html('<i class="fa fa-check"></i>');
         $(id).removeClass("label-default");
         $(id).addClass("label-success");
@@ -28,7 +28,10 @@ function do_cmd(command)      { $.post('ctrl/' + command, ''); }
 function do_cmdfn(command,fn) { $.post('ctrl/' + command, '', fn); }
 
 function poll_avr_volume() {
-    do_cmdfn("avr/volume", function(data) { $(".lu-avr-volume").html(data.args[0] + ' dB'); });
+    do_cmdfn("avr/volume", function(data) { $(".lu-avr-volume").html(data.result + ' dB'); });
+}
+function poll_avr_input() {
+    do_cmdfn("avr/input", function(data) { $(".lu-avr-input").html(data.result); });
 }
 
 $(document).ready(function() {
@@ -48,8 +51,9 @@ $(document).ready(function() {
 
     $.post("ctrl/td/ison", '', function(result)   { update_connect_icon(".lu-td-on-icon",result); });
 
-    do_cmdfn("avr/volume", function(data) { $(".lu-avr-volume").html(data.args[0] + ' dB'); });
-    do_cmdfn("avr/input", function(data)  { $(".lu-avr-input").html(data.args[0]); });
+    //do_cmdfn("avr/volume", function(data) { $(".lu-avr-volume").html(data.result + ' dB'); });
+    poll_avr_volume();
+    poll_avr_input();
 
     $(".lu-light-off").click(function()    { do_cmd('light/off'); });
     $(".lu-light-weak").click(function()   { do_cmd('light/weak'); });
@@ -65,6 +69,7 @@ $(document).ready(function() {
     $(".lu-avr-volume-down").click(function() { do_cmd('avr/volume/down'); poll_avr_volume(); });
 
     $("#lu-command").submit(function(event) {
+        $("#lu-command-output").html('')
         do_cmdfn($("#lu-command-input").val(),function(data) { $("#lu-command-output").html(JSON.stringify(data)); });
         event.preventDefault();
     });
