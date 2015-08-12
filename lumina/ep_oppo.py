@@ -207,6 +207,9 @@ class Oppo(Endpoint):
             'oppo/on'      : lambda a : self.c('PON'),
             'oppo/off'     : lambda a : self.c('POF'),
             'oppo/verbose' : lambda a : self.c('SVM','2'),
+            'oppo/status'  : lambda a : self.c('QPL'),
+            'oppo/time'    : lambda a : self.c('QEL'),
+            'oppo/audio'   : lambda a : self.c('QAT'),
         }
 
 

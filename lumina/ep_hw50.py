@@ -429,6 +429,7 @@ class Hw50(Endpoint):
             'hw50/lamp_timer'   : lambda a : self.c(LAMP_TIMER),
             'hw50/off'          : lambda a : self.c(IR_PWROFF,cmd=SET_RQ),
             'hw50/on'           : lambda a : self.c(IR_PWRON,cmd=SET_RQ),
+            'hw50/preset'       : lambda a : self.c(CALIB_PRESET),
             'hw50/preset/film1' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA1),
             'hw50/preset/film2' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA2),
             'hw50/preset/tv'    : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_TV),

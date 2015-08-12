@@ -27,8 +27,8 @@ newversion: version
 lys-OPTS=--webroot=www --webport=8080
 hw50-OPTS=
 
-lys-HOST=pi@lys.local
-hw50-HOST=pi@hw50.local
+lys-HOST=pi@lys
+hw50-HOST=pi@10.5.5.15
 
 rhome=/home/pi/lumina-dev/
 
