@@ -8,9 +8,9 @@ from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
 import xml.etree.ElementTree as ET
 
-from endpoint import Endpoint
-from queue import Queue
-from exceptions import *
+from ..endpoint import Endpoint
+from ..queue import Queue
+from ..exceptions import *
 
 
 class SSDPException(LuminaException):
@@ -367,8 +367,8 @@ class Yamaha(Endpoint):
 
 
     # --- Initialization
-    def __init__(self, host):
-        self.host = host
+    def __init__(self, config):
+        self.host = config['yamaha_host']
         self.protocol = YamahaProtocol(self,self.host,80)
         self.ssdp = YamahaSSDP(self,self.host,'239.255.255.250')
 
@@ -398,3 +398,8 @@ class Yamaha(Endpoint):
 
 
     # --- Commands
+
+
+
+# Main plugin object class
+PLUGIN = Yamaha

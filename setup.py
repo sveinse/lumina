@@ -8,11 +8,13 @@ setup(
     author_email='sveinse@seldal.com',
     license='GPL2',
 
-    packages = [ 'lumina' ],
+    packages = [ 'lumina', 'lumina/plugins' ],
 
-    scripts = [ 'lumina-lys','lumina-hw50','lumid' ],
+    scripts = [ 'lumid' ],
 
-    data_files = [ ('share/lumina/www',     ['www/index.html' ] ),
+    data_files = [ ('share/lumina/conf',    ['conf/lys.conf',
+                                             'conf/hw50.conf' ] ),
+                   ('share/lumina/www',     ['www/index.html' ] ),
                    ('share/lumina/www/css', ['www/css/lumina.css' ] ),
                    ('share/lumina/www/js',  ['www/js/lumina.js' ] ),
                ]

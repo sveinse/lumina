@@ -4,9 +4,9 @@ from twisted.python import log
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 
-from endpoint import Endpoint
-from event import Event as E
-from exceptions import *
+from ..endpoint import Endpoint
+from ..event import Event as E
+from ..exceptions import *
 
 
 
@@ -101,3 +101,8 @@ class Test(Endpoint):
         d.callback(True)
     def log(self,a):
         log.msg("Log: %s" %(a,))
+
+
+
+# Main plugin object class
+PLUGIN = Test

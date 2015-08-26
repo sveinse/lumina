@@ -6,9 +6,9 @@ from twisted.python import log
 from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.internet.defer import Deferred
 
-from endpoint import Endpoint
-from queue import Queue
-from exceptions import *
+from ..endpoint import Endpoint
+from ..queue import Queue
+from ..exceptions import *
 
 
 
@@ -352,7 +352,7 @@ class Telldus(Endpoint):
 
 
     # --- Initialization
-    def __init__(self):
+    def __init__(self, config):
         self.inport = TelldusIn(self)
         self.outport = TelldusOut(self)
 
@@ -471,3 +471,8 @@ class Telldus(Endpoint):
 
         # Ignore the other events
         log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system=self.inport.system)
+
+
+
+# Main plugin object class
+PLUGIN = Telldus

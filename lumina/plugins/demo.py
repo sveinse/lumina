@@ -1,12 +1,12 @@
 # -*- python -*-
 from twisted.python import log
-from callback import Callback
 from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 
-from endpoint import Endpoint
-from event import Event
+from ..endpoint import Endpoint
+from ..event import Event
+from ..callback import Callback
 
 
 class Demo(Endpoint):
@@ -28,7 +28,7 @@ class Demo(Endpoint):
 
 
     # --- Initialization
-    def __init__(self):
+    def __init__(self,config):
         self.cbevent = Callback()
         self.n = 0
 
@@ -52,3 +52,8 @@ class Demo(Endpoint):
 
     def err(self):
         raise Exception("Failed")
+
+
+
+# Main plugin object class
+PLUGIN = Demo

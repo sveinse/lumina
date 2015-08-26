@@ -5,10 +5,15 @@
 %:
 	dh $@ --with python2 --buildsystem=python_distutils
 
-#override_dh_install:
-#	dh_install -O--buildsystem=python_distutils
-#	mv debian/lumina-lys/etc/init.d/lumina-lys debian/lumina-lys/etc/init.d/lumina
-#	mv debian/lumina-hw50/etc/init.d/lumina-hw50 debian/lumina-hw50/etc/init.d/lumina
+override_dh_install:
+	dh_install -O--buildsystem=python_distutils
+
+	# Move conf to /etc
+	mkdir -p debian/lumina-lys/etc/default
+	mv debian/python-lumina/usr/share/lumina/conf/lys.conf debian/lumina-lys/etc/default/lumina
+	mkdir -p debian/lumina-hw50/etc/default
+	mv debian/python-lumina/usr/share/lumina/conf/hw50.conf debian/lumina-hw50/etc/default/lumina
+	rm -rf debian/python-lumina/usr/share/lumina/conf
 
 override_dh_installinit:
 	dh_installinit --name=lumina

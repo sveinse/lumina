@@ -7,9 +7,9 @@ from twisted.protocols.basic import LineReceiver
 from twisted.internet.serialport import SerialPort, EIGHTBITS, PARITY_NONE, STOPBITS_ONE
 from serial.serialutil import SerialException
 
-from endpoint import Endpoint
-from queue import Queue
-from exceptions import *
+from ..endpoint import Endpoint
+from ..queue import Queue
+from ..exceptions import *
 
 
 def ison(result):
@@ -214,8 +214,8 @@ class Oppo(Endpoint):
 
 
     # --- Initialization
-    def __init__(self, port):
-        self.port = port
+    def __init__(self, config):
+        self.port = config['oppo_port']
         self.sp = None
 
     def setup(self):
@@ -247,3 +247,8 @@ class Oppo(Endpoint):
 
 
     # --- Commands
+
+
+
+# Main plugin object class
+PLUGIN = Oppo

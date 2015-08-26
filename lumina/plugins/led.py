@@ -1,9 +1,10 @@
 # -*-python-*-
 import os,sys
 import array
-from endpoint import Endpoint
 from ola.OlaClient import OlaClient
 from twisted.python import log
+
+from ..endpoint import Endpoint
 
 
 class Led(Endpoint):
@@ -22,7 +23,7 @@ class Led(Endpoint):
 
 
     # --- Initialization
-    def __init__(self):
+    def __init__(self,config):
         self.state = 'init'
 
     def setup(self):
@@ -39,3 +40,8 @@ class Led(Endpoint):
         data.append(int(b))
         data.append(int(w))
         self.dmx.SendDmx(self.universe, data, None)
+
+
+
+# Main plugin object class
+PLUGIN = Led

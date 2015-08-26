@@ -1,63 +1,20 @@
 # -*- python -*-
 import os,sys,atexit
+import socket
 from twisted.python import log
+from importlib import import_module
 
 
-def readconfig(configfile):
-
-    config = {}
-    with open(configfile,'r') as cf:
-        n=0
-        for line in cf:
-            try:
-                n+=1
-                line = line.strip()
-
-                if not len(line):
-                    continue
-                if line.startswith('#'):
-                    continue
-
-                # Split on =. Allow only one =
-                li = line.split('=')
-                if len(li) < 2:
-                    raise Exception("Syntax error")
-                if len(li) > 2:
-                    raise Exception("Syntax error")
-
-                # Remove leading and trailing whitespaces
-                key  = li[0].strip()
-                data = li[1].strip()
-
-                # Do not accept empty key names
-                if not len(key):
-                    raise Exception("Syntax error")
-
-                # Remove trailing AND leading ". Fail if " is in string
-                if len(data)>1 and data.startswith('"') and data.endswith('"'):
-                    data=data[1:-1]
-                if '"' in data[1]:
-                    raise Exception("Syntax error")
-
-                key = key.lower()
-                if key in config:
-                    raise Exception("Config already set")
-                config[key] = data
-
-            except Exception as e:
-                raise Exception("%s:%s: %s '%s'" %(configfile,n,e.message,line))
-
-
-    # Split the config items which we expect list on
-    for k,d in config.items():
-        if k in ( 'services', 'modules' ):
-            config[k] = d.split(" ")
-
-    # CONFIG defaults
-    config.setdefault('controller_port',8081)
-
-    return config
-
+# CONFIG DEFAULTS
+CONFIG_DEFAULTS = dict(
+    services          = 'controller client',
+    port              = '8081',
+    name              = 'CLIENT',
+    server            = 'localhost',
+    plugins           = '',
+    web_port          = '8080',
+    web_root          =  os.getcwd()+'/www',
+)
 
 
 #
@@ -111,142 +68,98 @@ def daemonize(pidfile):
 
 
 
+#
+# ***  CONFIGURATION FILE  ***
+#
+def parseconfig(f):
+    conf = {}
+    n=0
+    for line in f:
+        try:
+            n+=1
+            line = line.strip()
+
+            if not len(line):
+                continue
+            if line.startswith('#'):
+                continue
+
+            # Split on =. Allow only one =
+            li = line.split('=')
+            if len(li) < 2:
+                raise Exception("Syntax error")
+            if len(li) > 2:
+                raise Exception("Syntax error")
+
+            # Remove leading and trailing whitespaces
+            key  = li[0].strip()
+            data = li[1].strip()
+
+            # Do not accept empty key names
+            if not len(key):
+                raise Exception("Syntax error")
+
+            # Remove trailing AND leading ". Fail if " is in string
+            if len(data)>1 and data.startswith('"') and data.endswith('"'):
+                data=data[1:-1]
+            if '"' in data[1]:
+                raise Exception("Syntax error")
+
+            key = key.lower()
+            if key in conf:
+                raise Exception("Config already set")
+            conf[key] = data
+
+        except Exception as e:
+            raise Exception("%s:%s: %s '%s'" %(configfile,n,e.message,line))
+    return conf
+
+
+
+def readconfig(configfile):
+
+    conf = {}
+    if configfile:
+        try:
+            with open(configfile,'r') as f:
+                conf = parseconfig(f)
+        except:
+            raise
+
+    # Set default values and override from user config
+    config = CONFIG_DEFAULTS.copy()
+    config.update(conf)
+
+    # SPLIT ON SPACE
+    for k,d in config.items():
+        if k in ( 'services', 'modules', 'plugins' ):
+            config[k] = tuple(d.split(' '))
+
+    # SPLIT ON :
+    #for k,d in config.items():
+    #    if k in ( 'server' ):
+    #        config[k] = tuple(d.split(':'))
+
+    return config
+
+
+
+#
+# ***  MAIN FUNCTION  ***
+#
 def main(config):
 
-    for s in config.get('services',[]):
+    services = config['services']
 
-        if s == 'controller':
+    if 'controller' in services:
 
-            from controller import Controller
-            from logic import Logic
+        from controller import Controller
+        from logic import Logic
+        from web import Web
 
-            # Main controller
-            controller = Controller(port=config['controller_port'])
-            controller.setup()
-
-            # Logic/rules handler
-            logic = Logic()
-            logic.setup()
-            controller.add_jobs(logic.jobs)
-            controller.add_commands(logic.alias)
-
-            # Web server
-            web = Web(port=80,webroot='/usr/share/lumina/www')
-            web.setup(controller)
-
-
-        elif s == 'client':
-
-            from ep_telldus import Telldus
-            from ep_oppo import Oppo
-            from ep_yamaha import Yamaha
-            from ep_hw50 import Hw50
-            from ep_led import Led
-            from ep_demo import Demo
-
-            # Main controller
-            controller = Client(host='localhost',port=8081,name='LYS')
-            #controller = Client(host='lys.local',port=8081,name='HW50')
-            controller.setup()
-
-            # System Functions
-            controller.register(Telldus())
-            controller.register(Oppo('/dev/ttyUSB0'))
-            controller.register(Yamaha('10.5.5.11'))
-
-            # System Functions
-            controller.register(Hw50('/dev/ttyUSB0'))
-            controller.register(Led())
-
-
-#
-# ***  CONTROLLER  ***
-#
-def controller(webroot,webport):
-
-    from controller import Controller
-    from logic import Logic
-    from web import Web
-
-    # Main controller
-    controller = Controller(port=8081)
-    controller.setup()
-
-    # Logic/rules handler
-    logic = Logic()
-    logic.setup()
-    controller.add_jobs(logic.jobs)
-    controller.add_commands(logic.alias)
-
-    # System Functions
-    #controller.register(Utils())
-    #controller.register(Telldus())
-
-    # Web server
-    web = Web(port=webport,webroot=webroot)
-    web.setup(controller)
-
-
-
-#
-# ***  CLIENT LYS  ***
-#
-def client_lys():
-
-    from client import Client
-    from ep_telldus import Telldus
-    from ep_oppo import Oppo
-    from ep_demo import Demo
-    from ep_yamaha import Yamaha
-
-    # Main controller
-    controller = Client(host='localhost',port=8081,name='LYS')
-    controller.setup()
-
-    # System Functions
-    controller.register(Telldus())
-    controller.register(Oppo('/dev/ttyUSB0'))
-    controller.register(Yamaha('10.5.5.11'))
-
-
-
-#
-# ***  CLIENT HW50  ***
-#
-def client_hw50(host,port):
-
-    from client import Client
-    from ep_hw50 import Hw50
-    from ep_led import Led
-
-    # Main controller
-    controller = Client(host=host,port=port,name='HW50')
-    controller.setup()
-
-    # System Functions
-    controller.register(Hw50('/dev/ttyUSB0'))
-    controller.register(Led())
-
-
-
-#
-# ***  TEST  ***
-#
-def test():
-
-    from controller import Controller
-    from client import Client
-    from logic import Logic
-    from ep_utils import Utils
-    from ep_telldus import Telldus
-    from ep_demo import Demo
-    from ep_yamaha import Yamaha
-    from ep_test import Test
-    from web import Web
-
-    # Main controller
-    if True:
-        controller = Controller(port=8081)
+        # Main controller
+        port = int(config['port'])
+        controller = Controller(port=port)
         controller.setup()
 
         # Logic/rules handler
@@ -255,33 +168,27 @@ def test():
         controller.add_jobs(logic.jobs)
         controller.add_commands(logic.alias)
 
-        #controller.register(Test(prefix='s'))
-        #controller.register(Demo())
-        controller.register(Yamaha('10.5.5.11'))
-
-        web = Web(port=8080,webroot='www')
+        # Web server
+        wport = int(config['web_port'])
+        wroot = config['web_root']
+        web = Web(port=wport,webroot=wroot)
         web.setup(controller)
 
-    # Main client
-    if True:
-        controller = Client(host='localhost',port=8081,name='TEST')
-        controller.setup()
 
-        #controller.register(Test(prefix='r'),)
-        #controller.register(Demo())
-        #controller.register(Yamaha('10.5.5.11'))
+    if 'client' in services:
 
-    if False:
-        def pr(val):
-            print 'RESPONSE',val
-        y = Yamaha('10.5.5.11')
-        y.setup()
-        #d = y.protocol.command('GET', [ 'Main_Zone', 'Volume', 'Lvl' ])
-        d = y.get_volume()
-        d.addCallback(pr)
-        #y.protocol.command('PUT', [ 'Main_Zone', 'Volume', 'Lvl' ], {
-        #    'Val': -300,
-        #    'Exp': 1,
-        #    'Unit': 'dB',
-        #} )
-        #y.protocol.command('GET', [ 'System', 'Signal_Info' ])
+        from client import Client
+
+        # Client controller
+        client = Client(host=config['server'],port=int(config['port']),name=config['name'])
+        client.setup()
+
+        # Plugins
+        for name in config.get('plugins',[]):
+
+            # Load module and find main object
+            mod = import_module('lumina.plugins.' + name)
+            plugin = mod.PLUGIN(config)
+
+            # Register function
+            client.register(plugin)

@@ -7,9 +7,9 @@ from twisted.internet.protocol import Protocol
 from twisted.internet.serialport import SerialPort, EIGHTBITS, PARITY_EVEN, STOPBITS_ONE
 from serial.serialutil import SerialException
 
-from endpoint import Endpoint
-from queue import Queue
-from exceptions import *
+from ..endpoint import Endpoint
+from ..queue import Queue
+from ..exceptions import *
 
 
 class FrameException(LuminaException):
@@ -437,8 +437,8 @@ class Hw50(Endpoint):
 
 
     # --- Initialization
-    def __init__(self, port):
-        self.port = port
+    def __init__(self, config):
+        self.port = config['hw50_port']
         self.sp = None
 
     def setup(self):
@@ -470,3 +470,8 @@ class Hw50(Endpoint):
 
 
     # --- Commands
+
+
+
+# Main plugin object class
+PLUGIN = Hw50

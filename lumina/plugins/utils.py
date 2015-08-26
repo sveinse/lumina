@@ -4,7 +4,7 @@ from twisted.internet import reactor
 from twisted.python import log
 from twisted.internet.defer import Deferred
 
-from endpoint import Endpoint
+from ..endpoint import Endpoint
 
 
 class Utils(Endpoint):
@@ -46,3 +46,8 @@ class Utils(Endpoint):
 
     def log(self,*args,**kw):
         log.msg("LOG %s %s" %(args,kw), system=self.system)
+
+
+
+# Main plugin object class
+PLUGIN = Utils

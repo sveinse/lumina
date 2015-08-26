@@ -15,16 +15,16 @@
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="lumina"
 NAME=lumina
-DAEMON=/usr/bin/lumina-hw50
+DAEMON=/usr/bin/lumid
 PIDFILE=/var/run/$NAME.pid
-DAEMON_ARGS="--daemon --pidfile=$PIDFILE --syslog"
+DAEMON_ARGS="--daemon --pidfile=$PIDFILE --syslog --config /etc/default/lumina"
 SCRIPTNAME=/etc/init.d/$NAME
 
 # Exit if the package is not installed
 [ -x "$DAEMON" ] || exit 0
 
 # Read configuration variable file if it is present
-[ -r /etc/default/$NAME ] && . /etc/default/$NAME
+#[ -r /etc/default/$NAME ] && . /etc/default/$NAME
 
 # Load the VERBOSE setting and other rcS variables
 . /lib/init/vars.sh
