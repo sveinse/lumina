@@ -4,9 +4,6 @@
 *.changes
 *.dsc
 *.tar.gz
-bootstrap/
-telldus/
-python/
 www/*.old
 build/
 debian/tmp/
