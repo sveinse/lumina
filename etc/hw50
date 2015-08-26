@@ -1,0 +1,13 @@
+
+# The types of service to run
+SERVICES="client"
+
+# Client settings
+CLIENT_NAME="HW50"
+CLIENT_CONNECT_TO="lys.local:8081"
+
+# The endpoint modules to load
+CLIENT_MODULES="hw50 led"
+
+# Other settings
+HW50_PORT="/dev/ttyUSB0"

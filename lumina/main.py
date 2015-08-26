@@ -3,6 +3,63 @@ import os,sys,atexit
 from twisted.python import log
 
 
+def readconfig(configfile):
+
+    config = {}
+    with open(configfile,'r') as cf:
+        n=0
+        for line in cf:
+            try:
+                n+=1
+                line = line.strip()
+
+                if not len(line):
+                    continue
+                if line.startswith('#'):
+                    continue
+
+                # Split on =. Allow only one =
+                li = line.split('=')
+                if len(li) < 2:
+                    raise Exception("Syntax error")
+                if len(li) > 2:
+                    raise Exception("Syntax error")
+
+                # Remove leading and trailing whitespaces
+                key  = li[0].strip()
+                data = li[1].strip()
+
+                # Do not accept empty key names
+                if not len(key):
+                    raise Exception("Syntax error")
+
+                # Remove trailing AND leading ". Fail if " is in string
+                if len(data)>1 and data.startswith('"') and data.endswith('"'):
+                    data=data[1:-1]
+                if '"' in data[1]:
+                    raise Exception("Syntax error")
+
+                key = key.lower()
+                if key in config:
+                    raise Exception("Config already set")
+                config[key] = data
+
+            except Exception as e:
+                raise Exception("%s:%s: %s '%s'" %(configfile,n,e.message,line))
+
+
+    # Split the config items which we expect list on
+    for k,d in config.items():
+        if k in ( 'services', 'modules' ):
+            config[k] = d.split(" ")
+
+    # CONFIG defaults
+    config.setdefault('controller_port',8081)
+
+    return config
+
+
+
 #
 # ***  Become DAEMON  ***
 #
@@ -52,6 +109,54 @@ def daemonize(pidfile):
     atexit.register(delpid)
     file(pidfile,'w+').write(str(os.getpid()) + '\n')
 
+
+
+def main(config):
+
+    for s in config.get('services',[]):
+
+        if s == 'controller':
+
+            from controller import Controller
+            from logic import Logic
+
+            # Main controller
+            controller = Controller(port=config['controller_port'])
+            controller.setup()
+
+            # Logic/rules handler
+            logic = Logic()
+            logic.setup()
+            controller.add_jobs(logic.jobs)
+            controller.add_commands(logic.alias)
+
+            # Web server
+            web = Web(port=80,webroot='/usr/share/lumina/www')
+            web.setup(controller)
+
+
+        elif s == 'client':
+
+            from ep_telldus import Telldus
+            from ep_oppo import Oppo
+            from ep_yamaha import Yamaha
+            from ep_hw50 import Hw50
+            from ep_led import Led
+            from ep_demo import Demo
+
+            # Main controller
+            controller = Client(host='localhost',port=8081,name='LYS')
+            #controller = Client(host='lys.local',port=8081,name='HW50')
+            controller.setup()
+
+            # System Functions
+            controller.register(Telldus())
+            controller.register(Oppo('/dev/ttyUSB0'))
+            controller.register(Yamaha('10.5.5.11'))
+
+            # System Functions
+            controller.register(Hw50('/dev/ttyUSB0'))
+            controller.register(Led())
 
 
 #
