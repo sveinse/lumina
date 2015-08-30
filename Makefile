@@ -44,7 +44,9 @@ $(1)-run: $(1)-sync
 	$(call remote,$(1),"cd $(rhome) && exec ./lumid $($(1)-OPTS)")
 $(1)-test: $(1)-sync
 	$(call remote,$(1),"cd $(rhome) && exec ./lumina-test")
-$(1)-build: $(1)-sync
+$(1)-build:
+	rm -rf pi-debs/*
+	$(MAKE) $(1)-sync
 	$(call remote,$(1),"cd $(rhome) && make build")
 	rsync -av --del -e ssh $($(1)-HOST):$(rhome)/*.deb $($(1)-HOST):$(rhome)/*.changes pi-debs/
 $(1)-install: $(1)-sync

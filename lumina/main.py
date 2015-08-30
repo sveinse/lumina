@@ -186,6 +186,11 @@ def main(config):
         # Plugins
         for name in config.get('plugins',[]):
 
+            # Ignore empty plugin names
+            name = name.strip()
+            if not len(name):
+                continue
+
             # Load module and find main object
             mod = import_module('lumina.plugins.' + name)
             plugin = mod.PLUGIN(config)
