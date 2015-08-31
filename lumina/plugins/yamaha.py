@@ -35,7 +35,12 @@ POWER = [ 'System', 'Power_Control', 'Power' ]
 VOLUME = [ 'Main_Zone', 'Volume', 'Lvl' ]
 INPUT = [ 'Main_Zone', 'Input', 'Input_Sel' ]
 
-PATTERN2_FRONTL = [ 'System', 'Speaker_Preout', 'Pattern_2', 'PEQ', 'Manual_Data', 'Front_L' ]
+LEVELS1 = [ 'System', 'Speaker_Preout', 'Pattern_1', 'Lvl' ]
+LEVELS2 = [ 'System', 'Speaker_Preout', 'Pattern_2', 'Lvl' ]
+DISTANCE1 = [ 'System', 'Speaker_Preout', 'Pattern_1', 'Distance' ]
+DISTANCE2 = [ 'System', 'Speaker_Preout', 'Pattern_2', 'Distance' ]
+PEQ1 = [ 'System', 'Speaker_Preout', 'Pattern_1', 'PEQ', 'Manual_Data' ]
+PEQ2 = [ 'System', 'Speaker_Preout', 'Pattern_2', 'PEQ', 'Manual_Data' ]
 
 
 def dB(value):
@@ -46,9 +51,46 @@ def dB_t(text):
     return { 'Val': text,
              'Exp': '',
              'Unit': '' }
-
 def parse_dB(xml):
+    # <Val>20</Val><Exp>1</Exp><Unit>dB</Unit>
     return float(xml.find('Val').text) * 10 ** (-float(xml.find('Exp').text))
+
+def parse_val(xml):
+    return float(xml.find('Val').text) * 10 ** (-float(xml.find('Exp').text))
+
+def meter(value):
+    return { 'Val': int(float(value)*100),
+             'Exp': 2,
+             'Unit': 'm' }
+
+def parse_levels(xml):
+    # <YAMAHA_AV rsp="GET" RC="0"><System><Speaker_Preout><Pattern_1><Lvl>
+    # <Front_L><Val>20</Val><Exp>1</Exp><Unit>dB</Unit></Front_L>
+    channels = {}
+    for ch in xml:
+        channels[ch.tag] = parse_dB(ch)
+    return channels
+
+def parse_distance(xml):
+    # <YAMAHA_AV rsp="GET" RC="0"><System><Speaker_Preout><Pattern_1><Distance>
+    # <Unit_of_Distance>Meter</Unit_of_Distance>
+    # <Meter><Front_L><Val>280</Val><Exp>2</Exp><Unit>m</Unit></Front_L>
+    meter = xml.find('Meter')
+    channels = {}
+    for ch in meter:
+        channels[ch.tag] = parse_val(ch)
+    return channels
+
+def parse_peq(xml):
+    # <YAMAHA_AV rsp="GET" RC="0"><System><Speaker_Preout><Pattern_1><PEQ><Manual_Data><Front_L>
+    #   <Band_1><Freq>125.0 Hz</Freq><Gain><Val>20</Val><Exp>1</Exp><Unit>dB</Unit></Gain><Q>0.630</Q></Band_1>
+    bands = []
+    for band in xml:
+        bands.append( { 'freq': band.find('Freq').text,
+                        'gain': parse_val(band.find('Gain')),
+                        'q': float(band.find('Q').text),
+                    } )
+    return bands
 
 def t(xml):
     return xml.text
@@ -347,13 +389,13 @@ class Yamaha(Endpoint):
         ]
 
         self.commands = {
-            'avr/state'     : lambda a : self.protocol.state,
+            'avr/state'       : lambda a : self.protocol.state,
 
-            #'avr/raw'     : lambda a : self.protocol.command(*a.args),
+            #'avr/raw'       : lambda a : self.protocol.command(*a.args),
 
-            'avr/ison'      : lambda a : self.c(GET, POWER).addCallback(ison),
-            'avr/off'       : lambda a : self.c(PUT, POWER, 'Standby'),
-            'avr/on'        : lambda a : self.c(PUT, POWER, 'On'),
+            'avr/ison'        : lambda a : self.c(GET, POWER).addCallback(ison),
+            'avr/off'         : lambda a : self.c(PUT, POWER, 'Standby'),
+            'avr/on'          : lambda a : self.c(PUT, POWER, 'On'),
 
             'avr/volume'      : lambda a : self.c(GET, VOLUME).addCallback(parse_dB),
             'avr/volume/up'   : lambda a : self.c(PUT, VOLUME, dB_t('Up')),
@@ -361,6 +403,13 @@ class Yamaha(Endpoint):
             'avr/setvolume'   : lambda a : self.c(PUT, VOLUME, dB(a.args[0])),
             'avr/input'       : lambda a : self.c(GET, INPUT).addCallback(t),
             'avr/setinput'    : lambda a : self.c(PUT, INPUT, a.args[0]),
+
+            'avr/levels/1'    : lambda a : self.c(GET, LEVELS1).addCallback(parse_levels),
+            'avr/levels/2'    : lambda a : self.c(GET, LEVELS2).addCallback(parse_levels),
+            'avr/distance/1'  : lambda a : self.c(GET, DISTANCE1).addCallback(parse_distance),
+            'avr/distance/2'  : lambda a : self.c(GET, DISTANCE2).addCallback(parse_distance),
+            'avr/peq/1'       : lambda a : self.c(GET, PEQ1 + [ a.args[0] ]).addCallback(parse_peq),
+            'avr/peq/2'       : lambda a : self.c(GET, PEQ2 + [ a.args[0] ]).addCallback(parse_peq),
 
             'avr/fail' : lambda a : self.c(PUT, VOLUME, 'Down'),
        }

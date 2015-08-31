@@ -16,9 +16,9 @@
             //console.log(what);
         }
 
-        var command = function(command) {
+        var command = function(command,args) {
             log('<<< ' + command);
-            return $http.post('/ctrl/' + command)
+            return $http.post('/ctrl/' + command, args)
                 .then(function(response) {
                     log('>>> ' + JSON.stringify(response.data));
                     return response.data;

@@ -23,6 +23,12 @@ newversion: version
 	@echo " -- Svein Seldal <sveinse@seldal.com>  $$(date -R)" >>debian/changelog
 	cat debian/changelog
 
+deploy:
+	$(MAKE) distclean
+	$(MAKE) lys-build
+	$(MAKE) lys-install
+	$(MAKE) hw50-install
+
 # Specific options
 lys-OPTS=--config=conf/lys-debug.conf
 hw50-OPTS=--config=conf/hw50.conf

@@ -19,6 +19,8 @@ setup(
                                               'www/luminacomm.js',
                                               'www/lumina.css',
                                               'www/old.html',
-                                              'www/old.js' ] ),
+                                              'www/old.js',
+                                              'www/yamaha.html',
+                                              'www/yamaha.js' ] ),
                ]
 )

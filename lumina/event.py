@@ -118,6 +118,14 @@ class Event(object):
         return self
 
 
+    def load_json_args(self, s):
+        if len(s):
+            self.args = json.loads(s,encoding='ascii')
+        else:
+            self.args = []
+        return self
+
+
     def dump_str(self):
         (s,t) = ([str(a) for a in self.args],'')
         #for (k,v) in self.kw.items():

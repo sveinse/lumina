@@ -56,9 +56,9 @@ class PageCtrl(Resource):
             return ErrorPage(http.BAD_REQUEST,'Error','Too short request').render(request)
 
         content = request.content.read()
-        #log.msg("CONTENT: '%s'" %(content,))
+        #log.msg("CONTENT: %s '%s'" %(len(content),content,))
 
-        command = Event(name) #.jparse(request.content.read())
+        command = Event(name).load_json_args(content)
         command.system = self.system
 
         # Get the command function and run it
