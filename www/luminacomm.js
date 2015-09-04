@@ -3,9 +3,9 @@
  * (c) 2014-2015 Svein Seldal
  * License: MIT
 */
-(function(){
+angular.module('LuminaApp')
 
-    var luminaComm = function($http) {
+    .factory('LuminaComm', function($http) {
 
         var debug = {
             log: ''
@@ -32,9 +32,4 @@
             command: command,
         };
 
-    };
-
-    var module = angular.module("LuminaApp");
-    module.factory("LuminaComm", luminaComm);
-
-}());
+    });
