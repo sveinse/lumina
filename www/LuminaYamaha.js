@@ -3,12 +3,12 @@
  * (c) 2014-2015 Svein Seldal
  * License: MIT
 */
-angular.module('LuminaApp', [])
+angular.module('LuminaApp')
 
-    .controller("YamahaController", ["$scope", "$http", "LuminaComm", function(
-        $scope, $http, luminaComm) {
+    .controller('LuminaYamaha', ['$scope', 'LuminaComm', function(
+        $scope, LuminaComm) {
 
-        $scope.luminaComm = luminaComm;
+        $scope.luminaComm = LuminaComm;
 
         $scope.sequence = [ 'Front_L', 'Front_R', 'Center',
                             'Sur_L', 'Sur_R', 'Sur_Back_L', 'Sur_Back_R',
@@ -38,7 +38,7 @@ angular.module('LuminaApp', [])
         };
 
         var getPEQ = function(channel) {
-            luminaComm.command('avr/peq/1', [ channel ])
+            LuminaComm.command('avr/peq/1', [ channel ])
                 .then(function(data) {
                     var ch=data.args[0];
                     $scope.chdata[ch].peq = data.result;
@@ -52,7 +52,7 @@ angular.module('LuminaApp', [])
         };
 
         var getLevels = function() {
-            luminaComm.command('avr/levels/1')
+            LuminaComm.command('avr/levels/1')
                 .then(function(data) {
                     for ( channel in data.result ) {
                         addChannel(channel);
@@ -65,7 +65,7 @@ angular.module('LuminaApp', [])
         };
 
         var getDistance = function() {
-            luminaComm.command('avr/distance/1')
+            LuminaComm.command('avr/distance/1')
                 .then(function(data) {
                     for ( channel in data.result ) {
                         addChannel(channel);

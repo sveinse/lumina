@@ -4,8 +4,10 @@ import socket
 from twisted.python import log
 from importlib import import_module
 
+from config import Config
 
-# CONFIG DEFAULTS
+
+#===  CONFIG DEFAULTS
 CONFIG_DEFAULTS = dict(
     services          = 'controller client',
     port              = '8081',
@@ -17,9 +19,7 @@ CONFIG_DEFAULTS = dict(
 )
 
 
-#
-# ***  Become DAEMON  ***
-#
+#===  Become DAEMON
 def daemonize(pidfile):
 
     def delpid():
@@ -68,89 +68,26 @@ def daemonize(pidfile):
 
 
 
-#
-# ***  CONFIGURATION FILE  ***
-#
-def parseconfig(f):
-    conf = {}
-    n=0
-    for line in f:
-        try:
-            n+=1
-            line = line.strip()
-
-            if not len(line):
-                continue
-            if line.startswith('#'):
-                continue
-
-            # Split on =. Allow only one =
-            li = line.split('=')
-            if len(li) < 2:
-                raise Exception("Syntax error")
-            if len(li) > 2:
-                raise Exception("Syntax error")
-
-            # Remove leading and trailing whitespaces
-            key  = li[0].strip()
-            data = li[1].strip()
-
-            # Do not accept empty key names
-            if not len(key):
-                raise Exception("Syntax error")
-
-            # Remove trailing AND leading ". Fail if " is in string
-            if len(data)>1 and data.startswith('"') and data.endswith('"'):
-                data=data[1:-1]
-            if '"' in data[1]:
-                raise Exception("Syntax error")
-
-            key = key.lower()
-            if key in conf:
-                raise Exception("Config already set")
-            conf[key] = data
-
-        except Exception as e:
-            raise Exception("%s:%s: %s '%s'" %(configfile,n,e.message,line))
-    return conf
-
-
-
+#===  Parse config
 def readconfig(configfile):
 
-    conf = {}
+    #== CONFIGUATION
+    config = Config(defaults=CONFIG_DEFAULTS)
     if configfile:
-        try:
-            with open(configfile,'r') as f:
-                conf = parseconfig(f)
-        except:
-            raise
-
-    # Set default values and override from user config
-    config = CONFIG_DEFAULTS.copy()
-    config.update(conf)
-
-    # SPLIT ON SPACE
-    for k,d in config.items():
-        if k in ( 'services', 'modules', 'plugins' ):
-            config[k] = tuple(d.split(' '))
-
-    # SPLIT ON :
-    #for k,d in config.items():
-    #    if k in ( 'server' ):
-    #        config[k] = tuple(d.split(':'))
+        config.readconfig(configfile)
 
     return config
 
 
 
-#
-# ***  MAIN FUNCTION  ***
-#
+#===  MAIN function
 def main(config):
 
+    #== SERVICES
     services = config['services']
 
+
+    #== MAIN SERVER ROLE
     if 'controller' in services:
 
         from controller import Controller
@@ -175,6 +112,7 @@ def main(config):
         web.setup(controller)
 
 
+    #== CLIENT ROLE(S)
     if 'client' in services:
 
         from client import Client

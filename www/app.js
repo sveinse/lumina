@@ -3,13 +3,22 @@
  * (c) 2014-2015 Svein Seldal
  * License: MIT
 */
-angular.module('LuminaApp', ["ngRoute"])
+angular.module('LuminaApp', ['ngRoute'])
 
-    .config(function($routeProvider) {
+    .config(['$routeProvider', '$locationProvider', function(
+        $routeProvider, $locationProvider) {
+
         $routeProvider
-            .when("/main", {
-                templateUrl: "LuminaMain.html",
-                controller: "LuminaMain"
+            .when('/main', {
+                templateUrl: 'LuminaMain.html',
+                controller: 'LuminaMain'
             })
-            .otherwise({redirectTo:'/main'});
-        });
+            .when('/yamaha', {
+                templateUrl: 'LuminaYamaha.html',
+                controller: 'LuminaYamaha'
+            })
+            .otherwise( {redirectTo:'/main'} );
+
+        //$locationProvider.html5Mode(true);
+
+    }]);

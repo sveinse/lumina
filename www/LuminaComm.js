@@ -5,7 +5,8 @@
 */
 angular.module('LuminaApp')
 
-    .factory('LuminaComm', function($http) {
+    .factory('LuminaComm', [ '$http', function(
+        $http) {
 
         var debug = {
             log: ''
@@ -32,4 +33,4 @@ angular.module('LuminaApp')
             command: command,
         };
 
-    });
+    }]);

@@ -5,8 +5,8 @@
 */
 angular.module('LuminaApp')
 
-    .controller('LuminaMain', ["$scope", "$http", "LuminaComm", function(
-        $scope, $http, LuminaComm) {
+    .controller('LuminaMain', ['$scope', 'LuminaComm', function(
+        $scope, LuminaComm) {
 
         $scope.luminaComm = LuminaComm;
 

@@ -4,16 +4,14 @@ import os,sys
 import lumina.main as lumina
 from twisted.python import log
 from twisted.internet import reactor
-if os.name != 'nt':
-    from twisted.python import syslog
 import argparse
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--daemon', action='store_true', help='Daemonize application')
-ap.add_argument('--pidfile', default='/var/run/lumid.pid', metavar='FILENAME', help='Set the pidfile')
-if os.name != 'nt':
-    ap.add_argument('--syslog', action='store_true', default=False, help='Enable syslog logging')
 ap.add_argument('-c', '--config', default=None, metavar='CONFIG', help='Read configuration file')
+if os.name != 'nt':
+    ap.add_argument('--pidfile', default='/var/run/lumid.pid', metavar='FILENAME', help='Set the pidfile')
+    ap.add_argument('--daemon', action='store_true', help='Daemonize application')
+    ap.add_argument('--syslog', action='store_true', default=False, help='Enable syslog logging')
 
 
 opts = ap.parse_args()
@@ -22,12 +20,13 @@ opts = ap.parse_args()
 config = lumina.readconfig(opts.config)
 
 # Daemonize
-if opts.daemon:
+if os.name != 'nt' and opts.daemon:
     lumina.daemonize(pidfile=opts.pidfile)
     opts.syslog=True
 
 # Start logging
 if os.name != 'nt' and opts.syslog:
+    from twisted.python import syslog
     syslog.startLogging(prefix='Lumina')
 else:
     log.startLogging(sys.stdout)
