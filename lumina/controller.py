@@ -224,9 +224,11 @@ class EventFactory(Factory):
 class Controller(Core):
     system = 'CTRL'
 
-    def __init__(self,port):
+    def __init__(self,config):
         Core.__init__(self)
-        self.port = port
+        self.config = config
+        self.config.amend(CONFIG)
+        self.port = int(self.config['port'])
 
 
     def setup(self):
@@ -247,3 +249,10 @@ class Controller(Core):
 
         # Run the job
         self.run_job(event)
+
+
+# Configuration
+MODULE = Controller
+CONFIG = {
+    'port': { 'default': 8081, 'help': 'Controller server port' },
+}

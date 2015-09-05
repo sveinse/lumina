@@ -28,7 +28,15 @@ angular.module('LuminaApp')
                 });
         };
 
+        var config = function(conf) {
+            return $http.get('/config/' + conf)
+                .then(function(response) {
+                    return response.data;
+                });
+        }
+
         return {
+            config: config,
             debug: debug,
             command: command,
         };

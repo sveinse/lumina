@@ -7,39 +7,77 @@ class ConfigException(Exception):
 
 
 
-def confvalue(v):
-    if isinstance(v,list) or isinstance(v,tuple):
-        v = " ".join(v)
-    else:
-        v = str(v)
-
-    if '=' in v:
-        raise ConfigException("'=' not valid in config values")
-    if '"' in v:
-        raise ConfigException("'\"' not valid in config values")
-
-    if ' ' in v:
-        v = '"' + v + '"'
-
-    return v
-
-
-
 class Config(object):
 
-    def __init__(self, defaults=None):
-        self.conf = {}
-        if defaults is not None:
-            self.conf.update(defaults)
+    def __init__(self, settings=None):
+        self.keys = set()
+        self.value = {}
+        self.default = {}
+        self.help = {}
+        if settings is not None:
+            self.amend(settings)
 
 
-    def __getitem__(self,*a):
-        return self.conf.__getitem__(*a)
+    # Dict methods
+    def __getitem__(self,k):
+        if k in self.value:
+            return self.value[k]
+        if k in self.default:
+            return self.default[k]
+        raise KeyError(k)
     def get(self,*a):
-        return self.conf.get(*a)
+        return self.value.get(*a)
+    def set(self,k,v):
+        if k not in self.keys:
+            raise KeyError("Key '%s' not present" %(k))
+        self.value[k]=v
+    #def items(self,*a):
+    #    return self.value.items(*a)
+
+    # Special methods
+    def getall(self):
+        d = {}
+        for k in self.keys:
+            a = { 'key': k }
+            if k in self.value:
+                a['value'] = self.value[k]
+            if k in self.default:
+                a['default'] = self.default[k]
+            if k in self.help:
+                a['help'] = self.help[k]
+            d[k]=a
+        return d
 
 
-    def parsefile(self, filename, all=False, raw=False):
+    def __repr__(self):
+        s=[]
+        for k,v in self.value.items():
+            a = []
+            a.append(str(k) + ':' + str(v))
+            if k in self.default:
+                a.append('D='+str(self.default[k]))
+            if k in self.help:
+                a.append(str(self.help[k]))
+            t = ",".join(a)
+            s.append('('+t+')')
+        return ",".join(s)
+
+
+    def amend(self,settings):
+        ''' Amend new configuration settings to the config class '''
+        for (k,v) in settings.items():
+            self.keys.add(k)
+            if 'default' in v:
+                self.default[k] = v['default']
+            if 'help' in v:
+                self.help[k] = v['help']
+            if 'value' in v:
+                self.value[k] = v['value']
+
+
+
+    @staticmethod
+    def parsefile(filename, all=False, raw=False):
         with open(filename, 'rU') as f:
 
             n=0
@@ -88,23 +126,40 @@ class Config(object):
                 yield (n,l,key,data)
 
 
+    @staticmethod
+    def confvalue(v):
+        if isinstance(v,list) or isinstance(v,tuple):
+            v = " ".join(v)
+        else:
+            v = str(v)
+
+        if '=' in v:
+            raise ConfigException("'=' not valid in config values")
+        if '"' in v:
+            raise ConfigException("'\"' not valid in config values")
+
+        if ' ' in v:
+            v = '"' + v + '"'
+
+        return v
+
 
     def readconfig(self, conffile):
         conf = {}
 
         # Process each line. The generator returns
-        for (n,l,k,v) in self.parsefile(conffile):
+        for (n,l,k,v) in Config.parsefile(conffile):
             if k in conf:
                 raise ConfigException("%s:%s: Config entry already used. '%s'" %(conffile,n,l))
             conf[k] = v
 
         # Update class dict
-        self.conf.update(conf)
+        self.value.update(conf)
 
         # Split certain keys on SPACE
-        for k,d in self.conf.items():
+        for k,d in self.value.items():
             if k in ( 'services', 'modules', 'plugins' ):
-                self.conf[k] = tuple(d.split())
+                self.value[k] = tuple(d.split())
 
 
 
@@ -112,7 +167,7 @@ class Config(object):
 
         auto_sep = "# Automatically added by Lumina"
 
-        conf = self.conf.copy()
+        conf = self.value.copy()
         outlines = [ ]
 
         # If the configuration file exists, parse it and merge its contents
@@ -130,7 +185,7 @@ class Config(object):
                 # the new configuration value
                 if k in conf:
                     line = l
-                    line = line.replace(v,confvalue(conf[k]))
+                    line = line.replace(v,Config.confvalue(conf[k]))
                     outlines.append(line)
                     del conf[k]
 
@@ -147,7 +202,7 @@ class Config(object):
 
             # Append the next values
             for (k,v) in conf.items():
-                outlines.append("%s = %s\n" %(k.upper(),confvalue(v)))
+                outlines.append("%s = %s\n" %(k.upper(),Config.confvalue(v)))
 
         # And then finally writeout the config
         with open(conffile,'w') as f:

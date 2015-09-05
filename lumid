@@ -16,9 +16,6 @@ if os.name != 'nt':
 
 opts = ap.parse_args()
 
-# Read configuration file
-config = lumina.readconfig(opts.config)
-
 # Daemonize
 if os.name != 'nt' and opts.daemon:
     lumina.daemonize(pidfile=opts.pidfile)
@@ -32,7 +29,7 @@ else:
     log.startLogging(sys.stdout)
 
 # Start main app
-lumina.main(config)
+lumina.main(opts.config)
 
 # Start twisted
 log.msg('Server PID: %s' %(os.getpid()), system='-')

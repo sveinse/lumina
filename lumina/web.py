@@ -73,12 +73,42 @@ class PageCtrl(Resource):
         return NOT_DONE_YET
 
 
+class ConfigPage(Resource):
+    isLeaf = True
+    noisy = False
+    system = 'WEB'
+
+    def __init__(self,path,controller):
+        self.path = '/' + path
+        self.controller = controller
+
+    def render_GET(self, request):
+        request.setHeader(b'Content-Type', b'application/json')
+
+        path = request.path
+        if path.startswith(self.path):
+            path = path.replace(self.path,'',1)
+        if path.startswith('/'):
+            path = path.replace('/','',1)
+
+        c = self.controller.config.getall()
+        if path == '':
+            return json.dumps(c)
+        elif path in c:
+            return json.dumps(c[path])
+        else:
+            return ErrorPage(http.BAD_REQUEST,'Error','No such config').render(request)
+
+        return json.dumps(path)
+
 
 class Web(object):
 
-    def __init__(self,port,webroot):
-        self.port = port
-        self.webroot = webroot
+    def __init__(self,config):
+        self.config = config
+        self.config.amend(CONFIG)
+        self.port = int(config['web_port'])
+        self.webroot = config['web_root']
 
     def setup(self, controller):
         self.controller = controller
@@ -87,6 +117,15 @@ class Web(object):
         root.noisy = False
         root.putChild('', File(os.path.join(self.webroot,'index.html')))
         root.putChild('ctrl', PageCtrl('ctrl',self.controller))
+        root.putChild('config', ConfigPage('config',self.controller))
 
         self.site = Site(root)
         reactor.listenTCP(self.port, self.site)
+
+
+# Configuration
+MODULE = Web
+CONFIG = {
+    'web_port': { 'default': 8080, 'help': 'Web server port' },
+    'web_root': { 'default': os.getcwd()+'/www', 'help': 'Path for web server files' },
+}

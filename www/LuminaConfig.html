@@ -1,0 +1,18 @@
+<div class="container">
+
+  <h2>Configuration</h2>
+  <table class="table table-striped table-hover">
+    <tr>
+      <th>Key</th>
+      <th>Value</th>
+      <th>Default</th>
+      <th>Help</th>
+    </tr>
+    <tr ng-repeat="entry in config">
+      <td>{{entry.key}}</td>
+      <td>{{entry.value}}</td>
+      <td>{{entry.default}}</td>
+      <td>{{entry.help}}</td>
+    </tr>
+  </table>
+</div>

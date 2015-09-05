@@ -68,20 +68,26 @@ def daemonize(pidfile):
 
 
 
-#===  Parse config
-def readconfig(configfile):
 
-    #== CONFIGUATION
-    config = Config(defaults=CONFIG_DEFAULTS)
-    if configfile:
-        config.readconfig(configfile)
-
-    return config
+#===  CONFIG DEFAULTS
+CONFIG = {
+    'services': { 'default': 'controller', 'help': 'Services to run' },
+    'conffile': { 'default': 'lumina.conf', 'help': 'Configuration file' },
+}
 
 
 
 #===  MAIN function
-def main(config):
+def main(configfile):
+
+
+    #== CONFIGUATION
+    config = Config(settings=CONFIG)
+
+    # Load new config
+    if configfile:
+        config.readconfig(configfile)
+        config.set('conffile', configfile)
 
     #== SERVICES
     services = config['services']
@@ -95,8 +101,7 @@ def main(config):
         from web import Web
 
         # Main controller
-        port = int(config['port'])
-        controller = Controller(port=port)
+        controller = Controller(config=config)
         controller.setup()
 
         # Logic/rules handler
@@ -106,11 +111,10 @@ def main(config):
         controller.add_commands(logic.alias)
 
         # Web server
-        wport = int(config['web_port'])
-        wroot = config['web_root']
-        web = Web(port=wport,webroot=wroot)
+        web = Web(config=config)
         web.setup(controller)
 
+    print config
 
     #== CLIENT ROLE(S)
     if 'client' in services:
@@ -131,7 +135,7 @@ def main(config):
 
             # Load module and find main object
             mod = import_module('lumina.plugins.' + name)
-            plugin = mod.PLUGIN(config)
+            plugin = mod.PLUGIN(config=config)
 
             # Register function
             client.register(plugin)

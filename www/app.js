@@ -17,6 +17,10 @@ angular.module('LuminaApp', ['ngRoute'])
                 templateUrl: 'LuminaYamaha.html',
                 controller: 'LuminaYamaha'
             })
+            .when('/config', {
+                templateUrl: 'LuminaConfig.html',
+                controller: 'LuminaConfig'
+            })
             .otherwise( {redirectTo:'/main'} );
 
         //$locationProvider.html5Mode(true);
