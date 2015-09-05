@@ -1,22 +1,12 @@
 # -*- python -*-
 import os,sys,atexit
 import socket
-from twisted.python import log
 from importlib import import_module
+from twisted.python import log
+from twisted.internet import reactor
 
 from config import Config
 
-
-#===  CONFIG DEFAULTS
-CONFIG_DEFAULTS = dict(
-    services          = 'controller client',
-    port              = '8081',
-    name              = 'CLIENT',
-    server            = 'localhost',
-    plugins           = '',
-    web_port          = '8080',
-    web_root          =  os.getcwd()+'/www',
-)
 
 
 #===  Become DAEMON
@@ -71,8 +61,9 @@ def daemonize(pidfile):
 
 #===  CONFIG DEFAULTS
 CONFIG = {
-    'services': { 'default': 'controller', 'help': 'Services to run' },
-    'conffile': { 'default': 'lumina.conf', 'help': 'Configuration file' },
+    'services' : dict( default=('controller',), help='Services to run', type=tuple ),
+    'plugins'  : dict( default=( ), help='Client plugins to start', type=tuple ),
+    'conffile' : dict( default='lumina.conf', help='Configuration file' ),
 }
 
 
@@ -89,8 +80,10 @@ def main(configfile):
         config.readconfig(configfile)
         config.set('conffile', configfile)
 
+
     #== SERVICES
     services = config['services']
+    central = None
 
 
     #== MAIN SERVER ROLE
@@ -101,20 +94,24 @@ def main(configfile):
         from web import Web
 
         # Main controller
-        controller = Controller(config=config)
-        controller.setup()
+        controller = Controller()
+        config.amend(controller.CONFIG)
+        controller.setup(config=config)
 
-        # Logic/rules handler
+        # Logic/rules handler (FIXME)
         logic = Logic()
         logic.setup()
         controller.add_jobs(logic.jobs)
         controller.add_commands(logic.alias)
 
         # Web server
-        web = Web(config=config)
-        web.setup(controller)
+        web = Web()
+        config.amend(web.CONFIG)
+        web.setup(controller, config=config)
 
-    print config
+        # Set the controller as the plugin central
+        central = controller
+
 
     #== CLIENT ROLE(S)
     if 'client' in services:
@@ -122,20 +119,44 @@ def main(configfile):
         from client import Client
 
         # Client controller
-        client = Client(host=config['server'],port=int(config['port']),name=config['name'])
-        client.setup()
+        client = Client()
+        config.amend(client.CONFIG)
+        client.setup(config=config)
 
-        # Plugins
-        for name in config.get('plugins',[]):
+        # Set the client as the plugin central
+        central = client
 
-            # Ignore empty plugin names
-            name = name.strip()
-            if not len(name):
-                continue
 
-            # Load module and find main object
-            mod = import_module('lumina.plugins.' + name)
-            plugin = mod.PLUGIN(config=config)
+    #== PLUGINS
+    for name in config['plugins']:
 
-            # Register function
-            client.register(plugin)
+        # Ignore empty plugin names
+        name = name.strip()
+        if not len(name):
+            continue
+
+        # No plugins if we don't have a central
+        if not central:
+            log.msg("No central to register %s to" %(name), system='-')
+            continue
+
+        # Load module and find main object
+        log.msg("Loading plugin %s" %(name), system=central.system)
+
+        plugin = import_module('lumina.plugins.' + name).PLUGIN()
+
+        log.msg("===  Registering endpoint %s" %(plugin.name), system=central.system)
+
+        # Setup events and commands. configure() sets the plugins events and commands
+        plugin.configure()
+        plugin.add_eventcallback(central.handle_event)
+        central.add_events(plugin.get_events())
+        central.add_commands(plugin.get_commands())
+
+        # Register settings and prepare the plugin to run
+        config.amend(plugin.CONFIG)
+        plugin.setup(config=config)
+
+        # Setup for closing the plugin on close
+        reactor.addSystemEventTrigger('before','shutdown',plugin.close)
+        central.endpoints.append(plugin)

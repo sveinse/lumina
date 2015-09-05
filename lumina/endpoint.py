@@ -13,6 +13,9 @@ class Endpoint(object):
     events = { }
     commands = { }
 
+    # Endpoint configuration options
+    CONFIG = { }
+
     # --- Initialization
     def setup(self):
         pass
@@ -47,4 +50,3 @@ class Endpoint(object):
 
     def get_command(self,command):
         return self.commands[command]
-

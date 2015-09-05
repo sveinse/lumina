@@ -78,20 +78,28 @@ class ConfigPage(Resource):
     noisy = False
     system = 'WEB'
 
-    def __init__(self,path,controller):
+    def __init__(self,path,config):
         self.path = '/' + path
-        self.controller = controller
+        self.config = config
 
     def render_GET(self, request):
         request.setHeader(b'Content-Type', b'application/json')
 
+        # Extract the last part of the path
         path = request.path
         if path.startswith(self.path):
             path = path.replace(self.path,'',1)
         if path.startswith('/'):
             path = path.replace('/','',1)
 
-        c = self.controller.config.getall()
+        # Get a dump of all the config option and modify it to be
+        # able to send over JSON
+        c = self.config.getall()
+        for (k,e) in c.items():
+            if 'type' in e:
+                e['type'] = e['type'].__name__
+            e['key'] = k
+
         if path == '':
             return json.dumps(c)
         elif path in c:
@@ -104,28 +112,22 @@ class ConfigPage(Resource):
 
 class Web(object):
 
-    def __init__(self,config):
-        self.config = config
-        self.config.amend(CONFIG)
-        self.port = int(config['web_port'])
-        self.webroot = config['web_root']
+    CONFIG = {
+        'web_port': dict(default=8080, help='Web server port' ),
+        'web_root': dict(default=os.getcwd()+'/www', help='Path for web server files' ),
+    }
 
-    def setup(self, controller):
+    def setup(self, controller, config):
         self.controller = controller
+
+        self.port = config['web_port']
+        self.webroot = config['web_root']
 
         root = File(self.webroot)
         root.noisy = False
         root.putChild('', File(os.path.join(self.webroot,'index.html')))
         root.putChild('ctrl', PageCtrl('ctrl',self.controller))
-        root.putChild('config', ConfigPage('config',self.controller))
+        root.putChild('config', ConfigPage('config',config))
 
         self.site = Site(root)
         reactor.listenTCP(self.port, self.site)
-
-
-# Configuration
-MODULE = Web
-CONFIG = {
-    'web_port': { 'default': 8080, 'help': 'Web server port' },
-    'web_root': { 'default': os.getcwd()+'/www', 'help': 'Path for web server files' },
-}

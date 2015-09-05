@@ -66,6 +66,9 @@ def list_error(failure, command, commandlist):
 class Core(object):
     system='CORE'
 
+    # Default configuration options
+    CONFIG = { }
+
 
     def __init__(self):
         self.events = []
@@ -79,17 +82,6 @@ class Core(object):
         self.inprogress = False
         self.currentcommand = None
 
-
-    # --- ENDPOINT REGISTRATION
-    def register(self,endpoint):
-        log.msg("===  Registering endpoint %s" %(endpoint.name), system=self.system)
-        endpoint.configure()
-        endpoint.add_eventcallback(self.handle_event)
-        self.add_events(endpoint.get_events())
-        self.add_commands(endpoint.get_commands())
-        endpoint.setup()
-        reactor.addSystemEventTrigger('before','shutdown',endpoint.close)
-        self.endpoints.append(endpoint)
 
 
     # --- EVENTS

@@ -376,6 +376,13 @@ class Yamaha(Endpoint):
     system = 'AVR'
     name = 'YAMAHA'
 
+    CONFIG = {
+        'yamaha_host': dict(default='localhost', help='Yamaha host' ),
+        'yamaha_port': dict(default=80, help='Yamaha port', type=int ),
+        'yamaha_ssdp': dict(default='239.255.255.250', help='Yamaha SSDP protocol address' ),
+        'yamaha_ssdp_port': dict(default=1900, help='Yamaha SSDP port', type=int ),
+    }
+
     # --- Interfaces
     def configure(self):
         self.events = [
@@ -416,14 +423,13 @@ class Yamaha(Endpoint):
 
 
     # --- Initialization
-    def __init__(self, config):
+    def setup(self, config):
         self.host = config['yamaha_host']
-        self.protocol = YamahaProtocol(self,self.host,80)
-        self.ssdp = YamahaSSDP(self,self.host,'239.255.255.250')
+        self.protocol = YamahaProtocol(self,self.host,config['yamaha_port'])
+        self.ssdp = YamahaSSDP(self,self.host,config['yamaha_ssdp'])
 
-    def setup(self):
         self.event('avr/starting')
-        reactor.listenMulticast(1900, self.ssdp, listenMultiple=True)
+        reactor.listenMulticast(config['yamaha_ssdp_port'], self.ssdp, listenMultiple=True)
 
     def close(self):
         self.event('avr/stopping')

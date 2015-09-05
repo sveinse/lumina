@@ -224,14 +224,13 @@ class EventFactory(Factory):
 class Controller(Core):
     system = 'CTRL'
 
-    def __init__(self,config):
-        Core.__init__(self)
-        self.config = config
-        self.config.amend(CONFIG)
-        self.port = int(self.config['port'])
+    CONFIG = {
+        'port': dict( default=8081, help='Controller server port', type=int ),
+    }
 
 
-    def setup(self):
+    def setup(self, config):
+        self.port = config['port']
         self.factory = EventFactory()
         self.factory.parent = self
         reactor.listenTCP(self.port, self.factory)
@@ -249,10 +248,3 @@ class Controller(Core):
 
         # Run the job
         self.run_job(event)
-
-
-# Configuration
-MODULE = Controller
-CONFIG = {
-    'port': { 'default': 8081, 'help': 'Controller server port' },
-}

@@ -1,5 +1,6 @@
 # -*- python -*-
 import os,sys
+from log import *
 
 
 class ConfigException(Exception):
@@ -10,69 +11,64 @@ class ConfigException(Exception):
 class Config(object):
 
     def __init__(self, settings=None):
-        self.keys = set()
-        self.value = {}
-        self.default = {}
-        self.help = {}
+        self.c = { }
+        self.fileconf = { }
         if settings is not None:
             self.amend(settings)
-
-
-    # Dict methods
-    def __getitem__(self,k):
-        if k in self.value:
-            return self.value[k]
-        if k in self.default:
-            return self.default[k]
-        raise KeyError(k)
-    def get(self,*a):
-        return self.value.get(*a)
-    def set(self,k,v):
-        if k not in self.keys:
-            raise KeyError("Key '%s' not present" %(k))
-        self.value[k]=v
-    #def items(self,*a):
-    #    return self.value.items(*a)
-
-    # Special methods
-    def getall(self):
-        d = {}
-        for k in self.keys:
-            a = { 'key': k }
-            if k in self.value:
-                a['value'] = self.value[k]
-            if k in self.default:
-                a['default'] = self.default[k]
-            if k in self.help:
-                a['help'] = self.help[k]
-            d[k]=a
-        return d
-
-
-    def __repr__(self):
-        s=[]
-        for k,v in self.value.items():
-            a = []
-            a.append(str(k) + ':' + str(v))
-            if k in self.default:
-                a.append('D='+str(self.default[k]))
-            if k in self.help:
-                a.append(str(self.help[k]))
-            t = ",".join(a)
-            s.append('('+t+')')
-        return ",".join(s)
 
 
     def amend(self,settings):
         ''' Amend new configuration settings to the config class '''
         for (k,v) in settings.items():
-            self.keys.add(k)
-            if 'default' in v:
-                self.default[k] = v['default']
-            if 'help' in v:
-                self.help[k] = v['help']
-            if 'value' in v:
-                self.value[k] = v['value']
+            e = self.c.get(k, {})
+            e.update(v)
+            self.c[k] = e
+        self.merge_fileconf()
+
+
+    def merge_fileconf(self):
+        for (k,v) in self.fileconf.items():
+            if k in self.c:
+                self.c[k]['value'] = Config.parsevalue(v,self.c[k].get('type'))
+                del self.fileconf[k]
+
+
+    def __getitem__(self,k):
+        if k in self.c:
+            e = self.c[k]
+            if 'value' in e:
+                return e['value']
+            if 'default' in e:
+                return e['default']
+        raise KeyError(k)
+
+
+    def set(self,k,v):
+        if k in self.c:
+            self.c[k]['value'] = v
+            return
+        raise KeyError(k)
+
+
+    def getall(self):
+        c = {}
+        for (k,e) in self.c.items():
+            c[k] = e.copy()
+        return c
+
+
+    #def __repr__(self):
+    #    s=[]
+    #    for k,v in self.value.items():
+    #        a = []
+    #        a.append(str(k) + ':' + str(v))
+    #        if k in self.default:
+    #            a.append('D='+str(self.default[k]))
+    #        if k in self.help:
+    #            a.append(str(self.help[k]))
+    #        t = ",".join(a)
+    #        s.append('('+t+')')
+    #    return ",".join(s)
 
 
 
@@ -144,31 +140,45 @@ class Config(object):
         return v
 
 
+    @staticmethod
+    def parsevalue(v,typ=None):
+        if typ is None:
+            return v
+        elif typ is list:
+            return v.split()
+        elif typ is tuple:
+            return tuple(v.split())
+        else:
+            return typ(v)
+
+
     def readconfig(self, conffile):
         conf = {}
 
-        # Process each line. The generator returns
+        # Process each line in config file
         for (n,l,k,v) in Config.parsefile(conffile):
             if k in conf:
                 raise ConfigException("%s:%s: Config entry already used. '%s'" %(conffile,n,l))
             conf[k] = v
 
-        # Update class dict
-        self.value.update(conf)
+        n = len(conf)
 
-        # Split certain keys on SPACE
-        for k,d in self.value.items():
-            if k in ( 'services', 'modules', 'plugins' ):
-                self.value[k] = tuple(d.split())
+        # Update class info and merge with main config memory
+        self.fileconf.update(conf)
+        self.merge_fileconf()
 
+        log("Read %s configuration items from %s (%s unknown items)" %(n,conffile,len(self.fileconf)))
 
 
     def writeconfig(self, conffile):
 
         auto_sep = "# Automatically added by Lumina"
 
-        conf = self.value.copy()
         outlines = [ ]
+        conf = {}
+        for (k,e) in self.c.items():
+            if 'value' in e:
+                conf[k] = e['value']
 
         # If the configuration file exists, parse it and merge its contents
         if os.path.exists(conffile):

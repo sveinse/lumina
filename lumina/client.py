@@ -137,18 +137,21 @@ class EventFactory(ReconnectingClientFactory):
 class Client(Core):
     system = 'CLIENT'
 
+    CONFIG = {
+        'port'  : dict(default=8081, help='Controller server port', type=int ),
+        'server': dict(default='localhost', help='Controller to connect to' ),
+        'name'  : dict(default='CLIENT', help='Client name' ),
+    }
 
-    def __init__(self,host,port,name):
-        Core.__init__(self)
-        self.host = host
-        self.port = port
-        self.name = name
+
+    def setup(self, config):
+        self.host = config['server']
+        self.port = config['port']
+        self.name = config['name']
+        self.system = self.name
+
         self.protocol = None
         self.queue = []
-        self.system = name
-
-
-    def setup(self):
         self.factory = EventFactory()
         self.factory.parent = self
         self.factory.system = self.system
