@@ -113,7 +113,7 @@ class ConfigPage(Resource):
 class Web(object):
 
     CONFIG = {
-        'web_port': dict(default=8080, help='Web server port' ),
+        'web_port': dict(default=8080, help='Web server port', type=int ),
         'web_root': dict(default=os.getcwd()+'/www', help='Path for web server files' ),
     }
 

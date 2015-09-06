@@ -444,7 +444,7 @@ class Hw50(Endpoint):
         self.sp = None
 
     def setup(self, config):
-        self.port = config['hw05_port']
+        self.port = config['hw50_port']
         self.protocol = HW50Protocol(self)
         try:
             self.protocol.setstate('starting')
