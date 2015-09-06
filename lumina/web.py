@@ -92,7 +92,7 @@ class ConfigPage(Resource):
         if path.startswith('/'):
             path = path.replace('/','',1)
 
-        # Get a dump of all the config option and modify it to be
+        # Get a dump of all the settings and modify it to be
         # able to send over JSON
         c = self.config.getall()
         for (k,e) in c.items():

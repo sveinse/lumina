@@ -405,6 +405,9 @@ class Hw50(Endpoint):
     name = 'HW50'
     system = 'HW50'
 
+    CONFIG = {
+        'hw50_port': dict(default='/dev/ttyUSB0', help='HW50 serial port'),
+    }
 
     # --- Interfaces
     def configure(self):
@@ -437,11 +440,11 @@ class Hw50(Endpoint):
 
 
     # --- Initialization
-    def __init__(self, config):
-        self.port = config['hw50_port']
+    def __init__(self):
         self.sp = None
 
-    def setup(self):
+    def setup(self, config):
+        self.port = config['hw05_port']
         self.protocol = HW50Protocol(self)
         try:
             self.protocol.setstate('starting')

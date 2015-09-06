@@ -174,6 +174,10 @@ class Oppo(Endpoint):
     system = 'OPPO'
     name = 'OPPO'
 
+    CONFIG = {
+        'oppo_port' : dict(default='/dev/ttyUSB0', help='Oppo serial port'),
+    }
+
     # --- Interfaces
     def configure(self):
         self.events = {
@@ -214,11 +218,11 @@ class Oppo(Endpoint):
 
 
     # --- Initialization
-    def __init__(self, config):
-        self.port = config['oppo_port']
+    def __init__(self):
         self.sp = None
 
-    def setup(self):
+    def setup(self, config):
+        self.port = config['oppo_port']
         self.protocol = OppoProtocol(self)
         try:
             self.protocol.setstate('starting')

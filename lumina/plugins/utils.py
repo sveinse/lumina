@@ -26,7 +26,7 @@ class Utils(Endpoint):
 
 
     # --- Initialization
-    def setup(self):
+    def setup(self, config):
         reactor.addSystemEventTrigger('before','shutdown',self.event,'stopping')
         reactor.callWhenRunning(self.event,'starting')
 

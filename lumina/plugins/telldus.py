@@ -352,11 +352,11 @@ class Telldus(Endpoint):
 
 
     # --- Initialization
-    def __init__(self, config):
+    def __init__(self):
         self.inport = TelldusIn(self)
         self.outport = TelldusOut(self)
 
-    def setup(self):
+    def setup(self, config):
         self.event('td/starting')
         self.inport.connect()
 

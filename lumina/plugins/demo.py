@@ -28,11 +28,11 @@ class Demo(Endpoint):
 
 
     # --- Initialization
-    def __init__(self,config):
+    def __init__(self):
         self.cbevent = Callback()
         self.n = 0
 
-    def setup(self):
+    def setup(self, comfig):
         self.loop = LoopingCall(self.loop_cb)
         #self.loop.start(20, False)
 

@@ -17,7 +17,7 @@ class Endpoint(object):
     CONFIG = { }
 
     # --- Initialization
-    def setup(self):
+    def setup(self,config):
         pass
     def close(self):
         pass

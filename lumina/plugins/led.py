@@ -23,10 +23,10 @@ class Led(Endpoint):
 
 
     # --- Initialization
-    def __init__(self,config):
+    def __init__(self):
         self.state = 'init'
 
-    def setup(self):
+    def setup(self, config):
         (old, self.state) = (self.state, 'active')
         log.msg("STATE change: '%s' --> '%s'" %(old,self.state), system=self.system)
 
