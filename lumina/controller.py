@@ -20,7 +20,7 @@ class EventProtocol(LineReceiver):
     noisy = False
     delimiter='\n'
     timeout=15
-    system = 'CTRL'
+    system = '*CTRL'
 
     def connectionMade(self):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
@@ -239,11 +239,11 @@ class Controller(Core):
     def handle_event(self, event):
         ''' Event dispatcher. Event contains messages coming from the device endpoints. '''
 
-        logevent(event, system='EVENT')
+        logevent(event, system='*EVENT')
 
         # Is this a registered event?
         if event.name not in self.events:
-            log("     --:  Unknown event, ignoring", system='EVENT')
+            log("     --:  Unknown event '%s', ignoring" %(event.name), system='*EVENT')
             return None
 
         # Run the job

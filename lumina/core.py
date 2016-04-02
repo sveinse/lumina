@@ -148,10 +148,10 @@ class Core(object):
 
         # Compile a list of all the events which is going to be run (for printing)
         if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
-            log.msg("%s RUNS %s" %(command,commandlist), system=command.system)
+            log.msg("`->  %s RUNS %s" %(command,commandlist), system=command.system)
             command.result = commandlist
         else:
-            log.msg("RUN %s" %(commandlist), system=command.system)
+            log.msg("`->  RUN %s" %(commandlist), system=command.system)
             command.result = None
 
         # We need at least one command to run.
@@ -188,7 +188,7 @@ class Core(object):
     def get_commandfnlist(self, command, depth=0):
         ''' Get a list of (fn,event) tuples for the given command (Event() object
             expected '''
-        #log.msg("CCC ",depth,'.'*(depth+1),command,command.args)
+        #log.msg("CCC ",depth,'.'*(depth+1),command,command.args,system='****')
 
         # If the function is callable, then this is the wanted dispatcher
         # for the command. Also return if the command is unknown or explicitly set
@@ -196,7 +196,7 @@ class Core(object):
         fn = self.get_commandfn(command)
         if callable(fn):
             command.fn = fn
-            #log.msg("=== ",depth,'.'*(depth+1),[ command ])
+            #log.msg("==- ",depth,'.'*(depth+1),[ command ],system="****")
             return [ command ]
 
         # ...otherwise the returned object is a composite and needs to be flattened/expanded
@@ -204,14 +204,16 @@ class Core(object):
         # Make sure this function isn't run too many times in case of loops in
         # the aliases
         if depth >= MAX_DEPTH:
-            raise CommandRunException('Too many command alias levels (%s). Loop?' %(depth,))
+            raise CommandParseException('Too many command alias levels (%s). Loop?' %(depth,))
 
         # Flatten the alias
         alias = list(fn[::-1])
         eventlist = []
         while len(alias):
             fn = alias.pop()
+            #log.msg("-+- ",depth,'.'*(depth+1),fn,system='****')
 
+            # If run-time evaluation of commands will be requred, uncomment this:
             # If callable alias, it is a function that will either return
             #    A) Another function, Event() or string object
             #    B) A list or tuple containing A)
@@ -219,26 +221,30 @@ class Core(object):
             # pass on the argument from the original command
             # E.g.
             #       'command': ( lambda a: ('first', Event('second',a.args[0]), )
-            if callable(fn):
-                try:
-                    alias.append(fn(command))
-                except (KeyError,IndexError) as e:
-                    raise CommandRunException(
-                        "Alias function failed when processing '%s'. Missing argument?" %(
-                        command.name,))
+            #if callable(fn):
+            #    try:
+            #        fnlist = fn(command)
+            #    except (KeyError,IndexError) as e:
+            #        raise CommandParseException(
+            #            "Alias function failed when processing '%s'. Missing argument?" %(
+            #            command.name,))
+            #    alias.append(fnlist)
 
             # If list or tuple, expand the list and reiterate
-            elif isinstance(fn, list) or isinstance(fn, tuple):
+            if isinstance(fn, list) or isinstance(fn, tuple):
                 alias += fn[::-1]
 
-            # Append the Event object (or make one) to the eventlist
-            elif isinstance(fn, Event):
-                ev = fn.copy()
-                ev.system = command.system
-                eventlist.append(ev)
+            # If required to accept Event() object uncomment and populate this
+            #elif isinstance(fn, Event):
+            #    raise CommandParseException(
+            #        "Event object type deprecated in job, '%s'" %(command.name,))
+
             else:
-                ev = Event().load_str(fn)
-                ev.system = command.system
+                try:
+                    ev = Event().load_str(fn, parseEvent=command)
+                except Exception as e:
+                    raise CommandParseException("Command parsing failed: %s" %(e) )
+                ev.system = command.system   # To override log system
                 eventlist.append(ev)
 
         # eventlist is now a list of Event() objects. Let's iterate over the list
@@ -246,7 +252,7 @@ class Core(object):
         fnlist = []
         for f in eventlist:
             fnlist += self.get_commandfnlist(f,depth=depth+1)
-        #log.msg("=== ",depth,'.'*(depth+1),fnlist)
+        #log.msg("=== ",depth,'.'*(depth+1),fnlist,system='****')
         return fnlist
 
 
@@ -264,17 +270,17 @@ class Core(object):
     def run_job(self,event):
         ''' Run the job for the given event '''
 
-        name = self.jobs.get(event.name)
-        if name is None:
-            log.msg("     --:  Ignored", system='EVENT')
+        # Find the job for the given event
+        jobtarget = self.jobs.get(event.name)
+        if jobtarget is None:
+            log.msg("`->  Ignored", system='*EVENT')
             return
 
-        # Copy the original event, and parse in name and optional args from
-        # the job
-        job = event.copy()
-        job.load_str(name)
+        # Make a job object and its parse args
+        job = Event().load_str(jobtarget, parseEvent=event)
+        job.system = event.system
 
         # Run it
-        log.msg("     --:  Running %s" %(job,), system='EVENT')
+        #log.msg("     --:  Running %s" %(job,), system='*EVENT')
         cmdlist = self.get_commandfnlist(job)
         return self.run_commandlist(job, cmdlist)

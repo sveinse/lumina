@@ -21,7 +21,7 @@ class Logic(object):
 
         'spot/on'         : ( 'td/on{100}', ),
         'spot/off'        : ( 'td/off{100}', ),
-        'spot/dim'        : ( lambda a : ( E('td/dim',100,a.args[0]), ), ),
+        'spot/dim'        : ( 'td/dim{100,$1}', ),
 
         #'light/roof/on'   : ( 'td/on{101}', ),
         #'light/roof/off'  : ( 'td/off{101}', ),
@@ -38,9 +38,9 @@ class Logic(object):
         'led/pwr/off'     : ( 'td/off{106}', ),
         'led/white/on'    : ( 'led{0,0,0,255}', ),
         'led/white/normal': ( 'led{0,0,0,100}', ),
-        'led/white/dim'   : ( lambda a : ( E('led',0,0,0,a.args[0]), ), ),
+        'led/white/dim'   : ( 'led{0,0,0,$1}', ),
         'led/blue/normal' : ( 'led{0,0,100,0}', ),
-        'led/blue/dim'    : ( lambda a : ( E('led',0,0,a.args[0],0), ), ),
+        'led/blue/dim'    : ( 'led{0,0,$1,0}', ),
         'led/off'         : ( 'led{0,0,0,0}', ),
 
         'elec/on'         : ( 'oppo/on', 'hw50/on', 'avr/on' ),
@@ -87,6 +87,13 @@ class Logic(object):
         'oppo/pause'     : 'light/pause',
         'oppo/play'      : 'light/off',
         'oppo/stop'      : 'light/weak',
+
+        # Graphite regler
+        'temp/ute'       : 'graphite/send{$n,$*}',
+        'temp/kjeller'   : 'graphite/send{$n,$*}',
+        'temp/fryseskap' : 'graphite/send{$n,$*}',
+        'temp/kino/ute'  : 'graphite/send{$n,$*}',
+        'temp/kino/inne' : 'graphite/send{$n,$*}',
     }
 
 

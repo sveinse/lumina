@@ -67,10 +67,10 @@ class PageCtrl(Resource):
             defer = self.controller.run_commandlist(command, cmdlist)
             defer.addCallback(self.reply_ok,request,command)
             defer.addErrback(self.reply_error,request,command)
+            return NOT_DONE_YET
         except CommandException as e:
             log.err(system=self.system)
             return ErrorPage(http.BAD_REQUEST,'Error in %s' %(command.name,),e.message).render(request)
-        return NOT_DONE_YET
 
 
 class ConfigPage(Resource):

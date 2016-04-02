@@ -332,13 +332,13 @@ class Telldus(Endpoint):
             'wallsw2/off'    : dict(house=392498,   group=0, unit=1, method='turnoff'),
 
             # Mandolyn devices
-            #'temp/ute'       : dict(temp=11),
-            #'temp/kjeller'   : dict(temp=12),
+            'temp/ute'       : dict(temp=11),
+            'temp/kjeller'   : dict(temp=12),
 
             # Nexa/proove devices
-            #'temp/fryseskap' : dict(temp=247),
-            #'temp/kino/ute'  : dict(temp=135),
-            #'temp/kino/inne' : dict(temp=151),
+            'temp/fryseskap' : dict(temp=247),
+            'temp/kino/ute'  : dict(temp=135),
+            'temp/kino/inne' : dict(temp=151),
         }
 
         self.commands = {
@@ -461,9 +461,9 @@ class Telldus(Endpoint):
 
                     # Match found, process it as an event
                     if 'humidity' in args:
-                        self.event("%s{%s,%s}" %(ev,args['temp'],args['humidity']))
+                        self.event(ev,args['temp'],args['humidity'])
                     else:
-                        self.event("%s{%s}" %(ev,args['temp']))
+                        self.event(ev,args['temp'])
                     return
 
                 # Not interested in logging temp events we don't subscribe to

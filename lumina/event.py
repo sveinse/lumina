@@ -31,13 +31,17 @@ class Event(object):
     '''
     #def __init__(self, name=None, *args, **kw):
     def __init__(self, name=None, *args):
+        # Event data
         self.name = name
         self.args = args[:]
-        #self.kw = kw.copy()
-        self.fn = None
-        self.success = None
-        self.result = None
-        self.id = None
+
+        # Event execution metas
+        self.fn = None       # Callback function
+        self.success = None  # Callback successful. True or False execution has occurred
+        self.result = None   # Callback command result
+
+        # Event network ID metas
+        self.id = None       # Network sequence number for transport
 
 
     def __repr__(self):
@@ -46,18 +50,15 @@ class Event(object):
             s = [str(a) for a in self.args]
         else:
             s = [ '...%s args...' %(len(self.args)) ]
-        #for (k,v) in self.kw.items():
-        #    s.append("%s=%s" %(k,v))
         if self.success is not None:
-            s.append('=%s: %s' %(self.success,self.result))
+            s.append('*%s: %s' %(self.success,self.result))
         if s:
             t='{' + ','.join(s) + '}'
-        #return "%s.%s%s" %(self.name,self.id,t)
         return "%s%s" %(self.name,t)
 
 
     def copy(self):
-        #return Event(self.name,*self.args,**self.kw)
+        ''' Return new copy of this object.  '''
         o = Event()
         o.name = self.name
         o.args = self.args[:]
@@ -76,7 +77,6 @@ class Event(object):
         js = {
             'name': self.name,
             'args': self.args,
-            #'kw': self.kw,
         }
         if self.id is not None:
             js.update( {
@@ -100,7 +100,6 @@ class Event(object):
             raise ValueError("Missing event name")
         self.name = d.get('name')
         self.args = d.get('args',[])
-        #self.kw = d.get('kw',{})
         self.success = d.get('success')
         self.id = d.get('id')
 
@@ -128,14 +127,12 @@ class Event(object):
 
     def dump_str(self):
         (s,t) = ([str(a) for a in self.args],'')
-        #for (k,v) in self.kw.items():
-        #    s.append("%s=%s" %(k,v))
         if s:
             t='{' + ','.join(s) + '}'
         return "%s%s" %(self.name,t)
 
 
-    def load_str(self, s):
+    def load_str(self, s, parseEvent=None):
         s=s.encode('ascii')
         m = re.match(r'^([^{}]+)({(.*)})?$', s)
         if not m:
@@ -143,22 +140,42 @@ class Event(object):
         self.name = m.group(1)
         opts = m.group(3)
         if opts:
-            #self.args = []
-            #self.kw = {}
-            #for arg in opts.split(','):
-            #    if '=' in arg:
-            #        k = arg.split('=')
-            #        self.kw[k[0]] = k[1]
-            #    else:
-            #        self.args.append(arg)
             self.args = opts.split(',')
+
+            # If '$' agruments is encountered, replace with positional argument
+            # from parseEvent
+            if parseEvent:
+                args = []
+                for a in self.args:
+                    if a == '$*':
+                        args += parseEvent.args
+                    elif a == '$n':
+                        args.append(parseEvent.name)
+                    elif a.startswith('$'):
+                        index = a[1:]
+                        o = a
+                        try:
+                            o = parseEvent.args[int(index)-1]
+                        except IndexError:
+                            raise IndexError("%s argument index error '$%s', but event/request has %s args" %(
+                                self.name, index, len(parseEvent.args)) )
+                        except ValueError:
+                            raise ValueError("%s argument value error '$%s'" %(
+                                self.name, index) )
+                        args.append(o)
+                    else:
+                        args.append(a)
+                self.args = args
+
+        else:
+            self.args = []
         return self
 
 
     def cmd_ok(self,result):
         self.success = True
         self.result = result
-        log.msg("    %s: %s" %(self.name,result), system=self.system)
+        #log.msg("    %s: %s" %(self.name,result), system=self.system)
         return self
 
 
