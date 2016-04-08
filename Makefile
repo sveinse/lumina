@@ -45,7 +45,7 @@ endef
 # Rules for one client
 define client
 $(1)-sync:
-	rsync -av --del -e ssh ./ $($(1)-HOST):$(rhome) --exclude="/debian/lumina" --exclude="/build" --exclude="/lumina.egg-info" --exclude="*.pyc"
+	rsync -av --del -e ssh ./ $($(1)-HOST):$(rhome) --exclude="/debian/lumina" --exclude="/build" --exclude="/lumina.egg-info" --exclude="*.pyc" --exclude="/.git*" --exclude="*~"
 $(1)-run: $(1)-sync
 	$(call remote,$(1),"cd $(rhome) && exec ./lumid $($(1)-OPTS)")
 $(1)-test: $(1)-sync

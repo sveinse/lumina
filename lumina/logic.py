@@ -89,11 +89,11 @@ class Logic(object):
         'oppo/stop'      : 'light/weak',
 
         # Graphite regler
-        'temp/ute'       : 'graphite/send{$n,$*}',
-        'temp/kjeller'   : 'graphite/send{$n,$*}',
-        'temp/fryseskap' : 'graphite/send{$n,$*}',
-        'temp/kino/ute'  : 'graphite/send{$n,$*}',
-        'temp/kino/inne' : 'graphite/send{$n,$*}',
+        'temp/ute'       : 'graphite/send{huset.ute,$*}',
+        'temp/kjeller'   : 'graphite/send{huset.kjeller,$*}',
+        'temp/fryseskap' : 'graphite/send{huset.fryseskap,$*}',
+        'temp/kino/ute'  : 'graphite/send{huset.kino_ute,$*}',
+        'temp/kino/inne' : 'graphite/send{huset.kino_inne,$*}',
     }
 
 

@@ -461,9 +461,9 @@ class Telldus(Endpoint):
 
                     # Match found, process it as an event
                     if 'humidity' in args:
-                        self.event(ev,args['temp'],args['humidity'])
+                        self.event(ev,('temp',args['temp']),('humidity',args['humidity']))
                     else:
-                        self.event(ev,args['temp'])
+                        self.event(ev,('temp',args['temp']))
                     return
 
                 # Not interested in logging temp events we don't subscribe to

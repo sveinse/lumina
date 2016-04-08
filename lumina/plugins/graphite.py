@@ -1,8 +1,6 @@
 # -*- python -*-
 from twisted.python import log
 from twisted.internet.protocol import Protocol, ClientFactory
-#from twisted.internet.endpoints import TCP4ClientEndpoint, connectProtocol
-#from twisted.internet.protocol import DatagramProtocol, ClientFactory, Protocol
 from twisted.internet import reactor
 import pickle
 import time
@@ -21,7 +19,7 @@ class GraphiteProtocol(Protocol):
         self.msg = msg
 
     def connectionMade(self):
-        self.transport.write(self.msg.encode('ascii'))
+        self.transport.write(self.msg)   #.encode('ascii')) # <-- Needed for text based reporting
         self.transport.loseConnection()
 
 
@@ -41,11 +39,13 @@ class GraphiteFactory(ClientFactory):
 
 class Graphite(Endpoint):
     name = 'GRAPHITE'
+    system = 'GRAPHITE'
 
     CONFIG = {
         'graphite_host': dict(default='localhost', help='Graphite host'),
-        'graphite_port': dict(default=2003, help='Graphite port', type=int),
+        'graphite_port': dict(default=2004, help='Graphite port', type=int),
     }
+
 
     # --- Interfaces
     def configure(self):
@@ -57,36 +57,37 @@ class Graphite(Endpoint):
         }
 
 
-    # Graphite mappings
-    NAMES = {
-        'temp/ute'       : 'hus.ute',
-        'temp/kjeller'   : 'hus.kjeller',
-        'temp/fryseskap' : 'hus.fryseskap',
-        'temp/kino/ute'  : 'hus.kino_ute',
-        'temp/kino/inne' : 'hus.kino_inne',
-    }
-
     # --- Initialization
     def setup(self, config):
         self.host = config['graphite_host']
         self.port = config['graphite_port']
 
+        self.cache = { }
+
 
     def send(self,a):
+        n = a.args[0]
         t = time.time()
-        n = self.NAMES[a.args[0]]
 
-        GraphiteFactory(self.host, self.port, "%s.temp %s %s\n" %(n,a.args[1],t) )
-        if len(a.args) > 2:
-            GraphiteFactory(self.host, self.port, "%s.humidity %s %s\n" %(n,a.args[2],t) )
+        #v = a.args[1:]
+        #GraphiteFactory(self.host, self.port, "%s %s %s\n" %(n+'.'+v[0][0],v[0][1],t) )
+        #if len(v) > 1:
+        #    GraphiteFactory(self.host, self.port, "%s %s %s\n" %(n+'.'+v[1][0],v[1][1],t) )
 
-        #l = [ ( n+'.temp', (t, a.args[1]) ) ]
-        #if len(a.args) > 2:
-        #    l += [ ( n+'.humidity', (t, a.args[2]) ) ]
-        #payload = pickle.dumps(l, protocol=2)
-        #header = struct.pack("!L", len(payload))
-        #message = header + payload
-        #GraphiteFactory(self.host, self.port, message)
+        val = float(a.args[1][1])
+        last = self.cache.get(n,None)
+        if last is not None and abs(val-last) > 20:
+            log.msg("Ignoring %s temperature of %s (last %s)" %(n,val,last), system=self.system)
+            return
+        self.cache[n] = val
+
+        l = []
+        for v in a.args[1:]:
+            l += [ ( n+'.'+v[0], (t, v[1]) ) ]
+        payload = pickle.dumps(l, protocol=2)
+        header = struct.pack("!L", len(payload))
+        message = header + payload
+        GraphiteFactory(self.host, self.port, message)
 
 
 # Main plugin object class
