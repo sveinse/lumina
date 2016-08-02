@@ -2,40 +2,26 @@ Source: lumina
 Maintainer: Svein Seldal <sveinse@seldal.com>
 Section: python
 Priority: optional
-Build-Depends: python-all (>= 2.6.6-3),
+X-Python-Version: >= 2.7
+Build-Depends: python (>= 2.7.3),
                debhelper (>= 7),
                python-setuptools
 Standards-Version: 3.9.1
+
+Package: lumina
+Architecture: all
+Depends: ${misc:Depends},
+         python-lumina (= ${binary:Version})
+Description: Home cinema automation controller
+ This package provides the home cinema automation controller.
 
 Package: python-lumina
 Architecture: all
 Depends: ${misc:Depends},
          ${python:Depends},
          python-twisted-core,
+         python-twisted-web
+Recommends: telldus-core
 Description: Python library for home cinema automation controller
  This package provides the python libraries for the home cinema
  automation controller
-
-Package: lumina-lys
-Provides: lumina
-Architecture: all
-Depends: ${misc:Depends},
-         ${python:Depends},
-         python-lumina (= ${binary:Version}),
-         telldus-core,
-         python-twisted-web
-Conflicts: lumina-hw50
-Description: Home cinema automation controller lys daemon
- This package provides the home cinema automation controller,
- configured for the 'lys' server.
-
-Package: lumina-hw50
-Provides: lumina
-Architecture: all
-Depends: ${misc:Depends},
-         ${python:Depends},
-         python-lumina (= ${binary:Version})
-Conflicts: lumina-lys
-Description: Home cinema automation controller hw50 daemon
- This package provides the home cinema automation controller,
- configured for the 'hw50' server.

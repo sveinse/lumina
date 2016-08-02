@@ -5,7 +5,7 @@
 # Required-Stop:     $local_fs $network $remote_fs $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Home Theater Controller HW50
+# Short-Description: Home Theater Controller
 ### END INIT INFO
 
 # Author: Svein Seldal <sveinse@seldal.com>
@@ -15,7 +15,7 @@
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="lumina"
 NAME=lumina
-DAEMON=/usr/bin/lumid
+DAEMON=/usr/bin/lumina
 PIDFILE=/var/run/$NAME.pid
 DAEMON_ARGS="--daemon --pidfile=$PIDFILE --syslog --config /etc/default/lumina"
 SCRIPTNAME=/etc/init.d/$NAME

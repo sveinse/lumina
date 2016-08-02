@@ -5,8 +5,8 @@ Source: https://github.com/sveinse/lumina.git
 
 Files: *
 Copyright: 2014-2015 Svein Seldal
-License: GPL-2
+License: GPL-3
 
-License: GPL-2
+License: GPL-3
  On Debian systems, the complete text of the GNU General
- Public License version 2 can be found in "/usr/share/common-licenses/GPL-2".
+ Public License version 2 can be found in "/usr/share/common-licenses/GPL-3".

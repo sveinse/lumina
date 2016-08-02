@@ -1,76 +1,107 @@
 #!/usr/bin/make
+#
+# Convenience makefile for helping build and development of Lumina
+# Copyright (C) 2010-2016 Svein Seldal <sveinse@seldal.com>
+#
 
+debfiles=lumina_*.deb python-lumina_*.deb lumina_*.changes
 
 help:
 	@grep '^\S*:' Makefile
 
 build::
-	rm -f ../lumina*.deb ../python-lumina*.deb ../lumina_*.changes
+	rm -f $(foreach f,$(debfiles),../$(f))
 	dpkg-buildpackage -b -uc -us
-	mv ../lumina*.deb ../python-lumina*.deb ../lumina_*.changes .
+	mkdir -p debs
+	rm -f $(foreach f,$(debfiles),debs/$(f))
+	mv $(foreach f,$(debfiles),../$(f)) debs
 
 install:
-	sudo dpkg -i ../lumina_*.deb
+	sudo dpkg -i *.deb
 
 version:
-	head -n 1 debian/changelog
+	@head -n 1 debian/changelog | sed -e "s/^.*(\(.*\)).*/\\1/"
 
 newversion: version
-	@echo "lumina ($(V)) unstable; urgency=low" >debian/changelog
-	@echo "" >>debian/changelog
-	@echo "  * See git history" >>debian/changelog
-	@echo "" >>debian/changelog
-	@echo " -- Svein Seldal <sveinse@seldal.com>  $$(date -R)" >>debian/changelog
+	@test $${V:?"usage: make $@ V=<version>"}
+	sed -i -e "s/^\(\\w\+\) \+(.*)/\\1 ($(V))/" \
+	       -e "s/\(--.*>\).*$$/\\1  $$(date -R)/" debian/changelog
+	sed -i -e "s/version='.*'/version='$(V)'/" setup.py
+	grep -e 'version=' setup.py
 	cat debian/changelog
 
 deploy:
 	$(MAKE) distclean
-	$(MAKE) lys-build
-	$(MAKE) lys-install
-	$(MAKE) hw50-install
+	$(MAKE) hus-build hus-install
+	$(MAKE) lys-deploy lys-install
+	$(MAKE) hw50-deploy hw50-install
+
 
 # Specific options
-lys-OPTS=--config=conf/lys-debug.conf
-hw50-OPTS=--config=conf/hw50.conf
+#hus-OPTS=--config=conf/hus.conf
+#lys-OPTS=--config=conf/lys-debug.conf
+#hw50-OPTS=--config=conf/hw50.conf
 
-lys-HOST=pi@lys
-hw50-HOST=pi@10.5.5.15
+#lys-HOST=pi@lys.local
+#hw50-HOST=pi@hw50.local
 
-rhome=/home/pi/lumina-dev/
+#lys-HOME=/home/pi/lumina-dev/
+#hw50-HOME=/home/pi/lumina-dev/
 
-define remote
+#
+# REMOTE DEPLOYMENT
+# =================
+hus-HOST=svein@hus.local
+hus-HOME=/home/svein/lumina-dev
+
+lys-HOST=pi@lys.local
+lys-HOME=/home/pi/lumina-dev
+
+hw50-HOST=pi@lys.local
+hw50-HOME=/home/pi/lumina-dev
+
+deploy-from-debs=debs-hus
+
+
+rsync-exclude=--exclude="/debian/lumina" --exclude="/build" --exclude="/lumina.egg-info" --exclude="*.pyc" --exclude="/.git*" --exclude="*~" --exclude="from_*" --exclude="/debian/tmp" --exclude="/debian/python-lumina" --exclude="/debian/lumina" --exclude="/debs-*/" --exclude="/debs/" --exclude="/debian/*debhelper*" --exclude="/debian/*.substvars" --exclude="/debian/files"
+
+define remcmd
 ssh -t $($(1)-HOST) -- /bin/sh -c '$(2)'
 endef
 
-# Rules for one client
-define client
+define remote
 $(1)-sync:
-	rsync -av --del -e ssh ./ $($(1)-HOST):$(rhome) --exclude="/debian/lumina" --exclude="/build" --exclude="/lumina.egg-info" --exclude="*.pyc" --exclude="/.git*" --exclude="*~"
-$(1)-run: $(1)-sync
-	$(call remote,$(1),"cd $(rhome) && exec ./lumid $($(1)-OPTS)")
-$(1)-test: $(1)-sync
-	$(call remote,$(1),"cd $(rhome) && exec ./lumina-test")
+	rsync -av --del -e ssh ./ $($(1)-HOST):$($(1)-HOME) $(rsync-exclude)
+#$(1)-run: $(1)-sync
+#	$(call remcmd,$(1),"cd $($(1)-HOME) && exec ./lumid $($(1)-OPTS)")
+#$(1)-test: $(1)-sync
+#	$(call remcmd,$(1),"cd $($(1)-HOME) && exec ./lumina-test")
 $(1)-build:
-	rm -rf pi-debs/*
+	rm -rf $(1)-debs/*
 	$(MAKE) $(1)-sync
-	$(call remote,$(1),"cd $(rhome) && make build")
-	rsync -av --del -e ssh $($(1)-HOST):$(rhome)/*.deb $($(1)-HOST):$(rhome)/*.changes pi-debs/
-$(1)-install: $(1)-sync
-	$(call remote,$(1),"cd $(rhome) && sudo dpkg -i pi-debs/lumina-$(1)_*.deb pi-debs/python-lumina_*.deb")
-$(1)-distclean: $(1)-sync
-	$(call remote,$(1),"cd $(rhome) && make distclean")
+	$(call remcmd,$(1),"cd $($(1)-HOME) && make build")
+	rsync -av --del -e ssh $($(1)-HOST):$($(1)-HOME)/debs/* debs-$(1)/
+$(1)-deploy:
+	rsync -av --del -e ssh $(deploy-from-debs)/ $($(1)-HOST):$($(1)-HOME)/debs/
+$(1)-install:
+	$(call remcmd,$(1),"cd $($(1)-HOME)/debs && echo sudo dpkg -i *.deb")
+$(1)-distclean:
+	$(call remcmd,$(1),"cd $($(1)-HOME) && make distclean")
+$(1)-wipe:
+	$(call remcmd,$(1),"cd $($(1)-HOME) && rm -rf *")
 $(1)-stop:
-	$(call remote,$(1),"sudo service lumina stop")
+	$(call remcmd,$(1),"sudo service lumina stop")
 $(1)-start:
-	$(call remote,$(1),"sudo service lumina start")
+	$(call remcmd,$(1),"sudo service lumina start")
 $(1)-logs:
-	$(call remote,$(1),"tail -f /var/log/messages")
+	$(call remcmd,$(1),"tail -f /var/log/messages")
 endef
 
 
-# Make
-$(eval $(call client,lys))
-$(eval $(call client,hw50))
+# Include the remotes into this makefile
+$(eval $(call remote,hus))
+$(eval $(call remote,lys))
+$(eval $(call remote,hw50))
 
 
 
@@ -81,4 +112,4 @@ clean::
 
 distclean:: clean
 	rm -rf ../lumina_*.changes ../lumina_*.dsc ../lumina_*.tar.gz ../lumina*.deb ../python-lumina*.deb
-	rm -rf lumina*.changes lumina*.deb python-lumina*.deb pi-debs
+	rm -rf lumina*.changes lumina*.deb python-lumina*.deb debs/ debs-*/

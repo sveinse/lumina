@@ -15,4 +15,5 @@ debian/files
 debian/*.debhelper
 debian/*.log
 debian/*.substvars
+debian/debhelper-build-stamp
 lumina.egg-info/

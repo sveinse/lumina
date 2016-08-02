@@ -1,12 +1,24 @@
 # -*- python -*-
-import os,sys,atexit
-import socket
+from __future__ import absolute_import
+
+import os
+import sys
+import atexit
+import argparse
 from importlib import import_module
 from twisted.python import log
 from twisted.internet import reactor
 
-from config import Config
+from .config import Config
 
+
+
+#===  CONFIG DEFAULTS
+CONFIG = {
+    'services' : dict( default=('controller',), help='Services to run', type=tuple ),
+    'plugins'  : dict( default=( ), help='Client plugins to start', type=tuple ),
+    'conffile' : dict( default='lumina.conf', help='Configuration file' ),
+}
 
 
 #===  Become DAEMON
@@ -58,27 +70,41 @@ def daemonize(pidfile):
 
 
 
-
-#===  CONFIG DEFAULTS
-CONFIG = {
-    'services' : dict( default=('controller',), help='Services to run', type=tuple ),
-    'plugins'  : dict( default=( ), help='Client plugins to start', type=tuple ),
-    'conffile' : dict( default='lumina.conf', help='Configuration file' ),
-}
-
-
-
 #===  MAIN function
-def main(configfile):
+def main(args=None):
+
+
+    #==  PARSE ARGS
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-c', '--config', default=None, metavar='CONFIG', help='Read configuration file')
+    if os.name != 'nt':
+        ap.add_argument('--pidfile', default='/var/run/lumid.pid', metavar='FILENAME', help='Set the pidfile')
+        ap.add_argument('--daemon', action='store_true', help='Daemonize application')
+        ap.add_argument('--syslog', action='store_true', default=False, help='Enable syslog logging')
+    opts = ap.parse_args()
+
+
+    #==  DAEMONIZE
+    if os.name != 'nt' and opts.daemon:
+        daemonize(pidfile=opts.pidfile)
+        opts.syslog=True
+
+
+    #==  LOGGING
+    if os.name != 'nt' and opts.syslog:
+        from twisted.python import syslog
+        syslog.startLogging(prefix='Lumina')
+    else:
+        log.startLogging(sys.stdout)
 
 
     #== CONFIGUATION
     config = Config(settings=CONFIG)
 
     # Load new config
-    if configfile:
-        config.readconfig(configfile)
-        config.set('conffile', configfile)
+    if opts.config:
+        config.readconfig(opts.config)
+        config.set('conffile', opts.config)
 
 
     #== SERVICES
@@ -89,9 +115,9 @@ def main(configfile):
     #== MAIN SERVER ROLE
     if 'controller' in services:
 
-        from controller import Controller
-        from logic import Logic
-        from web import Web
+        from .controller import Controller
+        from .logic import Logic
+        from .web import Web
 
         # Main controller
         controller = Controller()
@@ -160,3 +186,8 @@ def main(configfile):
         # Setup for closing the plugin on close
         reactor.addSystemEventTrigger('before','shutdown',plugin.close)
         central.endpoints.append(plugin)
+
+
+    #== START TWISTED
+    log.msg('Server PID: %s' %(os.getpid()), system='-')
+    reactor.run()
