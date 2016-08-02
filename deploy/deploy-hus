@@ -1,0 +1,7 @@
+#!/bin/sh -ex
+
+sudo cp deploy/tellstick.conf /etc/tellstick.conf
+sudo service telldusd restart
+
+sudo cp deploy/lumina-hus.conf /etc/default/lumina
+sudo service lumina restart

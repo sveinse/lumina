@@ -1,0 +1,16 @@
+- /build
+- /lumina.egg-info
+- /.git*
+- /from_*
+- /debian/tmp
+- /debian/python-lumina
+- /debian/lumina
+- /debs-*/
+- /debs/
+- /debian/*debhelper*
+- /debian/*.substvars
+- /debian/files
+- *.pyc
+- *~
+- *.deb
+- *.changes

@@ -1,3 +1,2 @@
-usr/bin/lumina
-usr/lib/python*/*-packages/lumina/*
-usr/share/lumina/*
+usr/lib/*
+usr/bin/*

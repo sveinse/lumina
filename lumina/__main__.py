@@ -142,7 +142,7 @@ def main(args=None):
     #== CLIENT ROLE(S)
     if 'client' in services:
 
-        from client import Client
+        from .client import Client
 
         # Client controller
         client = Client()

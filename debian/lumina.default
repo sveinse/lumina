@@ -1,0 +1,11 @@
+# Default lumina configuration file
+
+# The types of service to run
+SERVICES="controller"
+
+# Controller port
+PORT=8081
+
+# Web server
+WEB_PORT=8080
+WEB_ROOT=/usr/share/lumina/www

@@ -1,3 +1,28 @@
+Notes about my own telldus network
+==================================
+
+To add a new sensor, add to tellstick.conf with the follwing syntax:
+
+    device {
+      id = 200
+      name = "testing"
+      controller = 0
+      protocol = "arctech"
+      model = "codeswitch:nexa"
+      parameters {
+        # devices = ""
+        house = "14244686"
+        unit = "4"
+        # code = ""
+        # system = ""
+        # units = ""
+        # fade = ""
+      }
+    }
+
+Use contrib/telldus/tdtool.py --event to read out the meta data to add above.
+
+
 Listen over kjente telldus kontroll og sensorenheter:
 =====================================================
 

@@ -4,7 +4,9 @@
 # Copyright (C) 2010-2016 Svein Seldal <sveinse@seldal.com>
 #
 
-debfiles=lumina_*.deb python-lumina_*.deb lumina_*.changes
+install-debs=lumina_*.deb python-lumina_*.deb
+debfiles=$(install-debs) lumina_*.changes
+
 
 help:
 	@grep '^\S*:' Makefile
@@ -30,23 +32,12 @@ newversion: version
 	grep -e 'version=' setup.py
 	cat debian/changelog
 
-deploy:
-	$(MAKE) distclean
+deploy::
+	$(MAKE) clean
 	$(MAKE) hus-build hus-install
-	$(MAKE) lys-deploy lys-install
-	$(MAKE) hw50-deploy hw50-install
+	#$(MAKE) lys-deploy lys-install
+	#$(MAKE) hw50-deploy hw50-install
 
-
-# Specific options
-#hus-OPTS=--config=conf/hus.conf
-#lys-OPTS=--config=conf/lys-debug.conf
-#hw50-OPTS=--config=conf/hw50.conf
-
-#lys-HOST=pi@lys.local
-#hw50-HOST=pi@hw50.local
-
-#lys-HOME=/home/pi/lumina-dev/
-#hw50-HOME=/home/pi/lumina-dev/
 
 #
 # REMOTE DEPLOYMENT
@@ -63,15 +54,13 @@ hw50-HOME=/home/pi/lumina-dev
 deploy-from-debs=debs-hus
 
 
-rsync-exclude=--exclude="/debian/lumina" --exclude="/build" --exclude="/lumina.egg-info" --exclude="*.pyc" --exclude="/.git*" --exclude="*~" --exclude="from_*" --exclude="/debian/tmp" --exclude="/debian/python-lumina" --exclude="/debian/lumina" --exclude="/debs-*/" --exclude="/debs/" --exclude="/debian/*debhelper*" --exclude="/debian/*.substvars" --exclude="/debian/files"
-
 define remcmd
 ssh -t $($(1)-HOST) -- /bin/sh -c '$(2)'
 endef
 
 define remote
 $(1)-sync:
-	rsync -av --del -e ssh ./ $($(1)-HOST):$($(1)-HOME) $(rsync-exclude)
+	rsync -av --del -e ssh ./ $($(1)-HOST):$($(1)-HOME) -FF
 #$(1)-run: $(1)-sync
 #	$(call remcmd,$(1),"cd $($(1)-HOME) && exec ./lumid $($(1)-OPTS)")
 #$(1)-test: $(1)-sync
@@ -83,8 +72,15 @@ $(1)-build:
 	rsync -av --del -e ssh $($(1)-HOST):$($(1)-HOME)/debs/* debs-$(1)/
 $(1)-deploy:
 	rsync -av --del -e ssh $(deploy-from-debs)/ $($(1)-HOST):$($(1)-HOME)/debs/
-$(1)-install:
-	$(call remcmd,$(1),"cd $($(1)-HOME)/debs && echo sudo dpkg -i *.deb")
+$(1)-install: $(1)-sync $(1)-deploy
+	$(call remcmd,$(1)," \
+		set -ex; \
+		cd $($(1)-HOME); \
+		( cd debs && sudo dpkg -i $(install-debs) ); \
+		if [ -x 'deploy/deploy-$(1)' ]; then \
+		    deploy/deploy-$(1); \
+		fi \
+	")
 $(1)-distclean:
 	$(call remcmd,$(1),"cd $($(1)-HOME) && make distclean")
 $(1)-wipe:
@@ -108,8 +104,10 @@ $(eval $(call remote,hw50))
 # Cleanups
 clean::
 	dh_clean
+	-(cd contrib/telldus/telldus-core-2.1.2 && dh_clean)
 	rm -rf *.egg-info build
+	rm -f $(foreach f,$(debfiles),../$(f) $(f) debs/$(f) debs-*/$(f))
+	-find debs/ debs-*/ -type d -empty -delete
 
 distclean:: clean
-	rm -rf ../lumina_*.changes ../lumina_*.dsc ../lumina_*.tar.gz ../lumina*.deb ../python-lumina*.deb
-	rm -rf lumina*.changes lumina*.deb python-lumina*.deb debs/ debs-*/
+	rm -rf debs/ debs-*/
