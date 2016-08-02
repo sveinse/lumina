@@ -19,7 +19,7 @@ build::
 	mv $(foreach f,$(debfiles),../$(f)) debs
 
 install:
-	sudo dpkg -i *.deb
+	sudo dpkg -i $(foreach f,$(install-debs),debs/$(f))
 
 version:
 	@head -n 1 debian/changelog | sed -e "s/^.*(\(.*\)).*/\\1/"
@@ -32,26 +32,34 @@ newversion: version
 	grep -e 'version=' setup.py
 	cat debian/changelog
 
-deploy::
-	$(MAKE) clean
-	$(MAKE) hus-build hus-install
-	#$(MAKE) lys-deploy lys-install
-	#$(MAKE) hw50-deploy hw50-install
-
 
 #
 # REMOTE DEPLOYMENT
 # =================
+remotes = hus lys hw50
+
 hus-HOST=svein@hus.local
 hus-HOME=/home/svein/lumina-dev
+hus-deploy-from=debs-hus
 
 lys-HOST=pi@lys.local
 lys-HOME=/home/pi/lumina-dev
+lys-deploy-from=debs-lys
 
-hw50-HOST=pi@lys.local
+hw50-HOST=pi@hw50.local
 hw50-HOME=/home/pi/lumina-dev
+hw50-deploy-from=debs-lys
 
-deploy-from-debs=debs-hus
+
+start:: $(foreach r,$(remotes),$(r)-start)
+stop:: $(foreach r,$(remotes),$(r)-stop)
+sync:: $(foreach r,$(remotes),$(r)-sync)
+
+deploy::
+	$(MAKE) clean
+	$(MAKE) hus-build hus-install
+	$(MAKE) lys-build lys-install
+	$(MAKE) hw50-install
 
 
 define remcmd
@@ -71,16 +79,18 @@ $(1)-build:
 	$(call remcmd,$(1),"cd $($(1)-HOME) && make build")
 	rsync -av --del -e ssh $($(1)-HOST):$($(1)-HOME)/debs/* debs-$(1)/
 $(1)-deploy:
-	rsync -av --del -e ssh $(deploy-from-debs)/ $($(1)-HOST):$($(1)-HOME)/debs/
+	rsync -av --del -e ssh $($(1)-deploy-from)/ $($(1)-HOST):$($(1)-HOME)/debs/
 $(1)-install: $(1)-sync $(1)-deploy
 	$(call remcmd,$(1)," \
 		set -ex; \
 		cd $($(1)-HOME); \
-		( cd debs && sudo dpkg -i $(install-debs) ); \
+		make install; \
 		if [ -x 'deploy/deploy-$(1)' ]; then \
 		    deploy/deploy-$(1); \
 		fi \
 	")
+$(1)-clean:
+	$(call remcmd,$(1),"cd $($(1)-HOME) && make clean")
 $(1)-distclean:
 	$(call remcmd,$(1),"cd $($(1)-HOME) && make distclean")
 $(1)-wipe:
