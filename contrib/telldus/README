@@ -25,6 +25,9 @@ Some old description in getting Telldus up on raspberry Pi:
 How to build and install:
 =========================
 
+Please see the 'build' script which builds the debs. It contains many (but not all) of these
+steps in an automatic script.
+
 1. Download the original source distribution from the debian repo:
 
     * telldus-core_2.1.2-1.dsc
@@ -35,8 +38,8 @@ How to build and install:
     $ sudo nano /etc/apt/sources.list.d/telldus.list
            deb-src http://download.telldus.com/debian/ stable main
     $ sudo wget -q http://download.telldus.se/debian/telldus-public.key -O- | apt-key add -
-    $ sudo apt-get update
-    $ apt-get source telldus
+    $ sudo apt update
+    $ apt source telldus
 
   (or head directly into http://download.telldus.com/debian/pool/stable/)
 
@@ -49,11 +52,12 @@ How to build and install:
 2. Unpack and apply patch
 
    $ dpkg-source -x telldus-core_2.1.2-1.dsc
-   $ patch -p1 <telldus-core_2.1.2-1sveinse1.diff    # <-- FIXME
+   $ cd telldus-core-2.1.2
+   $ patch -p1 <../telldus-core_2.1.2-1sveinse1.diff
 
 3. Install build dependencies
 
-   $ sudo apt-get install cmake doxygen libconfuse-dev libftdi-dev help2man
+   $ sudo apt install build-essential debhelper cmake doxygen libconfuse-dev libftdi-dev help2man
 
 4. Build package
 

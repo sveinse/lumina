@@ -1,7 +1,9 @@
-- /build
-- /lumina.egg-info
 - /.git*
-- /from_*
+- /build
+- /contrib/ola/
+- /contrib/rpi
+- /contrib/telldus/telldus-core-2.1.2*
+- /contrib/telldus/telldus-upstream
 - /debian/tmp
 - /debian/python-lumina
 - /debian/lumina
@@ -10,7 +12,9 @@
 - /debian/*debhelper*
 - /debian/*.substvars
 - /debian/files
+- /from_*
+- /lumina.egg-info
 - *.pyc
 - *~
-- *.deb
-- *.changes
+#- *.deb
+#- *.changes

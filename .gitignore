@@ -6,8 +6,6 @@
 www/*.old
 build/
 debian/tmp/
-debian/lumina-hw50/
-debian/lumina-lys/
 debian/lumina/
 debian/python-lumina/
 debian/files
@@ -16,3 +14,8 @@ debian/*.log
 debian/*.substvars
 debian/debhelper-build-stamp
 lumina.egg-info/
+
+contrib/rpi
+contrib/telldus/telldus-core-2.1.2*
+contrib/telldus/telldus-upstream
+from_*/

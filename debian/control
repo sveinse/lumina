@@ -5,6 +5,7 @@ Priority: optional
 X-Python-Version: >= 2.7
 Build-Depends: python (>= 2.7.3),
                debhelper (>= 7),
+               dh-python,
                python-setuptools
 Standards-Version: 3.9.1
 
@@ -21,7 +22,8 @@ Depends: ${misc:Depends},
          ${python:Depends},
          python-twisted-core,
          python-twisted-web
-Recommends: telldus-core
+Recommends: telldus-core,
+            ola-python
 Description: Python library for home cinema automation controller
  This package provides the python libraries for the home cinema
  automation controller

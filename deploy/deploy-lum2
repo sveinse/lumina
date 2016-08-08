@@ -1,0 +1,4 @@
+#!/bin/sh -ex
+
+sudo cp deploy/lumina-lum2.conf /etc/default/lumina
+sudo service lumina restart

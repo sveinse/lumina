@@ -36,19 +36,19 @@ newversion: version
 #
 # REMOTE DEPLOYMENT
 # =================
-remotes = hus lys hw50
+remotes = hus lum1 lum2
 
 hus-HOST=svein@hus.local
 hus-HOME=/home/svein/lumina-dev
 hus-deploy-from=debs-hus
 
-lys-HOST=pi@lys.local
-lys-HOME=/home/pi/lumina-dev
-lys-deploy-from=debs-lys
+lum1-HOST=pi@lum1.local
+lum1-HOME=/home/pi/lumina-dev
+lum1-deploy-from=debs-lum1
 
-hw50-HOST=pi@hw50.local
-hw50-HOME=/home/pi/lumina-dev
-hw50-deploy-from=debs-lys
+lum2-HOST=pi@lum2.local
+lum2-HOME=/home/pi/lumina-dev
+lum2-deploy-from=debs-lum1
 
 
 start:: $(foreach r,$(remotes),$(r)-start)
@@ -58,8 +58,8 @@ sync:: $(foreach r,$(remotes),$(r)-sync)
 deploy::
 	$(MAKE) clean
 	$(MAKE) hus-build hus-install
-	$(MAKE) lys-build lys-install
-	$(MAKE) hw50-install
+	$(MAKE) lum1-build lum1-install
+	$(MAKE) lum2-install
 
 
 define remcmd
@@ -100,21 +100,20 @@ $(1)-stop:
 $(1)-start:
 	$(call remcmd,$(1),"sudo service lumina start")
 $(1)-logs:
-	$(call remcmd,$(1),"tail -f /var/log/messages")
+	$(call remcmd,$(1),"journalctl -f -u lumina")
 endef
 
 
 # Include the remotes into this makefile
 $(eval $(call remote,hus))
-$(eval $(call remote,lys))
-$(eval $(call remote,hw50))
+$(eval $(call remote,lum1))
+$(eval $(call remote,lum2))
 
 
 
 # Cleanups
 clean::
-	dh_clean
-	-(cd contrib/telldus/telldus-core-2.1.2 && dh_clean)
+	-dh_clean
 	rm -rf *.egg-info build
 	rm -f $(foreach f,$(debfiles),../$(f) $(f) debs/$(f) debs-*/$(f))
 	-find debs/ debs-*/ -type d -empty -delete

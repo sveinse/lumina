@@ -1,0 +1,16 @@
+#!/bin/sh -ex
+
+S=telldus-core_2.1.2-1.dsc
+D=telldus-core-2.1.2
+P=telldus-core_2.1.2-1sveinse1.diff
+
+# To fetch the source files
+#wget http://download.telldus.com/debian/pool/stable/telldus-core_2.1.2-1.dsc
+#wget http://download.telldus.com/debian/pool/stable/telldus-core_2.1.2.orig.tar.gz
+#wget http://download.telldus.com/debian/pool/stable/telldus-core_2.1.2-1.debian.tar.gz
+
+rm -rf $D
+dpkg-source -x $S $D
+cd $D
+patch -p1 <../$P
+dpkg-buildpackage -b -uc -us
