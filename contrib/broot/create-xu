@@ -1,0 +1,126 @@
+#!/bin/bash
+
+ME="$(basename "$0")"
+
+# -- Print usage
+usage () {
+    cat <<EOF
+$ME -- Create XU (armhf Xenial) Image
+(C) 2016 Svein Seldal <sveinse@seldal.com>
+
+This tool creates a Ubuntu armhf Xenial (16.04) Docker image 'broot:xu' and sets
+up a debian build environment.
+
+This tools requests sudo access to be able to generate the armhf boostrap image.
+
+Usage: $ME [OPTIONS]
+
+Options:
+  -h, --help    Print this help
+EOF
+}
+
+
+# -- Parse arguments
+args=()
+while [[ "$#" -gt 0 ]]
+do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 1
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "$ME: Invalid option '$1'"
+            exit 1
+            ;;
+        *)
+            args+=("$1")
+            ;;
+    esac
+    shift
+done
+
+# Catch up any args after -- as well
+while [[ "$#" -gt 0 ]]; do
+    args+=("$1")
+    shift
+done
+
+
+# -- Check remaining arg count
+#if [[ ${#args[@]} -lt 1 ]]; then
+#    usage
+#    echo
+#    echo "$ME: Too few arguments"
+#    exit 1
+#fi
+
+
+# Check permissions
+#if [[ "$(id -u)" != "0" ]]; then
+#    echo "$ME: You don't have sufficient privileges to run this script."
+#    exit 1
+#fi
+
+
+#img="${args[0]}"
+#dir="${args[1]}"
+
+#if [[ ! -e "$img" ]]; then
+#    echo "$ME: $img: No such file or directory"
+#    exit 1
+#fi
+#if [[ -e "$dir" ]]; then
+#    echo "$ME: $dir: Already exists"
+#    exit 1
+#fi
+
+
+cleanup()
+{
+    if [[ "$t" ]]; then
+        sudo rm -rf "$t"
+    fi
+}
+
+interrupt()
+{
+    cleanup
+    exit 1
+}
+
+unset t
+
+# Handle Ctrl+C & friends
+trap interrupt 1 2 3 6 15
+
+
+
+# -------------------------------------------------------------------------
+# Functional code
+
+set -x
+
+t="$(mktemp -d)"
+r="$t/rootfs"
+
+cat "$(dirname "$0")/Dockerfile.xu" | sed \
+    -e "s/\${UID}/$(id -u)/" \
+    -e "s/\${GID}/$(id -g)/" \
+    >$t/Dockerfile
+
+sudo qemu-debootstrap --arch=armhf --variant=minbase --foreign xenial "$r"
+
+sudo cp /usr/bin/qemu-arm-static $r/usr/bin/qemu-arm-static
+
+sudo cp setup-xu $r/tmp/setup-xu
+
+sudo docker build -t broot:xu $t
+
+cleanup
+exit 0

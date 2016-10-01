@@ -1,0 +1,95 @@
+This directory contains various scripts for setting up build roots using Docker.
+
+These build roots are supported:
+
+  1. Native Ubuntu Xenial (16.04)
+  2. Raspberry Pi Raspbian emulated build root
+  3. armhf Ubuntu Xenial (16.04) (tailored for Odroid XU)
+
+
+Setup docker
+------------
+
+To create the docker build image call
+
+    $ ./create-xenial     # <-- Native Ubuntu xenial docker image
+    $ ./create-rpi IMG    # <-- Raspberry Pi image *)
+    $ ./create-xu         # <-- Ubuntu armhf xenial docker image
+
+*) For the rpi target, a SDcard image must be downloaded and
+   unpacked:
+
+   Download image from here:
+
+       https://www.raspberrypi.org/downloads/raspbian/
+
+   Unpack
+
+       $ unzip 2016-05-27-raspbian-jessie-lite.zip
+
+   The resulting file can then be fed into create-rpi
+
+
+
+____________________________________________________________________________
+
+
+To install xenial-root:
+-----------------------
+
+- Install root
+
+    $ sudo qemu-debootstrap --arch=armhf --variant=minbase xenial xenial-root
+
+- Update apt
+
+    xenial-root/etc/apt/sources.list
+
+    deb http://ports.ubuntu.com/ubuntu-ports xenial main universe multiverse restricted
+    deb http://ports.ubuntu.com/ubuntu-ports xenial-updates main universe multiverse restricted
+    deb http://ports.ubuntu.com/ubuntu-ports xenial-security main universe multiverse restricted
+    deb http://ports.ubuntu.com/ubuntu-ports xenial-backports main universe multiverse restricted
+
+- Comment out the preloader (for rpi)
+
+    $ sudo nano rpi-root/etc/ld.so.preloader
+
+- Run target chroot
+
+    $ sudo ./chrun xenial-root
+
+- Ensure no local mods to system can be made (on target)
+
+    dpkg-divert --add --local --divert /usr/sbin/invoke-rc.d.install --rename /usr/sbin/invoke-rc.d
+    dpkg-divert --add --local --divert /sbin/start.install --rename /sbin/start
+    dpkg-divert --add --local --divert /sbin/poweroff.install --rename /sbin/poweroff
+    dpkg-divert --add --local --divert /sbin/reboot.install --rename /sbin/reboot
+    dpkg-divert --add --local --divert /sbin/telinit.install --rename /sbin/telinit
+    dpkg-divert --add --local --divert /sbin/initctl.install --rename /sbin/initctl
+    cp /bin/true /usr/sbin/invoke-rc.d
+    cp /bin/true /sbin/start
+    cp /bin/true /sbin/poweroff
+    cp /bin/true /sbin/reboot
+    cp /bin/true /sbin/telinit
+    cp /bin/true /sbin/initctl
+
+- Update system
+
+    # export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    # export DEBIAN_FRONTEND=noninteractive
+    # apt update
+    # apt dist-upgrade
+
+- Setup local users
+
+    # addgroup --gid 1000 build
+    # adduser --uid 1000 --gid 1000 --shell /bin/bash --gecos "Build User" --disabled-password build
+
+- Get compilation tools
+
+    # apt install build-essential
+
+- Become user when doing compilation
+
+    # su - build     *or*    su - pi
+    $ sudo ./chroot xenial-root -- su - build

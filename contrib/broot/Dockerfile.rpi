@@ -1,0 +1,11 @@
+FROM scratch
+MAINTAINER Svein Seldal <sveinse@seldal.com>
+
+ADD rootfs/ /
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV BROOT=1
+
+RUN /tmp/setup-rpi
+
+CMD ["/bin/bash"]

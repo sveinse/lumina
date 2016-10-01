@@ -3,6 +3,7 @@
 *.deb
 *.changes
 *.tar.gz
+
 www/*.old
 build/
 debian/tmp/
@@ -15,7 +16,6 @@ debian/*.substvars
 debian/debhelper-build-stamp
 lumina.egg-info/
 
-contrib/rpi
-contrib/telldus/telldus-core-2.1.2*
-contrib/telldus/telldus-upstream
-from_*/
+/contrib/rpi
+/contrib/ola
+/from_*/

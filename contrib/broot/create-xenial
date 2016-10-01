@@ -1,0 +1,90 @@
+#!/bin/bash
+
+ME="$(basename "$0")"
+
+# -- Print usage
+usage () {
+    cat <<EOF
+$ME -- Create Ubuntu Xenial (16.04) Image
+(C) 2016 Svein Seldal <sveinse@seldal.com>
+
+This tool creates a Ubuntu Xenial (16.04) Docker image 'broot:xenial' and sets
+up a debian build environment.
+
+Usage: $ME [OPTIONS]
+
+Options:
+  -h, --help    Print this help
+EOF
+}
+
+
+# -- Parse arguments
+args=()
+while [[ "$#" -gt 0 ]]
+do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 1
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "$ME: Invalid option '$1'"
+            exit 1
+            ;;
+        *)
+            args+=("$1")
+            ;;
+    esac
+    shift
+done
+
+# Catch up any args after -- as well
+while [[ "$#" -gt 0 ]]; do
+    args+=("$1")
+    shift
+done
+
+
+cleanup()
+{
+    if [[ "$t" ]]; then
+        rm -rf "$t"
+    fi
+}
+
+interrupt()
+{
+    cleanup
+    exit 1
+}
+
+unset t
+
+# Handle Ctrl+C & friends
+trap interrupt 1 2 3 6 15
+
+
+
+# -------------------------------------------------------------------------
+# Functional code
+
+set -x
+
+t="$(mktemp -d)"
+
+cat "$(dirname "$0")/Dockerfile.xenial" | sed \
+    -e "s/\${UID}/$(id -u)/" \
+    -e "s/\${GID}/$(id -g)/" \
+    >$t/Dockerfile
+
+cp "$(dirname "$0")/setup-xenial" $t/setup-xenial
+
+docker build -t broot:xenial $t
+
+cleanup
+exit 0

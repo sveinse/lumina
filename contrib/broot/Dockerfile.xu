@@ -1,0 +1,13 @@
+FROM scratch
+MAINTAINER Svein Seldal <sveinse@seldal.com>
+
+ADD rootfs/ /
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV USER_UID=${UID}
+ENV USER_GID=${GID}
+ENV BROOT=1
+
+RUN /tmp/setup-xu
+
+CMD ["/bin/bash"]

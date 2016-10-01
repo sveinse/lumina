@@ -1,0 +1,108 @@
+#!/bin/bash
+
+ME="$(basename "$0")"
+
+base="$(realpath "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../..")"
+privileged=
+root=
+
+# -- Print usage
+usage () {
+    cat <<EOF
+$ME -- Run docker image
+(C) 2016 Svein Seldal <sveinse@seldal.com>
+
+This tool runs the docker image 'broot:NAME' and executes the COMMAND and
+optional ARGS. -- can be used to separate the arguments from this tool to
+the COMMANDS arguments. If no COMMAND is given, a shell will be executed.
+
+It maps the project directory
+$base to /build in the image.
+
+Usage: $ME [OPTIONS] NAME [--] [COMMAND [ARGS]]
+
+Options:
+  -h, --help    Print this help
+  --privileged  Give extended privileges to the image (see man docker-run)
+  --root        Run as root. Otherwise, the image is run using the
+                UID and GID of the calling user.
+EOF
+}
+
+
+# -- Parse arguments
+args=()
+while [[ "$#" -gt 0 ]]
+do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 1
+            ;;
+        --privileged)
+            privileged=1
+            ;;
+        --root)
+            root=1
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "$ME: Invalid option '$1'"
+            exit 1
+            ;;
+        *)
+            args+=("$1")
+            ;;
+    esac
+    shift
+done
+
+# Catch up any args after -- as well
+while [[ "$#" -gt 0 ]]; do
+    args+=("$1")
+    shift
+done
+
+
+# -- Check remaining arg count
+if [[ ${#args[@]} -lt 1 ]]; then
+    usage
+    echo
+    echo "$ME: Too few arguments"
+    exit 1
+fi
+
+distro="broot:${args[0]}"
+unset 'args[0]'
+
+dir="$(pwd)"
+case "$dir" in
+    "$base"*)
+        wdir="/build${dir##$base}"
+        ;;
+    *)
+        wdir="/build"
+        ;;
+esac
+
+if [[ ! "$root" ]]; then
+    runas="--user=$(id -u):$(id -g)"
+fi
+if [[ "$privileged" ]]; then
+    priv="--privileged"
+fi
+
+set -x
+exec docker run \
+       --tty=true \
+       --interactive \
+       --rm=true \
+       --volume "$base":/build:rw \
+       --workdir="$wdir" \
+       $runas \
+       $priv \
+       "$distro" \
+       "${args[@]}"
