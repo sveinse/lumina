@@ -27,24 +27,28 @@ EOF
 chmod 4755 /usr/bin/sudo
 
 dpkg -P \
-	raspberrypi-sys-mods \
-        raspberrypi-kernel \
-        raspberrypi-bootloader \
-        libraspberrypi0 \
-        libraspberrypi-bin \
-        libraspberrypi-dev \
-        libraspberrypi-doc \
-        firmware-atheros \
-        firmware-brcm80211 \
-        firmware-libertas \
-        firmware-ralink \
-        firmware-realtek
+    raspberrypi-sys-mods \
+    raspberrypi-kernel \
+    raspberrypi-bootloader \
+    libraspberrypi0 \
+    libraspberrypi-bin \
+    libraspberrypi-dev \
+    libraspberrypi-doc \
+    firmware-atheros \
+    firmware-brcm80211 \
+    firmware-libertas \
+    firmware-ralink \
+    firmware-realtek
 
 # Update installation
 apt-get update
 apt-get dist-upgrade -y
 apt-get install -y \
-        build-essential \
-        debhelper \
-        fakeroot
+    build-essential \
+    debhelper \
+    fakeroot \
+    \
+    python \
+    dh-python \
+    python-setuptools
 apt-get clean
