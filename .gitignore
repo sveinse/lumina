@@ -1,21 +1,12 @@
 *.pyc
 *~
-*.deb
-*.changes
-*.tar.gz
 
-www/*.old
-build/
-debian/tmp/
-debian/lumina/
-debian/python-lumina/
-debian/files
-debian/*.debhelper
-debian/*.log
-debian/*.substvars
-debian/debhelper-build-stamp
-lumina.egg-info/
+/build/
+/build-*/
+/lumina.egg-info/
+/debs/
+/debs-*/
 
-/contrib/rpi
-/contrib/ola
-/from_*/
+# Contrib dirs
+/contrib/ola/
+/contrib/old_machines/

@@ -1,0 +1,186 @@
+
+1. Download image from here:
+
+https://www.raspberrypi.org/downloads/raspbian/
+
+
+2. Unpack and install
+
+   $ unzip 2016-05-27-raspbian-jessie-lite.zip
+   $ sudo dcfldd bs=4M if=2016-05-27-raspbian-jessie-lite.img of=/dev/mmcblk0
+
+
+3. Start on target
+
+
+4. Login
+
+   user: pi
+   password: raspberry
+
+   Become root
+
+
+5. Run raspi-config
+
+   # raspi-config
+
+      - Advanced, update tool to latest
+
+      - Set pi password
+      - Add locale, default en_US.UTF-8
+            en_US.UTF-8
+            nb_NO.UTF-8
+      - Set TZ
+      - Set KBD
+      - Set Wifi country
+      - Set hostname (lum2)
+      - Enable ssh
+      - Enable wait on network (which is default)
+
+
+6. Update
+
+   # apt update
+   # apt dist-upgrade
+
+
+7. Setup WiFi
+
+   # nano /etc/wpa_supplicant/wpa_supplicant.conf
+
+   network={
+        ssid="testing"
+        psk="testingPassword"
+   }
+
+
+8. Install packages
+
+   # apt install rsync
+
+
+9. Update boot config
+
+   # nano /etc/config.txt
+
+   hdmi_group = 1
+   hdmi_mode = 16    # 16=1080p, 4=720p
+   #dtparam=audio=on
+
+
+10. Install pip
+
+   # apt install python-pip
+The following extra packages will be installed:
+  python-chardet python-colorama python-distlib python-html5lib python-ndg-httpsclient python-openssl
+  python-pkg-resources python-pyasn1 python-requests python-setuptools python-six python-urllib3
+  python-wheel
+Suggested packages:
+  python-genshi python-lxml python-openssl-doc python-openssl-dbg python-distribute python-distribute-doc
+  doc-base
+Recommended packages:
+  python-dev-all
+The following NEW packages will be installed:
+  python-chardet python-colorama python-distlib python-html5lib python-ndg-httpsclient python-openssl
+  python-pip python-pkg-resources python-pyasn1 python-requests python-setuptools python-six python-urllib3
+  python-wheel
+0 upgraded, 14 newly installed, 0 to remove and 0 not upgraded.
+Need to get 1,209 kB of archives.
+After this operation, 5,041 kB of additional disk space will be used.
+
+
+
+Get legacy system up:
+=====================
+
+
+lum1 (lys):
+-----------
+
+1. Build and install telldus
+
+$ sudo apt install build-essential cmake doxygen libconfuse-dev libftdi-dev help2man debhelper
+build-essential is already the newest version.
+The following extra packages will be installed:
+  autopoint cmake-data gettext gettext-base intltool-debian libarchive13 libasprintf-dev libasprintf0c2
+  libclang1-3.5 libconfuse-common libconfuse0 libcroco3 libftdi1 libgettextpo-dev libgettextpo0 libllvm3.5
+  liblzo2-2 libmail-sendmail-perl libobjc-4.9-dev libobjc4 libsys-hostname-long-perl libunistring0
+  libusb-dev po-debconf
+Suggested packages:
+  codeblocks eclipse ninja-build dh-make doxygen-latex doxygen-doc doxygen-gui graphviz gettext-doc lrzip
+  libmail-box-perl
+The following NEW packages will be installed:
+  autopoint cmake cmake-data debhelper doxygen gettext gettext-base help2man intltool-debian libarchive13
+  libasprintf-dev libasprintf0c2 libclang1-3.5 libconfuse-common libconfuse-dev libconfuse0 libcroco3
+  libftdi-dev libftdi1 libgettextpo-dev libgettextpo0 libllvm3.5 liblzo2-2 libmail-sendmail-perl
+  libobjc-4.9-dev libobjc4 libsys-hostname-long-perl libunistring0 libusb-dev po-debconf
+0 upgraded, 30 newly installed, 0 to remove and 0 not upgraded.
+Need to get 19,4 MB of archives.
+After this operation, 78,7 MB of additional disk space will be used.
+
+$ dpkg-buildpackage -b -uc -us
+
+$ sudo dpkg -i libtelldus-core2_2.1.2-1sveinse1_armhf.deb telldus-core_2.1.2-1sveinse1_armhf.deb
+
+
+2. Prepare build lumina
+
+$ sudo apt install dh-python debhelper python-setuptools
+The following extra packages will be installed:
+  libmpdec2 libpython3-stdlib libpython3.4-minimal libpython3.4-stdlib python3 python3-minimal python3.4
+  python3.4-minimal
+Suggested packages:
+  python3-doc python3-tk python3-venv python3.4-venv python3.4-doc binfmt-support
+The following NEW packages will be installed:
+  dh-python libmpdec2 libpython3-stdlib libpython3.4-minimal libpython3.4-stdlib python3 python3-minimal
+  python3.4 python3.4-minimal
+0 upgraded, 9 newly installed, 0 to remove and 0 not upgraded.
+Need to get 4 259 kB of archives.
+After this operation, 17,2 MB of additional disk space will be used.
+
+$ sudo apt install python-twisted-core python-twisted-web
+The following extra packages will be installed:
+  python-characteristic python-pam python-pyasn1-modules python-serial python-service-identity
+  python-twisted-bin python-zope.interface
+Suggested packages:
+  python-wxgtk3.0 python-wxgtk python-twisted-bin-dbg python-tk python-gtk2 python-glade2 python-qt3
+Recommended packages:
+  python-idna
+The following NEW packages will be installed:
+  python-characteristic python-pam python-pyasn1-modules python-serial python-service-identity
+  python-twisted-bin python-twisted-core python-twisted-web python-zope.interface
+0 upgraded, 9 newly installed, 0 to remove and 0 not upgraded.
+Need to get 1 544 kB of archives.
+After this operation, 9 743 kB of additional disk space will be used.
+
+
+
+lum2 (hw50):
+------------
+
+1. Prepare install lumina
+
+# apt install python-twisted-core python-twisted-web
+The following extra packages will be installed:
+  python-characteristic python-pam python-pyasn1-modules python-serial python-service-identity
+  python-twisted-bin python-zope.interface
+Suggested packages:
+  python-wxgtk3.0 python-wxgtk python-twisted-bin-dbg python-tk python-gtk2 python-glade2 python-qt3
+Recommended packages:
+  python-idna
+The following NEW packages will be installed:
+  python-characteristic python-pam python-pyasn1-modules python-serial python-service-identity
+  python-twisted-bin python-twisted-core python-twisted-web python-zope.interface
+0 upgraded, 9 newly installed, 0 to remove and 0 not upgraded.
+Need to get 1,544 kB of archives.
+After this operation, 9,743 kB of additional disk space will be used.
+
+
+1. Install ola
+
+# cat >/etc/apt/sources.list.d/ola.list
+deb http://apt.openlighting.org/raspbian wheezy main
+
+# apt update
+# apt install 
