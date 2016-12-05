@@ -29,7 +29,7 @@ rpi-CMD=$(docker) rpi --
 rpi-DEBS=debs-rpi
 
 # --- REMOTE settings
-remotes = hus lum1 lum2
+remotes = hus lum1 lum2 lum3
 
 hus-HOST=svein@hus.local
 hus-PATH=/home/svein/lumina-dev
@@ -42,6 +42,10 @@ lum1-DEBS=$(rpi-DEBS)
 lum2-HOST=pi@lum2.local
 lum2-PATH=/home/pi/lumina-dev
 lum2-DEBS=$(rpi-DEBS)
+
+lum3-HOST=pi@lum3.local
+lum3-PATH=/home/pi/lumina-dev
+lum3-DEBS=$(rpi-DEBS)
 
 
 #
@@ -130,7 +134,7 @@ $(1)-logs:
 $(1)-build: $($(1)-DEBS)
 
 # Installation
-$(1)-install: $(1)-build $(1)-push
+$(1)-install: $(1)-push
 	$(call remotecmd,$(1),"sudo dpkg -i $($(1)-PATH)/$($(1)-DEBS)/*.deb")
 $(1)-deploy: $(1)-install
 	$(call remotecmd,$(1)," \

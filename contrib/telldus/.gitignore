@@ -1,3 +1,4 @@
-/build-*
-/telldus-core-*
-/telldus-upstream
+/build-*/
+/old/
+/orig/
+/telldus-upstream/

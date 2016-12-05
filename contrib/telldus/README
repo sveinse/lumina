@@ -81,3 +81,23 @@ steps in an automatic script.
    or
 
    $ tdtool.py --dimlevel 255 --dim 105
+
+
+
+How to build in a broot/docker setup
+====================================
+
+0. Setup broot. See ../broot/README
+
+1. Build telldus using the broot build target:
+
+   $ ../broot/run-docker rpi -- ./build -b build-rpi
+
+2. Copy files to target machine
+
+   $ scp build-rpi/*.deb USER@MACINE:PATH
+
+3. Log into the server and install the packages
+
+   $ sudo dpkg -i telldus-core_*.deb libtelldus-core2_*.deb
+   $ sudo apt-get -f install

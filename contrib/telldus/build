@@ -1,16 +1,114 @@
-#!/bin/sh -ex
+#!/bin/bash
 
-S=telldus-core_2.1.2-1.dsc
-D=telldus-core-2.1.2
-P=telldus-core_2.1.2-1sveinse1.diff
+ME="$(basename "$0")"
 
-# To fetch the source files
+# To fetch the original source files
 #wget http://download.telldus.com/debian/pool/stable/telldus-core_2.1.2-1.dsc
 #wget http://download.telldus.com/debian/pool/stable/telldus-core_2.1.2.orig.tar.gz
 #wget http://download.telldus.com/debian/pool/stable/telldus-core_2.1.2-1.debian.tar.gz
 
+S=telldus-core_2.1.2-1sveinse1.dsc
+D=telldus-core-2.1.2
+bdir=
+
+# -------------------------------------------------------------------------
+
+# -- Print usage
+usage () {
+    cat <<EOF
+$ME --
+(C) 2016 Svein Seldal <sveinse@seldal.com>
+
+Usage: $ME [dpkg-buildpackage args...]
+
+Options:
+  -b DIR, --build DIR  Build in DIR
+  -h, --help           Print this help
+EOF
+}
+
+# -- Parse arguments
+args=()
+while [[ "$#" -gt 0 ]]
+do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 1
+            ;;
+        -b|--build)
+            bdir="$2"
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "$ME: Invalid option '$1'"
+            exit 1
+            ;;
+        *)
+            args+=("$1")
+            ;;
+    esac
+    shift
+done
+
+# Catch up any args after -- as well
+while [[ "$#" -gt 0 ]]; do
+    args+=("$1")
+    shift
+done
+
+# -------------------------------------------------------------------------
+
+# Get Build-Depends and list of Files from .dsc file (given by $S)
+files=("$S")
+while IFS='' read -r l; do
+    case "$l" in
+        'Build-Depends:'*)
+            bdep="${l##Build-Depends: }"
+            build_deps="$(echo "$bdep" | sed -e 's/ *\(([^)]*)\)*, */ /g')"
+            ;;
+        Files:)
+            in_files=1
+            ;;
+        ' '*)
+            if [[ "$in_files" ]]; then
+                file="${l##* }"
+                files+=("$file")
+            fi
+            ;;
+        *)
+            in_files=
+            ;;
+    esac
+done <$S
+
+# -------------------------------------------------------------------------
+
+# Create build dir and symlink the sources from it
+if [[ "$bdir" ]]; then
+    echo "$ME: Setting up build in $bdir"
+    mkdir -p "$bdir"
+    src="$PWD"
+    cd "$bdir"
+    for f in "${files[@]}"; do
+        rm -f "$f"
+        ln -s "$src/$f" "$f"
+    done
+fi
+
+set -ex
+
+# Build depends (for Docker instances)
+if [[ "$BROOT" ]]; then
+    sudo apt install -y $build_deps
+fi
+
+# Do the build
 rm -rf $D
 dpkg-source -x $S $D
 cd $D
-patch -p1 <../$P
-dpkg-buildpackage -b -uc -us
+dpkg-buildpackage -b -uc -us "${args[@]}"
