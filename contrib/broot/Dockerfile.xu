@@ -3,10 +3,11 @@ MAINTAINER Svein Seldal <sveinse@seldal.com>
 
 ADD rootfs/ /
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV USER_UID=${UID}
-ENV USER_GID=${GID}
-ENV BROOT=1
+ENV \
+    DEBIAN_FRONTEND=noninteractive \
+    USER_UID=${UID} \
+    USER_GID=${GID} \
+    BROOT=1
 
 RUN /tmp/setup-xu
 

@@ -10,11 +10,11 @@ These build roots are supported:
 Setup docker
 ------------
 
-To create the docker build image call
+To build the docker build images call
 
-    $ ./create-xenial     # <-- Native Ubuntu xenial docker image
-    $ ./create-rpi IMG    # <-- Raspberry Pi image *)
-    $ ./create-xu         # <-- Ubuntu armhf xenial docker image
+    $ ./build-xenial     # <-- Native Ubuntu xenial docker image
+    $ ./build-rpi IMG    # <-- Raspberry Pi image *)
+    $ ./build-xu         # <-- Ubuntu armhf xenial docker image
 
 *) For the rpi target, a SDcard image must be downloaded and
    unpacked:
@@ -60,18 +60,17 @@ To install xenial-root:
 
 - Ensure no local mods to system can be made (on target)
 
-    dpkg-divert --add --local --divert /usr/sbin/invoke-rc.d.install --rename /usr/sbin/invoke-rc.d
-    dpkg-divert --add --local --divert /sbin/start.install --rename /sbin/start
-    dpkg-divert --add --local --divert /sbin/poweroff.install --rename /sbin/poweroff
-    dpkg-divert --add --local --divert /sbin/reboot.install --rename /sbin/reboot
-    dpkg-divert --add --local --divert /sbin/telinit.install --rename /sbin/telinit
-    dpkg-divert --add --local --divert /sbin/initctl.install --rename /sbin/initctl
-    cp /bin/true /usr/sbin/invoke-rc.d
-    cp /bin/true /sbin/start
-    cp /bin/true /sbin/poweroff
-    cp /bin/true /sbin/reboot
-    cp /bin/true /sbin/telinit
-    cp /bin/true /sbin/initctl
+     for fn in \
+         /usr/sbin/invoke-rc.d \
+         /sbin/start \
+         /sbin/poweroff \
+         /sbin/reboot \
+         /sbin/initctl \
+         /sbin/telinit \
+         ; do \
+            dpkg-divert --add --local --divert ${fn}.install --rename ${fn}; \
+            cp /bin/true ${fn}; \
+     done
 
 - Update system
 

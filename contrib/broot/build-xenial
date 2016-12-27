@@ -5,10 +5,10 @@ ME="$(basename "$0")"
 # -- Print usage
 usage () {
     cat <<EOF
-$ME -- Create Ubuntu Xenial (16.04) Image
+$ME -- Build Ubuntu Xenial (16.04) Image
 (C) 2016 Svein Seldal <sveinse@seldal.com>
 
-This tool creates a Ubuntu Xenial (16.04) Docker image 'broot:xenial' and sets
+This tool builds a Ubuntu Xenial (16.04) Docker image 'broot:xenial' and sets
 up a debian build environment.
 
 Usage: $ME [OPTIONS]
@@ -67,7 +67,6 @@ unset t
 
 # Handle Ctrl+C & friends
 trap interrupt 1 2 3 6 15
-
 
 
 # -------------------------------------------------------------------------

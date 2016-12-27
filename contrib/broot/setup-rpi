@@ -1,19 +1,6 @@
 #!/bin/bash -ex
 # Target setup-tools for Raspbian
 
-# Ensure no services will try to affect the host machine, so override all such tools
-#for fn in \
-#    /usr/sbin/invoke-rc.d \
-#    /sbin/start \
-#    /sbin/poweroff \
-#    /sbin/reboot \
-#    /sbin/initctl \
-#    /sbin/telinit \
-#    ; do
-#    dpkg-divert --add --local --divert ${fn}.install --rename ${fn}
-#    cp /bin/true ${fn}
-#done
-
 cat >/etc/apt/apt.conf.d/99_norecommends <<EOF
 APT {
 	Install-Recommends "0";

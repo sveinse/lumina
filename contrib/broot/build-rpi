@@ -5,10 +5,10 @@ ME="$(basename "$0")"
 # -- Print usage
 usage () {
     cat <<EOF
-$ME -- Create Raspberry Pi (Rasbian Jessie) Docker image
+$ME -- Build Raspberry Pi (Rasbian Jessie) Docker image
 (C) 2016 Svein Seldal <sveinse@seldal.com>
 
-This tool creates a Raspbian Jessie Docker image 'broot:rpi' and sets up
+This tool builds a Raspbian Jessie Docker image 'broot:rpi' and sets up
 a debian build environment. It copies the installation from the given
 SDCARD_IMAGE, which must be an uncompressed image, not zipped.
 

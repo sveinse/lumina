@@ -1,19 +1,6 @@
 #!/bin/bash -ex
 # Target setup-tools for XU
 
-# Ensure no services will try to affect the host machine, so override all such tools
-#for fn in \
-#    /usr/sbin/invoke-rc.d \
-#    /sbin/start \
-#    /sbin/poweroff \
-#    /sbin/reboot \
-#    /sbin/initctl \
-#    /sbin/telinit \
-#    ; do
-#    dpkg-divert --add --local --divert ${fn}.install --rename ${fn}
-#    cp /bin/true ${fn}
-#done
-
 addgroup --gid ${USER_GID} build
 adduser --uid ${USER_UID} --gid ${USER_GID} --shell /bin/bash --gecos "Build User" --disabled-password build
 

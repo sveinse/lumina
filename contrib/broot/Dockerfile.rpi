@@ -3,8 +3,9 @@ MAINTAINER Svein Seldal <sveinse@seldal.com>
 
 ADD rootfs/ /
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV BROOT=1
+ENV \
+    DEBIAN_FRONTEND=noninteractive \
+    BROOT=1
 
 RUN /tmp/setup-rpi
 
