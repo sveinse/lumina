@@ -1,12 +1,17 @@
 # -*- python -*-
+from __future__ import absolute_import
+
 import re
 import json
 from twisted.python import log
 
-from exceptions import *
+from .exceptions import *
+from .log import *
 
 
-id = 0
+# Global unique sequence number
+seq = 0
+
 
 class MyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -29,7 +34,6 @@ class Event(object):
            'nul{arg1=foo,arg2=bar}'
            'nul{arg1=foo,arg2=bar,5}'
     '''
-    #def __init__(self, name=None, *args, **kw):
     def __init__(self, name=None, *args):
         # Event data
         self.name = name
@@ -40,8 +44,8 @@ class Event(object):
         self.success = None  # Callback successful. True or False execution has occurred
         self.result = None   # Callback command result
 
-        # Event network ID metas
-        self.id = None       # Network sequence number for transport
+        # Event network seq metas
+        self.seq = None       # Network sequence number for transport
 
 
     def __repr__(self):
@@ -51,7 +55,8 @@ class Event(object):
         else:
             s = [ '...%s args...' %(len(self.args)) ]
         if self.success is not None:
-            s.append('*%s: %s' %(self.success,self.result))
+            s.append(' s=%s,r=%s' %(self.success,self.result))
+        s.append(' ' + hex(id(self)))
         if s:
             t='{' + ','.join(s) + '}'
         return "%s%s" %(self.name,t)
@@ -65,12 +70,13 @@ class Event(object):
         return o
 
 
-    def gen_id(self):
-        # Set the sequence id
-        global id
-        id = self.id = id+1
-    def del_id(self):
-        self.id = None
+    def gen_seq(self):
+        # Set the sequence seq
+        global seq
+        seq = self.seq = seq+1
+    def del_seq(self):
+        log("Cleanup")
+        self.seq = None
 
 
     def to_json(self):
@@ -78,9 +84,9 @@ class Event(object):
             'name': self.name,
             'args': self.args,
         }
-        if self.id is not None:
+        if self.seq is not None:
             js.update( {
-                'id': self.id,
+                'seq': self.seq,
             } )
         if self.success is not None:
             js.update( {
@@ -101,10 +107,10 @@ class Event(object):
         self.name = d.get('name')
         self.args = d.get('args',[])
         self.success = d.get('success')
-        self.id = d.get('id')
+        self.seq = d.get('seq')
 
         result = d.get('result')
-        if isinstance(result,dict) and 'id' in result:
+        if isinstance(result,dict) and 'seq' in result:
             result = Event().load_dict(result)
         self.result = result
 
@@ -172,31 +178,9 @@ class Event(object):
         return self
 
 
-    def cmd_ok(self,result):
-        self.success = True
-        self.result = result
-        #log.msg("    %s: %s" %(self.name,result), system=self.system)
-        return self
+    #----- HELPER METHODS ------
 
-
-    def cmd_error(self,failure):
-        cls = failure.value.__class__.__name__
-        text = str(failure.value)
+    def set_fail(self,exc):
+        ''' Set event command state to fail '''
         self.success = False
-        self.result = (cls,text)
-        log.msg("    %s FAILED: %s [%s]" %(self.name,text,cls), system=self.system)
-
-        if not failure.check(CommandException):
-            if not failure.check(UnknownCommandException):
-                log.msg(failure.getTraceback(), system=self.system)
-            return failure
-
-
-    def cmd_except(self,exc):
-        ''' Save the error into the command object '''
-        cls = exc.__class__.__name__
-        text = exc.message
-        self.success = False
-        self.result = (cls,text)
-        log.msg("    %s FAILED: %s [%s]" %(self.name,text,cls), system=self.system)
-        log.err(system=self.system)
+        self.result = (exc.__class__.__name__,str(exc.message))

@@ -1,10 +1,11 @@
 # -*- python -*-
-import os,sys
-from log import *
+from __future__ import absolute_import
 
+import os
+import sys
 
-class ConfigException(Exception):
-    pass
+from .log import *
+from .exceptions import *
 
 
 
@@ -14,12 +15,14 @@ class Config(object):
         self.c = { }
         self.fileconf = { }
         if settings is not None:
-            self.amend(settings)
+            self.register(settings)
 
 
-    def amend(self,settings):
-        ''' Amend new configuration settings to the config class '''
+    def register(self,settings,name=None):
+        ''' Register new configuration settings to the config class '''
         for (k,v) in settings.items():
+            if name:
+                k = name + '.' + k
             e = self.c.get(k, {})
             e.update(v)
             self.c[k] = e
@@ -48,6 +51,13 @@ class Config(object):
             self.c[k]['value'] = v
             return
         raise KeyError(k)
+
+
+    def get(self,k,name=None):
+        if name:
+            return self[name + '.' + k]
+        else:
+            return self[k]
 
 
     def getall(self):

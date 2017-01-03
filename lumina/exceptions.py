@@ -1,4 +1,6 @@
 # -*- python -*-
+from __future__ import absolute_import
+
 
 class LuminaException(Exception):
     ''' Base exception class for Lumina '''
@@ -22,3 +24,7 @@ class UnknownCommandException(CommandException):
 
 class ClientException(LuminaException):
     ''' Unknown error received from client '''
+
+
+class ConfigException(LuminaException):
+    ''' Errors related to configuration '''

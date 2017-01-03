@@ -5,20 +5,12 @@ import os
 import sys
 import atexit
 import argparse
-from importlib import import_module
+import setproctitle
 from twisted.python import log
 from twisted.internet import reactor
 
-from .config import Config
+from .lumina import Lumina
 
-
-
-#===  CONFIG DEFAULTS
-CONFIG = {
-    'services' : dict( default=('controller',), help='Services to run', type=tuple ),
-    'plugins'  : dict( default=( ), help='Client plugins to start', type=tuple ),
-    'conffile' : dict( default='lumina.conf', help='Configuration file' ),
-}
 
 
 #===  Become DAEMON
@@ -84,6 +76,10 @@ def main(args=None):
     opts = ap.parse_args()
 
 
+    #==  SET PROC TITLE
+    setproctitle.setproctitle('lumina')
+
+
     #==  DAEMONIZE
     if os.name != 'nt' and opts.daemon:
         daemonize(pidfile=opts.pidfile)
@@ -98,94 +94,10 @@ def main(args=None):
         log.startLogging(sys.stdout)
 
 
-    #== CONFIGUATION
-    config = Config(settings=CONFIG)
-
-    # Load new config
-    if opts.config:
-        config.readconfig(opts.config)
-        config.set('conffile', opts.config)
-
-
-    #== SERVICES
-    services = config['services']
-    central = None
-
-
-    #== MAIN SERVER ROLE
-    if 'controller' in services:
-
-        from .controller import Controller
-        from .logic import Logic
-        from .web import Web
-
-        # Main controller
-        controller = Controller()
-        config.amend(controller.CONFIG)
-        controller.setup(config=config)
-
-        # Logic/rules handler (FIXME)
-        logic = Logic()
-        logic.setup()
-        controller.add_jobs(logic.jobs)
-        controller.add_commands(logic.alias)
-
-        # Web server
-        web = Web()
-        config.amend(web.CONFIG)
-        web.setup(controller, config=config)
-
-        # Set the controller as the plugin central
-        central = controller
-
-
-    #== CLIENT ROLE(S)
-    if 'client' in services:
-
-        from .client import Client
-
-        # Client controller
-        client = Client()
-        config.amend(client.CONFIG)
-        client.setup(config=config)
-
-        # Set the client as the plugin central
-        central = client
-
-
-    #== PLUGINS
-    for name in config['plugins']:
-
-        # Ignore empty plugin names
-        name = name.strip()
-        if not len(name):
-            continue
-
-        # No plugins if we don't have a central
-        if not central:
-            log.msg("No central to register %s to" %(name), system='-')
-            continue
-
-        # Load module and find main object
-        log.msg("Loading plugin %s" %(name), system=central.system)
-
-        plugin = import_module('lumina.plugins.' + name).PLUGIN()
-
-        log.msg("===  Registering endpoint %s" %(plugin.name), system=central.system)
-
-        # Setup events and commands. configure() sets the plugins events and commands
-        plugin.configure()
-        plugin.add_eventcallback(central.handle_event)
-        central.add_events(plugin.get_events())
-        central.add_commands(plugin.get_commands())
-
-        # Register settings and prepare the plugin to run
-        config.amend(plugin.CONFIG)
-        plugin.setup(config=config)
-
-        # Setup for closing the plugin on close
-        reactor.addSystemEventTrigger('before','shutdown',plugin.close)
-        central.endpoints.append(plugin)
+    #== MAIN
+    #   This will load the plugins and set them up
+    main = Lumina()
+    main.setup(conffile=opts.config)
 
 
     #== START TWISTED
