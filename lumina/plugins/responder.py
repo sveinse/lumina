@@ -9,24 +9,13 @@ from ..plugin import Plugin
 from ..exceptions import *
 from ..log import *
 
+# Import responder rules from separate file
+from .rules import alias,jobs
+
 
 # FIXME: Add this as config statements
 MAX_DEPTH = 10
 DEFAULT_TIMEOUT = 10
-
-
-# Named functions commands
-# ========================
-alias = {
-    # Command -> ( list of 'commands' )
-}
-
-# Event responses
-# ===============
-#   Lists the responses to received events
-jobs = {
-    # Event -> Action
-}
 
 
 
@@ -35,6 +24,7 @@ class Responder(Plugin):
 
 
     def setup(self, main):
+        self.system = self.name
 
         self.alias = alias.copy()
         self.jobs = jobs.copy()
@@ -57,19 +47,19 @@ class Responder(Plugin):
         # Find the job for the given event
         job = self.jobs.get(event.name,None)
         if job is None:
-            log("Ignoring event '%s'" %(event), system=self.name)
-            log("  --:  Ignored", system=self.name)
+            log("Ignoring event '%s'" %(event), system=self.system)
+            log("  --:  Ignored", system=self.system)
             return
 
         # Make a job object and its parse args and run it
-        #log("Event '%s' received" %(event), system=self.name)
+        #log("Event '%s' received" %(event), system=self.system)
         command = Event().load_str(job, parseEvent=event)
-        log("Event '%s' -> '%s'" %(event,command), system=self.name)
+        log("Event '%s' -> '%s'" %(event,command), system=self.system)
         return self.run_command(command)
 
 
     def run_command(self, command):
-        log("  --:  Running '%s'" %(command), system=self.name)
+        log("  --:  Running '%s'" %(command), system=self.system)
         return self.run_commandlist(command, self.get_commandlist(command))
 
 
@@ -102,7 +92,7 @@ class Responder(Plugin):
                 ev = Event().load_str(cmd, parseEvent=command)
             except Exception as e:
                 raise CommandParseException("Command parsing failed: %s" %(e) )
-            ev.system = command.system   # To override log system
+            #ev.system = command.system   # To override log system
 
             # Iterate over the found commands to check if they too are aliases
             commandlist += self.get_commandlist(ev,depth=depth+1)
@@ -118,7 +108,7 @@ class Responder(Plugin):
         #    raise CommandRunException("'%s' error: Nothing to run" %(command.name))
 
         # Compile a list of all the events which is going to be run (for printing)
-        log("  --:    %s" %(commandlist), system=self.name)
+        log("  --:    %s" %(commandlist), system=self.system)
         if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
             #command.result = None
             #else:
@@ -131,7 +121,7 @@ class Responder(Plugin):
                          consumeErrors=True, fireOnOneErrback=True)
 
         def list_ok(result, command, commandlist):
-            logcmdok(commandlist, system=self.name)
+            logcmdok(commandlist, system=self.system)
             # Update the success variable with the number of successful commands
             # if len(command.result) == command.success then all succeeded
             if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
@@ -139,7 +129,7 @@ class Responder(Plugin):
             return command
 
         def list_error(failure, command, commandlist):
-            logcmderr(commandlist, system=self.name)
+            logcmderr(commandlist, system=self.system)
             # Update the success variable with the number of successful commands
             if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
                 command.success = [ c.success for c in commandlist ].count(True)

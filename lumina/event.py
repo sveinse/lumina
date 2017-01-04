@@ -3,6 +3,7 @@ from __future__ import absolute_import
 
 import re
 import json
+import shlex
 from twisted.python import log
 
 from .exceptions import *
@@ -23,7 +24,6 @@ class MyEncoder(json.JSONEncoder):
 
 
 class Event(object):
-    system = 'EVENT'
 
     ''' Event object.
            event = Event(name,*args,**kw)
@@ -138,8 +138,18 @@ class Event(object):
         return "%s%s" %(self.name,t)
 
 
-    def load_str(self, s, parseEvent=None):
+    def load_str(self, s, parseEvent=None, shell=False):
         s=s.encode('ascii')
+
+        # Support shell-like command parsing
+        if shell:
+            l = shlex.split(s)
+            if not len(l):
+                return self
+            self.name = l[0]
+            self.args = l[1:]
+            return self
+
         m = re.match(r'^([^{}]+)({(.*)})?$', s)
         if not m:
             raise SyntaxError("Invalid syntax '%s'" %(s))

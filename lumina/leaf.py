@@ -21,7 +21,7 @@ class LeafProtocol(LineReceiver):
 
     def __init__(self, parent):
         self.parent = parent
-        self.system = parent.name
+        self.system = parent.system
 
 
     def connectionMade(self):
