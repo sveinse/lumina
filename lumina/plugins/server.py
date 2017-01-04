@@ -258,16 +258,11 @@ class ServerProtocol(LineReceiver):
 
         write = self.transport.write
         def reply(data):
-            write('>>>  ' + data + '\n')
-        def raw_reply(reply,cls,event):
-            if not isinstance(reply.success,bool):
-                (result,reply.result)=(reply.result,'(...)')
-                for r in result:
-                    cls.transport.write("     %s\n" %(str(r),))
-            reply(str(reply))
-        def raw_error(failure,cls,event):
-            reply("%s FAILED: %s %s\n" %(
-                event.name,failure.value.__class__.__name__,str(failure.value)))
+            write(('>>>  ' + data + '\n').encode('UTF-8'))
+        def raw_reply(result,event):
+            reply("SUCCESS: %s" %(event))
+        def raw_error(failure,event):
+            reply("FAILED: %s" %(event))
 
         cmd = event.name
         c = cmd[0]
@@ -276,12 +271,12 @@ class ServerProtocol(LineReceiver):
                 # Interpret as command
                 event.name = cmd[1:]
                 d=self.parent.run_command(event)
-                d.addCallback(raw_reply, self, event)
-                d.addErrback(raw_error, self, event)
+                d.addCallback(raw_reply, event)
+                d.addErrback(raw_error, event)
                 return
 
             elif c == '*':
-                # Interpret as event, continue calling function by returning True
+                # Interpret as event, use ordinary event parser by returning True
                 event.name = cmd[1:]
                 return True
 

@@ -55,10 +55,11 @@ class Event(object):
         else:
             s = [ '...%s args...' %(len(self.args)) ]
         if self.success is not None:
-            s.append(' s=%s,r=%s' %(self.success,self.result))
-        s.append(' ' + hex(id(self)))
-        if s:
-            t='{' + ','.join(s) + '}'
+            s.append('<%s,%s>' %(self.success,self.result))
+        # Uncomment this to print the id of the object
+        #s.append(' ' + hex(id(self)))
+        #if s:
+        t='{' + ','.join(s) + '}'
         return "%s%s" %(self.name,t)
 
 
