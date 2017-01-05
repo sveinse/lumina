@@ -55,7 +55,7 @@ class LeafProtocol(LineReceiver):
 
         # -- Flush any queue that might have been accumulated before
         #    connecting to the controller
-        self.parent._send()
+        self.parent.send_next()
 
 
     def connectionLost(self, reason):
@@ -173,19 +173,21 @@ class Leaf(Plugin):
     def send(self, event):
         # Queue it here rather than in the procol, as the procol object is created
         # when the connection to the controller is made
+
+        # FIXME: Return deferred object here?
         self.queue.append(event)
         if self.protocol is None:
             log("%s  --  Not connected to server, queueing" %(event), system=self.system)
 
         # Attempt sending the message
-        self._send()
+        self.send_next()
 
 
-    def _send(self):
+    def send_next(self):
         ''' Send the next event(s) in the queue '''
 
         if self.protocol is None:
-            return None
+            return
         while(len(self.queue)):
             event = self.queue.pop(0)
             self.protocol.send(event)
@@ -200,25 +202,18 @@ class Leaf(Plugin):
         # FIXME: Add proper unknown_command logic
         d = maybeDeferred(self.commands.get(event.name, _unknown_command), event)
 
-        # FIXME: Add config setting for logcmdok/logcmderr
+        # FIXME: Add config setting to enable/disable logcmdok/logcmderr
+
+        # FIXME: Implement a timeout mechanism here?
 
         # -- Setup filling in the event data from the result
         def cmd_ok(result,event):
-            event.success = True
-            if isinstance(result,Event):
-                event.result = result.result
-            else:
-                event.result = result
+            event.set_success(result)
             logcmdok(event, system=self.system)
             return result
 
         def cmd_error(failure,event):
-            # Build an error response containing a tuple of
-            # (exception class name,failure text)
-            cls = failure.value.__class__.__name__
-            text = str(failure.value)
-            event.success = False
-            event.result = (cls,text)
+            event.set_fail(failure)
             logcmderr(event, system=self.system)
 
             # FIXME: What failures should be excepted and not passed on?

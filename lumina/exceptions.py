@@ -28,3 +28,7 @@ class ClientException(LuminaException):
 
 class ConfigException(LuminaException):
     ''' Errors related to configuration '''
+
+
+class NoConnectionException(LuminaException):
+    ''' Connection errors '''

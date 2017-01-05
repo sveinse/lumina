@@ -5,26 +5,22 @@ import re
 import json
 import shlex
 from twisted.python import log
+from twisted.python.failure import Failure
 
 from .exceptions import *
 from .log import *
 
 
-# Global unique sequence number
-seq = 0
-
-
 class MyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj,Event):
-            obj = obj.to_json()
+            obj = obj._json_encoder()
         else:
             obj = super(MyEncoder, self).default(obj)
         return obj
 
 
 class Event(object):
-
     ''' Event object.
            event = Event(name,*args,**kw)
 
@@ -34,13 +30,13 @@ class Event(object):
            'nul{arg1=foo,arg2=bar}'
            'nul{arg1=foo,arg2=bar,5}'
     '''
+
     def __init__(self, name=None, *args):
         # Event data
         self.name = name
         self.args = args[:]
 
         # Event execution metas
-        self.fn = None       # Callback function
         self.success = None  # Callback successful. True or False execution has occurred
         self.result = None   # Callback command result
 
@@ -71,16 +67,10 @@ class Event(object):
         return o
 
 
-    def gen_seq(self):
-        # Set the sequence seq
-        global seq
-        seq = self.seq = seq+1
-    def del_seq(self):
-        log("Cleanup")
-        self.seq = None
+    #----- IMPORT and EXPORT functions ------
 
-
-    def to_json(self):
+    def _json_encoder(self):
+        ''' Internal JSON encoder '''
         js = {
             'name': self.name,
             'args': self.args,
@@ -97,11 +87,10 @@ class Event(object):
         return js
 
 
-    def dump_json(self):
-        return json.dumps(self, cls=MyEncoder)
-
+    # -- dict import/export
 
     def load_dict(self,d):
+        ''' Load the data from a dict '''
         self.name = d.get('name')
         if self.name is None:
             raise ValueError("Missing event name")
@@ -111,20 +100,30 @@ class Event(object):
         self.seq = d.get('seq')
 
         result = d.get('result')
+
+        # FIXME: What does this do?
         if isinstance(result,dict) and 'seq' in result:
             result = Event().load_dict(result)
+
         self.result = result
 
         return self
 
 
+    # -- JSON import/export
+
+    def dump_json(self):
+        ''' Return a json representation of the instance data '''
+        return json.dumps(self, cls=MyEncoder)
+
     def load_json(self, s):
+        ''' Load the data from a json string '''
         js = json.loads(s,encoding='ascii')
         self.load_dict(js)
         return self
 
-
     def load_json_args(self, s):
+        ''' Load args from a json string '''
         if len(s):
             self.args = json.loads(s,encoding='ascii')
         else:
@@ -132,7 +131,11 @@ class Event(object):
         return self
 
 
+    # -- String import/export
+
+    # Unused it seems
     def dump_str(self):
+        ''' Dump the data a string '''
         (s,t) = ([str(a) for a in self.args],'')
         if s:
             t='{' + ','.join(s) + '}'
@@ -140,6 +143,7 @@ class Event(object):
 
 
     def load_str(self, s, parseEvent=None, shell=False):
+        ''' Load the data from a string '''
         s=s.encode('ascii')
 
         # Support shell-like command parsing
@@ -189,9 +193,52 @@ class Event(object):
         return self
 
 
-    #----- HELPER METHODS ------
+    #----- SEQUENCE NUMBERS ------
+
+    # Sequence number stored as class attribute
+    __seq = 0
+
+    def gen_seq(self):
+        Event.__seq += 1
+        seq = self.seq = Event.__seq
+        return seq
+
+    # Unused it seems
+    #def del_seq(self):
+    #    self.seq = None
+
+
+    #----- EXECUTION ------
+
+    #def reset(self):
+    #    self.success = None
+    #    self.result = None
+
+
+    def set_success(self,result):
+        ''' Set event commant to succeed '''
+        self.success = True
+        if isinstance(result,Event):
+            self.result = result.result
+        else:
+            self.result = result
+
 
     def set_fail(self,exc):
         ''' Set event command state to fail '''
+        # If this is run in the scope of an errback, exc will be a Failure object which
+        # contains the actual exception in exc.value
+        if isinstance(exc,Failure):
+            (failure,exc) = (exc,exc.value)
         self.success = False
         self.result = (exc.__class__.__name__,str(exc.message))
+
+
+    #----- DEFERRED ------
+
+    #def get_defer(self):
+    #    if self.defer:
+    #        return self.defer
+    #
+    #    self.defer = Deferred()
+    #    return self.defer

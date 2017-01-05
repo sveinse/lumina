@@ -11,6 +11,7 @@ from ..plugin import Plugin
 from ..event import Event
 from ..exceptions import *
 from ..log import *
+from lumina import utils
 
 
 # FIXME: Add this as a config statement
@@ -58,9 +59,10 @@ class ServerProtocol(LineReceiver):
 
     def connectionLost(self, reason):
         log("Lost connection from '%s' (%s)" %(self.name,self.ip), system=self.system)
-        #if len(self.events):
-        #    log("De-registering %s events" %(len(self.events)), system=self.system)
-        #    self.parent.remove_events(self.events)
+        if len(self.events):
+            log("De-registering %s events" %(len(self.events)), system=self.system)
+            # FIXME: Handle exceptions from parent
+            self.parent.remove_events(self.events)
         if len(self.commands):
             log("De-registering %s commands" %(len(self.commands)), system=self.system)
             # FIXME: Handle exceptions from parent
@@ -92,10 +94,7 @@ class ServerProtocol(LineReceiver):
 
         lograwin(data, system=self.system)
 
-        # -- Special @ notation which makes the controller execute the incoming data as a command
-        #if data.startswith('@') or data.startswith('*'):
-        #    self.interactive(data)
-        #    return
+        # -- Special *** notation which puts the session into interactive mode
         if data.startswith('***'):
             self.interactive = True
             addObserver(self.interactive_logger)
@@ -108,12 +107,12 @@ class ServerProtocol(LineReceiver):
                 # Load JSON in non-interactive mode
                 event = Event().load_json(data)
             else:
-                # Load string mode in interactive mode
+                # Load string mode with shell-like parsing in interactive mode
                 event = Event().load_str(data,shell=True)
             logdatain(event, system=self.system)
 
         except (SyntaxError,ValueError) as e:
-            # Raised if the load_json didn't succeed
+            # Raised if the parsing didn't succeed
             err("Protcol error on incoming message: %s" %(e.message), system=self.system)
             return
 
@@ -141,7 +140,8 @@ class ServerProtocol(LineReceiver):
             if len(evlist):
                 log("Registering %s events" %(len(evlist)), system=self.system)
                 self.events = evlist
-                #self.parent.add_events(evlist)
+                # FIXME: Handle exceptions from parent
+                self.parent.add_events(evlist)
             return
 
         # -- Register client commands
@@ -170,32 +170,31 @@ class ServerProtocol(LineReceiver):
             request.success = event.success
             request.result = event.result
 
+            # Take the defer handler and remove it from the request to prevent calling it twice
+            (defer, self.defer) = (request.defer, None)
+
             if event.success:
 
                 # Send successful result back
                 logcmdok(request, system=self.system)
-                request.defer.callback(request)
+                defer.callback(request)
             else:
 
                 # Send an error back
                 exc = ClientException(*request.result)
                 logcmderr(request, system=self.system)
-                request.defer.errback(exc)
+                defer.errback(exc)
 
             return
 
         # -- A new incoming (async) event.
         else:
-            # Don't add the client/leaf name in interactive mode, enables sending any
-            # events. Likewise, allow sending non-registered events.
-            if not self.interactive:
+            # Rewrite the event to name/event before sending to the handler
+            event.name = self.name + '/' + event.name
 
-                # Rewrite the event to name/event before sending to the handler
-                event.name = self.name + '/' + event.name
-
-                if event.name not in self.events:
-                    err("Ignoring unknown event '%s'" %(event), system=self.system)
-                    return
+            if event.name not in self.events:
+                err("Ignoring unknown event '%s'" %(event), system=self.system)
+                return
 
             try:
                 self.parent.handle_event(event)
@@ -217,24 +216,13 @@ class ServerProtocol(LineReceiver):
         # -- Generate a deferred object
         event.defer = d = Deferred()
 
-        # -- Setup a timeout
-        timer = reactor.callLater(self.timeout, d.cancel)
-
-        def timeout_transform(failure,event):
-            ''' Transform a CancelledError, issued by Deferred.cancel(), into a TimeoutException '''
-            failure.trap(CancelledError)
+        # -- Setup a timeout, and add a timeout err handler making sure the event data failure
+        #    is properly set
+        def timeout():
             exc = TimeoutException()
             event.set_fail(exc)
-            raise exc
-
-        def timeout_cancel(result):
-            ''' Stop the timer if it has not been fired '''
-            if timer.active():
-                timer.cancel()
-            return result
-
-        d.addErrback(timeout_transform,event)
-        d.addBoth(timeout_cancel)
+            d.errback(exc)
+        timer = utils.add_defer_timeout(d, self.timeout, timeout)
 
         # FIXME: Add transform functions for changing ClientException() into other
         #        exception types?
@@ -263,6 +251,7 @@ class ServerProtocol(LineReceiver):
             reply("SUCCESS: %s" %(event))
         def raw_error(failure,event):
             reply("FAILED: %s" %(event))
+            #reply(failure.getTraceback())
 
         cmd = event.name
         c = cmd[0]
@@ -273,17 +262,32 @@ class ServerProtocol(LineReceiver):
                 d=self.parent.run_command(event)
                 d.addCallback(raw_reply, event)
                 d.addErrback(raw_error, event)
-                return
 
             elif c == '*':
-                # Interpret as event, use ordinary event parser by returning True
+                # Interpret as event
                 event.name = cmd[1:]
-                return True
+                self.parent.handle_event(event)
 
             elif cmd == 'exit':
-                return True
+                self.transport.loseConnection()
+
             elif cmd == 'name':
                 return True
+
+            elif cmd == 'ls':
+                # List
+                if not len(event.args):
+                    reply("%s: Too few arguments" %(cmd))
+                elif event.args[0] == 'events':
+                    l=self.parent.events[:]
+                    l.sort()
+                    reply("  ".join(l))
+                elif event.args[0] == 'commands':
+                    l=self.parent.commands.keys()
+                    l.sort()
+                    reply("  ".join(l))
+                else:
+                    reply("%s: Syntax error" %(cmd))
 
             # FIXME: Add other interactive commands here...
 
@@ -292,11 +296,13 @@ class ServerProtocol(LineReceiver):
 
         except Exception as e:
             # Handles any errors before the commands are run
-            reply('%s ERROR: %s\n' %(event,e.message))
+            reply('ERROR %s: %s\n' %(e.message,event))
 
 
     def interactive_logger(self,msg):
-        self.transport.write(('    [%s] %s\n' %(msg['log_system'],msg['log_text'])).encode('UTF-8'))
+        self.transport.write(('    [%s] %s\n' %(msg.get('log_system','-'),
+                                                msg.get('log_text',''))).encode('UTF-8'))
+
 
 
 class ServerFactory(Factory):
@@ -322,7 +328,7 @@ class Server(Plugin):
         self.system = self.name
 
         self.port = main.config.get('port',name=self.system)
-        #self.events = {}
+        self.events = []
         self.commands = {}
 
         # Setup default do-nothing handler for the incoming events
@@ -368,26 +374,23 @@ class Server(Plugin):
 
 
     # --- EVENTS
-    #def add_events(self,events):
-    #    ''' Add to the list of known events'''
+    def add_events(self,events):
+        ''' Add to the list of known events'''
 
-    #    if isinstance(events, dict):
-    #        events=events.keys()
+        log("Registering %s events" %(len(events),), system=self.system)
+        for name in events:
+            if name in self.events:
+                raise TypeError("Event '%s' already exists" %(name))
+            self.events.append(name)
 
-    #    #log("Registering %s events" %(len(events),), system=self.system)
-    #    for name in events:
-    #        if name in self.events:
-    #            raise TypeError("Event '%s' already exists" %(name))
-    #        self.events.append(name)
+    def remove_events(self, events):
+        ''' Remove from the list of known events'''
 
-    #def remove_events(self, events):
-    #    ''' Remove from the list of known events'''
-
-    #    #log("De-registering %s events" %(len(events),), system=self.system)
-    #    for name in events:
-    #        if name not in self.events:
-    #            raise TypeError("Unknown event '%s'" %(name))
-    #        self.events.remove(name)
+        log("De-registering %s events" %(len(events),), system=self.system)
+        for name in events:
+            if name not in self.events:
+                raise TypeError("Unknown event '%s'" %(name))
+            self.events.remove(name)
 
 
 PLUGIN = Server
