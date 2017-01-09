@@ -21,3 +21,15 @@ def add_defer_timeout(defer, timeout, fn, *args, **kw):
     defer.addBoth(timeout_cancel)
 
     return timer
+
+
+def cmp_dict(a,b,l):
+    ''' Compare dict a with dict b using keys from l. Return True if all elements are
+        either equal (using !=) or if element is not present in either a or b.
+        '''
+    for i in l:
+        ia=i in a
+        ib=i in b
+        if ia != ib or (ia and ib and a[i] != b[i]):
+            return False
+    return True

@@ -1,7 +1,18 @@
+2017-01-08 sveinse
+
+    * Rename alias-list in responder.py to something more descriptive?
+    - Add parser for event to support telldus/event{14244686,0,15,turnoff} -> telldus/remote/15/off
+      [NO 2017-01-09, handled via telldus_config]
+    - ..or to support parameters telldus/event{14244686,0,15,turnoff} in alias and responses
+      [NO 2017-01-09]
+    * Implement per-plugin logging
+    * Implement **kw in Events?
+
 2016-08-02 sveinse
 
-    * Add support for running lumina in-source via virtualenv, both local and remotes
-    * Add proper deployment of config to all remotes (deploy/deploy-*)
-    * Implement start-all in-source?
-    * Fixup logging for systemd based remotes
-    * Upgrade to newer raspbian on the remotes
+    + Add support for running lumina in-source via virtualenv, both local and remotes
+      [OK 2017-01-08]
+    + Add proper deployment of config to all remotes (deploy/deploy-*)   [OK 2017-01-08]
+    + Implement start-all in-source?   [OK 2017-01-08]
+    + Fixup logging for systemd based remotes   [OK 2017-01-08]
+    + Upgrade to newer raspbian on the remotes   [OK 2017-01-08]

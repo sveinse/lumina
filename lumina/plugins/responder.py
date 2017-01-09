@@ -10,7 +10,7 @@ from ..exceptions import *
 from ..log import *
 
 # Import responder rules from separate file
-from .rules import alias,jobs
+from .rules import alias,responses
 
 
 # FIXME: Add this as config statements
@@ -27,25 +27,25 @@ class Responder(Plugin):
         self.system = self.name
 
         self.alias = alias.copy()
-        self.jobs = jobs.copy()
+        self.responses = responses.copy()
 
         self.server = server = main.get_plugin_by_module('server')
         if not server:
             raise ConfigException('No server plugin found. Missing server in config?')
 
         # Patch the server's handle event to this handler
-        server.handle_event = self.run_job
+        server.handle_event = self.handle_event
 
         # Register the aliases as commands. Note that get_commandfnlist() below
         # depends on that the handler for the commands are self.run_command
         server.add_commands({a: self.run_command for a in self.alias})
 
 
-    def run_job(self, event):
-        ''' Run the job for the given event '''
+    def handle_event(self, event):
+        ''' Respond to the received event '''
 
         # Find the job for the given event
-        job = self.jobs.get(event.name,None)
+        job = self.responses.get(event.name,None)
         if job is None:
             log("Ignoring event '%s'" %(event), system=self.system)
             log("  --:  Ignored", system=self.system)

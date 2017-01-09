@@ -1,15 +1,19 @@
 # -*-python-*-
-import os,sys
+#from __future__ import absolute_import
 
 from twisted.internet import reactor
-from twisted.python import log
-from twisted.internet.protocol import ClientFactory, Protocol
+from twisted.internet.protocol import ClientFactory, Protocol, ReconnectingClientFactory
 from twisted.internet.defer import Deferred
 
-from ..endpoint import Endpoint
-from ..queue import Queue
+from ..leaf import Leaf
+from ..state import State
+from ..event import Event
 from ..exceptions import *
+from ..log import *
+from lumina import utils
 
+# Import responder rules from separate file
+from .rules import telldus_config
 
 
 # Can be tested with
@@ -54,14 +58,14 @@ def parsestream(data):
 
 
 
-def parseelements(elements):
+def parseelements(elements,system=None):
     ''' Parse elements into events '''
     events = [ ]
 
     # Extract events from list of objects
     while elements:
         cmd = elements.pop(0)
-        #log.msg("%s  %s" %(cmd,elements))
+        #log("%s  %s" %(cmd,elements))
 
         # Expected commands and their parameter length
         cmdsize = {
@@ -72,7 +76,7 @@ def parseelements(elements):
         }
 
         if cmd not in cmdsize:
-            log.msg("Unknown command '%s', dropping %s" %(cmd, elements), system='TD')
+            log("Unknown command '%s', dropping %s" %(cmd, elements), system=system)
             elements = [ ]
             break
 
@@ -80,7 +84,7 @@ def parseelements(elements):
 
         if l > len(elements):
             # Does not got enough data for command. Stop and postpone processing
-            log.msg("Missing elements for command '%s', got %s, needs %s args." %(cmd,elements,l), system='TD')
+            log("Missing elements for command '%s', got %s, needs %s args." %(cmd,elements,l), system=system)
             elements = [ ]
             break
 
@@ -107,285 +111,282 @@ def parserawargs(args):
 
 
 def generate(args):
+    ''' Encode args into telldus string encoding, which is '<LEN>:string' and 'i<NUM>s' for
+        integer. '''
     s=''
     for a in args:
         if type(a) is str:
             s+='%s:%s' %(len(a),a)
         elif type(a) is int:
             s+='i%ds' %(a)
+        else:
+            raise TypeError("Argument '%s', type '%s' cannot be encoded" %(a,type(a)))
     return s
 
 
 
-class TelldusFactory(ClientFactory):
+class TelldusInFactory(ReconnectingClientFactory):
     noisy = False
+    maxDelay = 10
+    #factor=1.6180339887498948
 
     def __init__(self, protocol, parent):
         self.protocol = protocol
         self.parent = parent
+        self.system = protocol.system
 
     def buildProtocol(self, addr):
+        self.resetDelay()
         return self.protocol
 
+    def clientConnectionLost(self, connector, reason):
+        log(reason.getErrorMessage(), system=self.system)
+        ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
+
     def clientConnectionFailed(self, connector, reason):
-        self.protocol.setstate('error',self.protocol.path,reason.getErrorMessage())
+        log(reason.getErrorMessage(), system=self.system)
+        ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
+        self.protocol.state.set_ERROR(self.protocol.path,reason.getErrorMessage())
 
 
-
+# STATE FLOW:
+#                  ,--<------------------.
+#    init -> starting -> ready -> up     |
+#             |           ^  `--+-'      |
+#             |           |     v        |
+#             `-> error -'    down >-----'
+#
 class TelldusIn(Protocol):
     ''' Class for incoming Telldus events '''
 
     noisy = False
-    name = 'Event'
     path = '/tmp/TelldusEvents'
-    system = 'TD/IN'
 
 
     def __init__(self,parent):
-        self.state = 'init'
         self.parent = parent
-        self.factory = TelldusFactory(self, self.parent)
-
-
-    def setstate(self,state,*args):
-        (old, self.state) = (self.state, state)
-        if state != old:
-            log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
-        self.parent.changestate(self,self.state,*args)
+        self.system = parent.system + '/in'
+        self.state = State('init', system=self.system,
+                            change_callback=lambda *a:self.parent.changestate(self,*a) )
+        self.factory = TelldusInFactory(self, self.parent)
 
 
     def connect(self):
-        self.setstate('connecting')
+        self.state.set_STARTING()
         reactor.connectUNIX(self.path, self.factory)
 
 
     def connectionMade(self):
-        self.setstate('connected')
+        log("Connected to %s" %(self.path,), system=self.system)
+        self.state.set_READY()
         self.data = ''
         self.elements = [ ]
 
 
     def connectionLost(self, reason):
-        self.setstate('closed', reason.getErrorMessage())
+        log("Lost connection with %s" %(self.path,), system=self.system)
+        self.state.set_DOWN(reason.getErrorMessage())
 
 
     def disconnect(self):
-        if self.state in ('connected','active'):
+        if self.state.is_in('ready','up'):
             self.transport.loseConnection()
 
 
     def dataReceived(self, data):
-        #log.msg("     >>>  (%s)'%s'" %(len(data),data), system=self.system)
+        lograwin(data, system=self.system)
 
         data = self.data + data
 
         # Interpret the data
         (elements, data) = parsestream(data)
-        (events, elements) = parseelements(elements)
+        (events, elements) = parseelements(elements, system=self.system)
 
         # Save remaining data for next call (incomplete frame received)
         self.data = data
         self.elements = elements
 
-        # At this point, we can consider the connection active
-        self.setstate('active')
+        # At this point, we can consider the connection up
+        self.state.set_UP()
 
         # Iterate over the received events
         for event in events:
+            logdatain(event, system=self.system)
             self.parent.parse_event(event)
 
 
 
+class TelldusOutFactory(ClientFactory):
+    noisy = False
+
+    def __init__(self, protocol, parent):
+        self.protocol = protocol
+        self.parent = parent
+        self.system = protocol.system
+
+    def buildProtocol(self, addr):
+        return self.protocol
+
+    def clientConnectionFailed(self, connector, reason):
+        self.protocol.clientConnectionFailed(reason)
+
+
+
+# STATE FLOW:
+#                  ,--<-------------------.
+#    init -> starting -> ready -> up -> idle
+#             |    ^       ^
+#             |    |       |
+#             `-> error <-'
+#
 class TelldusOut(Protocol):
     ''' Class for outgoing Telldus commands '''
 
     noisy = False
-    name = 'Client'
     path = '/tmp/TelldusClient'
     timeout = 5
-    system = 'TD/OUT'
 
 
     # This object is connected when data is about to be sent and closed right after.
     # The normal flow is:
-    #   command -> send_next() -> connectionMade() -> dataReceived()
+    #   command() -> send_next() -> connectionMade() -> dataReceived()
     #   -> disconnect() -> connectionLost() [ -> send_next() ... ]
 
     def __init__(self,parent):
-        self.state = 'init'
         self.parent = parent
-        self.queue = Queue()
-        self.factory = TelldusFactory(self, self.parent)
-
-
-    def setstate(self,state,*args):
-        (old, self.state) = (self.state, state)
-        if state != old:
-            log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
-        self.parent.changestate(self,self.state,*args)
+        self.system = parent.system + '/out'
+        self.state = State('init', system=self.system,
+                           change_callback=lambda *a:self.parent.changestate(self,*a))
+        self.queue = []
+        self.active = None
+        self.factory = TelldusOutFactory(self, self.parent)
 
 
     def connectionMade(self):
-        self.setstate('connected')
-        data = self.queue.active['data']
-        log.msg("     <<<  (%s)'%s'" %(len(data),data), system=self.system)
-        self.transport.write(data)
+        self.state.set_READY()
+        self.send()
 
 
     def connectionLost(self, reason):
-        self.setstate('closed', reason.getErrorMessage())
-        self.send_next()
+        if self.state.is_in('ready'):
+            # Lost connection before we could get any reply back.
+            self.state.set_ERROR(self.path,reason.getErrorMessage())
+            (defer, self.defer) = (self.defer, None)
+            defer.errback(LostConnectionException(reason.getErrorMessage()))
+        else:
+            self.state.set_IDLE(reason.getErrorMessage())
+        self.send_next(proceed=True)
+
+
+    def clientConnectionFailed(self, reason):
+        self.state.set_ERROR(self.path,reason.getErrorMessage())
+        (defer, self.defer) = (self.defer, None)
+        defer.errback(NoConnectionException(reason.getErrorMessage()))
+        self.send_next(proceed=True)
 
 
     def disconnect(self):
-        if self.state in ('connected','active'):
+        if self.state.is_in('ready','up'):
             self.transport.loseConnection()
 
 
     def dataReceived(self, data):
-        self.setstate('active')
-        log.msg("     >>>  (%s)'%s'" %(len(data),data), system=self.system)
+        self.state.set_UP()
+        lograwin(data, system=self.system)
         (elements, data) = parsestream(data)
-        #log.msg("          %s" %(elements), system=self.system)
+
+        # FIXME: Is it correct to send element to the callback? ....yes
+        (defer, self.defer) = (self.defer, None)
+        defer.callback(elements)
+
         self.disconnect()
-        self.queue.callback(elements)
+        #self.send_next()
 
 
     def command(self, cmd):
-        data = generate(cmd)
-        d = self.queue.add(data=data, command=cmd)
+        d = Deferred()
+        self.queue.append( (d,cmd,generate(cmd)) )
+        utils.add_defer_timeout(d, self.timeout, self.timedout, d)
+
+        # Send the next package
         self.send_next()
         return d
 
 
-    def send_next(self):
-        #if self.state not in (''):
-        #    return
+    def send(self):
+        logdataout(self.data, system=self.system)
+        self.transport.write(self.data)
 
-        if self.queue.get_next() is not None:
+
+    def send_next(self, proceed=False):
+        if self.active and not proceed:
+            return
+        self.active = None
+        self.defer = None
+        if len(self.queue):
+            (self.defer, self.active, self.data) = self.queue.pop(0)
+
+            #if self.state.is_in('ready','up'):
+            #    self.send()
+            #else:
+
+            # Next will be connectionMade() or clientConnectionFailed()
+            self.state.set_STARTING()
             reactor.connectUNIX(self.path, self.factory)
-            self.queue.set_timeout(self.timeout, self.timedout)
+
+        #else:
+        #    self.disconnect()
 
 
-    def timedout(self):
+    def timedout(self, defer):
         # The timeout response is to fail the request and proceed with the next command
-        log.msg("Command '%s' timed out" %(self.queue.active['command'],), system=self.system)
-        self.setstate('inactive')
-        self.queue.errback(TimeoutException())
-        self.send_next()
+        log("Command '%s' timed out" %(self.active,), system=self.system)
+        self.disconnect()
+        self.state.set_ERROR('Timeout')
+        defer.errback(TimeoutException())
+        self.send_next(proceed=True)
 
 
 
-class Telldus(Endpoint):
-    system = 'TD'
+class Telldus(Leaf):
     name = 'TELLDUS'
-
-    # --- Interfaces
-    def configure(self):
-        self.events = {
-            'td/starting'    : None,
-            'td/connected'   : None,
-            'td/error'       : None,
-
-            # Remote control
-            'remote/g/on'    : dict(house=14244686, group=1, unit=1, method='turnon'),
-            'remote/g/off'   : dict(house=14244686, group=1, unit=1, method='turnoff'),
-            'remote/1/on'    : dict(house=14244686, group=0, unit=1, method='turnon'),
-            'remote/1/off'   : dict(house=14244686, group=0, unit=1, method='turnoff'),
-            'remote/2/on'    : dict(house=14244686, group=0, unit=2, method='turnon'),
-            'remote/2/off'   : dict(house=14244686, group=0, unit=2, method='turnoff'),
-            'remote/3/on'    : dict(house=14244686, group=0, unit=3, method='turnon'),
-            'remote/3/off'   : dict(house=14244686, group=0, unit=3, method='turnoff'),
-            'remote/4/on'    : dict(house=14244686, group=0, unit=4, method='turnon'),
-            'remote/4/off'   : dict(house=14244686, group=0, unit=4, method='turnoff'),
-            'remote/5/on'    : dict(house=14244686, group=0, unit=5, method='turnon'),
-            'remote/5/off'   : dict(house=14244686, group=0, unit=5, method='turnoff'),
-            'remote/6/on'    : dict(house=14244686, group=0, unit=6, method='turnon'),
-            'remote/6/off'   : dict(house=14244686, group=0, unit=6, method='turnoff'),
-            'remote/7/on'    : dict(house=14244686, group=0, unit=7, method='turnon'),
-            'remote/7/off'   : dict(house=14244686, group=0, unit=7, method='turnoff'),
-            'remote/8/on'    : dict(house=14244686, group=0, unit=8, method='turnon'),
-            'remote/8/off'   : dict(house=14244686, group=0, unit=8, method='turnoff'),
-            'remote/9/on'    : dict(house=14244686, group=0, unit=9, method='turnon'),
-            'remote/9/off'   : dict(house=14244686, group=0, unit=9, method='turnoff'),
-            'remote/10/on'   : dict(house=14244686, group=0, unit=10, method='turnon'),
-            'remote/10/off'  : dict(house=14244686, group=0, unit=10, method='turnoff'),
-            'remote/11/on'   : dict(house=14244686, group=0, unit=11, method='turnon'),
-            'remote/11/off'  : dict(house=14244686, group=0, unit=11, method='turnoff'),
-            'remote/12/on'   : dict(house=14244686, group=0, unit=12, method='turnon'),
-            'remote/12/off'  : dict(house=14244686, group=0, unit=12, method='turnoff'),
-            'remote/13/on'   : dict(house=14244686, group=0, unit=13, method='turnon'),
-            'remote/13/off'  : dict(house=14244686, group=0, unit=13, method='turnoff'),
-            'remote/14/on'   : dict(house=14244686, group=0, unit=14, method='turnon'),
-            'remote/14/off'  : dict(house=14244686, group=0, unit=14, method='turnoff'),
-            'remote/15/on'   : dict(house=14244686, group=0, unit=15, method='turnon'),
-            'remote/15/off'  : dict(house=14244686, group=0, unit=15, method='turnoff'),
-            'remote/16/on'   : dict(house=14244686, group=0, unit=16, method='turnon'),
-            'remote/16/off'  : dict(house=14244686, group=0, unit=16, method='turnoff'),
-
-            # Loftstue upper
-            'wallsw1/on'     : dict(house=366702,   group=0, unit=1, method='turnon'),
-            'wallsw1/off'    : dict(house=366702,   group=0, unit=1, method='turnoff'),
-
-            # Loftstue lower
-            'wallsw2/on'     : dict(house=392498,   group=0, unit=1, method='turnon'),
-            'wallsw2/off'    : dict(house=392498,   group=0, unit=1, method='turnoff'),
-
-            # Mandolyn devices
-            'temp/ute'       : dict(temp=11),
-            'temp/kjeller'   : dict(temp=12),
-
-            # Nexa/proove devices
-            'temp/fryseskap' : dict(temp=247),
-            'temp/kino/ute'  : dict(temp=135),
-            'temp/kino/inne' : dict(temp=151),
-        }
-
-        self.commands = {
-            'td/state'       : lambda a : (self.inport.state, self.outport.state),
-            'td/ison'        : lambda a : self.ison(),
-
-            'td/on'          : lambda a : self.turnOn(int(a.args[0])),
-            'td/off'         : lambda a : self.turnOff(int(a.args[0])),
-            'td/dim'         : lambda a : self.dim(int(a.args[0]),int(a.args[1])),
-        }
 
 
     # --- Initialization
-    def __init__(self):
+    def setup(self, main):
+        Leaf.setup(self, main)
         self.inport = TelldusIn(self)
         self.outport = TelldusOut(self)
-
-    def setup(self, config):
-        self.event('td/starting')
+        self.state = State('init', system=self.system)
         self.inport.connect()
 
     def close(self):
-        self.event('td/stopping')
         self.inport.disconnect()
         self.outport.disconnect()
 
 
     # --- Callbacks
-    def changestate(self,cls,state,*args):
-        if cls == self.inport:
-            if state == 'connected':
-                self.event('td/connected')
-            elif state == 'closed':
-                self.event('td/disconnected',*args)
-            elif state == 'error':
-                self.event('td/error',*args)
-        elif cls == self.outport:
-            if state == 'error':
-                self.event('td/error',*args)
+    # FIXME: Implement overall state logic
+    def changestate(self,cls,state,oldstate,*args):
+        return
+        #if cls == self.inport:
+        #    if state == 'connected':
+        #        self.event('connected')
+        #    elif state == 'closed':
+        #        self.event('disconnected',*args)
+        #    elif state == 'error':
+        #        self.event('error',*args)
+        #elif cls == self.outport:
+        #    if state == 'error':
+        #        self.event('error',*args)
 
 
     # --- Commands
-    def ison(self):
-        if self.inport.state in ('connected','active'):
-            return True
-        else:
-            return False
+    #def ison(self):
+    #    if self.inport.state.is_in('connected','active'):
+    #        return True
+    #    else:
+    #        return False
 
     def turnOn(self,num):
         cmd = ( 'tdTurnOn', num )
@@ -404,43 +405,44 @@ class Telldus(Endpoint):
     def parse_event(self, event):
         cmd = event[0]
 
-        #log.msg("     >>>  %s  %s" %(cmd,event[1:]), system=self.inport.system)
 
         if cmd == 'TDSensorEvent':
-            # ignoring sensor events as we handle them as raw device events
+            # Ignore sensor events as they are handles as raw device events
+            return
+
+        if cmd == 'TDDeviceEvent':
+            # Ignore device events as they are handled as raw device events
             return
 
         elif cmd == 'TDRawDeviceEvent':
 
             args = parserawargs(event[1])
-            #log.msg("     >>>  %s  %s" %(cmd,args), system=self.inport.system)
 
             if 'protocol' not in args:
-                log.msg("Missing protocol from %s, dropping event" %(cmd),
+                log("Missing protocol from %s, dropping event" %(cmd),
                         system=self.inport.system)
                 return
 
             #if args['protocol'] != 'arctech':
-            #    #log.msg("Ignoring unknown protocol '%s' in '%s', dropping event" %(args['protocol'],cmd), system=self.inport.system)
+            #    #log("Ignoring unknown protocol '%s' in '%s', dropping event" %(args['protocol'],cmd), system=self.inport.system)
             #    continue
 
             # Check for matches in eventlist
             if args['protocol'] == 'arctech':
 
+                # Transform 'turnon' to 'on'.
+                if 'method' in args:
+                    args['method'] = args['method'].replace('turn','')
+
+                # Traverse events list
                 for (ev,d) in self.events.items():
 
-                    # Disregard objects without dict and without 'house' in dict
-                    if d is None or 'house' not in d:
+                    # Ignore everything not an in device
+                    if d['t'] not in ('in',):
                         continue
 
-                    # Find the matching entry
-                    if str(d['house']) != args['house']:
-                        continue
-                    if str(d['group']) != args['group']:
-                        continue
-                    if str(d['unit']) != args['unit']:
-                        continue
-                    if d['method'] != args['method']:
+                    # Compare the following attributes
+                    if not utils.cmp_dict(args, d, ('house', 'group', 'unit', 'method')):
                         continue
 
                     # Match found, process it as an event
@@ -449,14 +451,15 @@ class Telldus(Endpoint):
 
             elif args['protocol'] == 'mandolyn' or args['protocol'] == 'fineoffset':
 
+                # Traverse events list
                 for (ev,d) in self.events.items():
 
-                    # Disregard objects without dict and without 'temp' in dict
-                    if d is None or 'temp' not in d:
+                    # Only consider temp devices
+                    if d['t'] not in ('temp', ):
                         continue
 
-                    # Find the matching entry
-                    if str(d['temp']) != args['id']:
+                    # Compare the following attributes
+                    if not utils.cmp_dict(args, d, ('id', )):
                         continue
 
                     # Match found, process it as an event
@@ -470,8 +473,94 @@ class Telldus(Endpoint):
                 return
 
         # Ignore the other events
-        log.msg("Ignoring '%s' %s" %(cmd,event[1:]), system=self.inport.system)
+        log("Ignoring '%s' %s" %(cmd,event[1:]), system=self.inport.system)
 
+
+    # --- Interfaces
+    def configure(self):
+
+        # Baseline commands and events
+        self.commands = {
+            #'state' : lambda a : (self.inport.state.get(), self.outport.state.get()),
+            #'ison'  : lambda a : self.ison(),
+        }
+        self.events = {}
+
+        # Telldus operations
+        ops = {
+            'on'  : lambda a,i : self.turnOn(i),
+            'off' : lambda a,i : self.turnOff(i),
+            'dim' : lambda a,i : self.dim(i,int(a.args[0])),
+        }
+
+        # -- Helper functions
+        def add_out(eq,oplist):
+            ''' Add commands to an output device '''
+            if '{op}' not in eq['name']:
+                raise ConfigException("telldus_config:%s: %s type requires usage of '{op}' in name" %(eq['i'],eq['t']))
+
+            for op in oplist:
+                d=eq.copy()
+                d['op'] = op
+                d['name'] = name = d['name'].format(**d)
+                if name in self.commands:
+                    raise ConfigException("telldus_config:%s: Command '%s' already in list" %(d['i'],name))
+
+                # The lambda syntax needs to be carefully set, due to late binding the op=op
+                # syntax is very important to bind the variable in this context
+                # http://docs.python-guide.org/en/latest/writing/gotchas/#late-binding-closures
+                self.commands[name] = lambda a,op=op,i=int(d['id']): ops[op](a,i)
+
+        def add_event(eq,**kw):
+            d=eq.copy()
+            d.update(**kw)
+            d['name'] = name = d['name'].format(**d)
+            if name in self.events:
+                raise ConfigException("telldus_config:%s: Event '%s' already in list" %(d['i'],name))
+            self.events[name] = d
+
+        def add_in(eq):
+            if '{method}' not in eq['name']:
+                raise ConfigException("telldus_config:%s: %s type requires usage of '{op}' in name" %(eq['i'],eq['t']))
+
+            # Get the unit span and ensure either unit or num_units is set
+            u_first=eq.get('unit')
+            num_units = 1
+            if u_first is None:
+                u_first = 1
+                num_units=eq.get('num_units')
+                if num_units is None:
+                    raise ConfigException("telldus_config:%s: Missing unit or num_units" %(eq['i']))
+
+            # Loop through all units and methods
+            for unit in range(int(u_first),int(u_first)+int(num_units)):
+                for method in ('on','off'):
+                    add_event(eq, unit=str(unit), method=method)
+
+        # -- Traverse list for equipment and add to either self.commands or self.events
+        for i,_eq in enumerate(telldus_config):
+            # Everything must be str
+            eq = { k:str(v) for k,v in _eq.items() }
+            eq['i'] = i+1
+            t = eq.get('t')
+            if t is None:
+                raise ConfigException("telldus_config:%s: Missing type" %(i+1))
+            if 'name' not in eq:
+                raise ConfigException("telldus_config:%s: Missing name" %(i+1))
+
+            if t == 'dimmer':
+                add_out(eq,('on','off','dim'))
+            elif t == 'switch':
+                add_out(eq,('on','off'))
+            elif t == 'in':
+                add_in(eq)
+            elif t == 'temp':
+                add_event(eq)
+            else:
+                raise ConfigException("telldus_config:%s: Unknown telldus equipment type %s" %(i+1,t))
+
+
+# FIXME: Implement ability to generate tellstick.conf from telldus_config
 
 
 # Main plugin object class

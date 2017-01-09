@@ -32,3 +32,5 @@ class ConfigException(LuminaException):
 
 class NoConnectionException(LuminaException):
     ''' Connection errors '''
+class LostConnectionException(LuminaException):
+    ''' Lost connection error '''
