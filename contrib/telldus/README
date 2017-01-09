@@ -43,6 +43,8 @@ steps in an automatic script.
 
   (or head directly into http://download.telldus.com/debian/pool/stable/)
 
+  See the telldus-core_*.dsc file for the hash-sums of the telldus-core_2.1.2.orig.tar,gz file.
+
   From what I can tell this repo is identical as commit 1f93cf in the upstream repos
 
   Two noteable changes are interesting and have been included in below patch
