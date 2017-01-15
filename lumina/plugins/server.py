@@ -4,13 +4,13 @@ from __future__ import absolute_import
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
-from twisted.internet.defer import Deferred,CancelledError,maybeDeferred
-from twisted.python.log import addObserver,removeObserver
+from twisted.internet.defer import Deferred, CancelledError, maybeDeferred
+from twisted.python.log import addObserver, removeObserver
 
-from ..plugin import Plugin
-from ..event import Event
-from ..exceptions import *
-from ..log import *
+from lumina.plugin import Plugin
+from lumina.event import Event
+from lumina.exceptions import *
+from lumina.log import Logger
 from lumina import utils
 
 
@@ -34,19 +34,20 @@ DEFAULT_TIMEOUT = 10
 
 class ServerProtocol(LineReceiver):
     noisy = False
-    delimiter='\n'
-    timeout=DEFAULT_TIMEOUT
+    delimiter = '\n'
+    timeout = DEFAULT_TIMEOUT
 
 
     def __init__(self, parent):
         self.parent = parent
-        self.serversystem = parent.system
+        self.servername = parent.name
+        self.log = Logger(namespace=self.servername)
 
 
     def connectionMade(self):
         (h,p) = (self.transport.getPeer().host,self.transport.getPeer().port)
         self.ip = "%s:%s" %(h,p)
-        self.system = self.serversystem + ':' + self.ip
+        self.log.namespace = self.servername + ':' + self.ip
         self.name = self.ip
         self.hostname = h
         self.events = []
@@ -54,19 +55,22 @@ class ServerProtocol(LineReceiver):
         self.requests = { }
         self.interactive = False
         self.observer = None
-        log("Connect from %s" %(self.ip,), system=self.serversystem)
+        self.log.info("Connect from {ip}", ip=self.ip, system=self.servername)
 
 
     def connectionLost(self, reason):
-        log("Lost connection from '%s' (%s)" %(self.name,self.ip), system=self.system)
+        self.log.info("Lost connection from '{n}' ({ip})", n=self.name, ip=self.ip)
+
         if len(self.events):
-            log("De-registering %s events" %(len(self.events)), system=self.system)
+            self.log.info("De-registering {n} events", n=len(self.events))
             # FIXME: Handle exceptions from parent
             self.parent.remove_events(self.events)
+
         if len(self.commands):
-            log("De-registering %s commands" %(len(self.commands)), system=self.system)
+            self.log.info("De-registering {n} commands", n=len(self.commands))
             # FIXME: Handle exceptions from parent
             self.parent.remove_commands(self.commands)
+
         self.events = []
         self.commands = []
         if self.interactive:
@@ -92,13 +96,13 @@ class ServerProtocol(LineReceiver):
         if not len(data):
             return
 
-        lograwin(data, system=self.system)
+        self.log.debug('', rawin=data)
 
         # -- Special *** notation which puts the session into interactive mode
         if data.startswith('***'):
             self.interactive = True
             addObserver(self.interactive_logger)
-            log("Starting interactive mode", system=self.system)
+            self.log.info("Starting interactive mode")
             return
 
         # -- Parse the incoming message as an Event
@@ -109,11 +113,11 @@ class ServerProtocol(LineReceiver):
             else:
                 # Load string mode with shell-like parsing in interactive mode
                 event = Event().load_str(data,shell=True)
-            logdatain(event, system=self.system)
+            self.log.debug('', datain=event)
 
         except (SyntaxError,ValueError) as e:
             # Raised if the parsing didn't succeed
-            err("Protcol error on incoming message: %s" %(e.message), system=self.system)
+            self.log.error("Protcol error on incoming message: {m}", m=e.message)
             return
 
         # -- Interactive handler
@@ -124,13 +128,13 @@ class ServerProtocol(LineReceiver):
         # -- Register client name
         if event.name == 'name':
             self.name = event.args[0]
-            self.system = self.serversystem + ':' + event.args[0]
-            log("***  Registering client %s (%s)" %(event.args[0],self.ip), system=self.system)
+            self.log.namespace = self.servername + ':' + event.args[0]
+            self.log.info("Registering client {n} ({ip})", n=event.args[0], ip=self.ip)
             return
 
         # -- Register host name
         elif event.name == 'hostname':
-            log('***  Client %s is named %s' %(self.hostname,event.args[0]), system=self.system)
+            self.log.info('Client {h} is named {n}', h=self.hostname, n=event.args[0])
             self.hostname = event.args[0]
             return
 
@@ -138,7 +142,7 @@ class ServerProtocol(LineReceiver):
         elif event.name == 'events':
             evlist = [ self.name + '/' + e for e in event.args ]
             if len(evlist):
-                log("Registering %s events" %(len(evlist)), system=self.system)
+                self.log.info("Registering {n} events", n=len(evlist))
                 self.events = evlist
                 # FIXME: Handle exceptions from parent
                 self.parent.add_events(evlist)
@@ -148,7 +152,7 @@ class ServerProtocol(LineReceiver):
         elif event.name == 'commands':
             evlist = [ self.name + '/' + e for e in event.args ]
             if len(evlist):
-                log("Registering %s commands" %(len(evlist)), system=self.system)
+                self.log.info("Registering {n} commands", n=len(evlist))
                 self.commands = evlist
                 # FIXME: Handle exceptions from parent
                 self.parent.add_commands({ e: self.send for e in evlist})
@@ -176,13 +180,13 @@ class ServerProtocol(LineReceiver):
             if event.success:
 
                 # Send successful result back
-                logcmdok(request, system=self.system)
+                self.log.info('', cmdok=request)
                 defer.callback(request)
             else:
 
                 # Send an error back
                 exc = ClientException(*request.result)
-                logcmderr(request, system=self.system)
+                self.log.info('', cmderr=request)
                 defer.errback(exc)
 
             return
@@ -193,7 +197,7 @@ class ServerProtocol(LineReceiver):
             event.name = self.name + '/' + event.name
 
             if event.name not in self.events:
-                err("Ignoring unknown event '%s'" %(event), system=self.system)
+                self.log.error("Ignoring unknown event '{e}'", e=event)
                 return
 
             try:
@@ -202,7 +206,7 @@ class ServerProtocol(LineReceiver):
             # Any error at this point should be on the server's own accord and should not
             # affect the client connection, so this except is required
             except Exception as e:
-                exclog("Failed to process event '%s'." %(event), system=self.system)
+                self.log.failure("Failed to process event '{e}'", e=event)
                 return
 
 
@@ -233,9 +237,9 @@ class ServerProtocol(LineReceiver):
         self.requests[event.seq] = event
 
         # -- Encode and send the command
-        logdataout(event, system=self.system)
+        self.log.debug('', dataout=event)
         data=event.dump_json()
-        lograwout(data, system=self.system)
+        self.log.debug('', rawout=data)
         self.transport.write(data+'\n')
 
         return d
@@ -309,7 +313,7 @@ class ServerFactory(Factory):
     noisy = False
     def __init__(self,parent):
         self.parent = parent
-        self.system = parent.system
+        self.name = parent.name
     def buildProtocol(self, addr):
         return ServerProtocol(parent=self.parent)
 
@@ -325,18 +329,17 @@ class Server(Plugin):
 
     def setup(self, main):
         # Set logging system name
-        self.system = self.name
-
-        self.port = main.config.get('port',name=self.system)
+        self.log = Logger(namespace=self.name)
+        self.port = main.config.get('port',name=self.name)
         self.events = []
         self.commands = {}
 
         # Setup default do-nothing handler for the incoming events
-        self.handle_event = lambda a : log("Ignoring event '%s'" %(a), system=self.system)
+        self.handle_event = lambda a : self.log.info("Ignoring event '{a}'", a=a)
 
         self.factory = ServerFactory(parent=self)
         reactor.listenTCP(self.port, self.factory)
-
+        
 
     def run_command(self, event, fail_on_unknown=True):
         ''' Send a command to a client and return a deferred object for the reply '''
@@ -345,9 +348,9 @@ class Server(Plugin):
             exc = UnknownCommandException(event.name)
             event.set_fail(exc)
             if fail_on_unknown:
-                err("Unknown command: '%s'" %(event.name), system=self.system)
+                self.log.error("Unknown command: '{n}'", n=event.name)
                 raise exc
-            log("Ignoring unknown command: '%s'" %(event.name), system=self.system)
+            self.log.warn("Ignoring unknown command: '{n}'", n=event.name)
 
         return maybeDeferred(self.commands.get(event.name, unknown_command), event)
 
@@ -356,20 +359,20 @@ class Server(Plugin):
     def add_commands(self, commands):
         ''' Add to the dict of known commands and register their callback fns '''
 
-        log("Registering %s commands" %(len(commands),), system=self.system)
+        #self.log.debug("Registering {n} commands", n=len(commands))
         for name,fn in commands.items():
             if name in self.commands:
-                raise TypeError("Command '%s' already exists" %(name))
+                raise TypeError("Command '{n}' already exists", n=name)
             self.commands[name] = fn
 
 
     def remove_commands(self, commands):
         ''' Remove from the dict of known commands '''
 
-        log("De-registering %s commands" %(len(commands),), system=self.system)
+        #self.log.debug("De-registering {n} commands", n=len(commands))
         for name in commands:
             if name not in self.commands:
-                raise TypeError("Unknown command '%s'" %(name))
+                raise TypeError("Unknown command '{n}'", n=name)
             del self.commands[name]
 
 
@@ -377,19 +380,19 @@ class Server(Plugin):
     def add_events(self,events):
         ''' Add to the list of known events'''
 
-        log("Registering %s events" %(len(events),), system=self.system)
+        #self.log.debug("Registering {n} events", n=len(events))
         for name in events:
             if name in self.events:
-                raise TypeError("Event '%s' already exists" %(name))
+                raise TypeError("Event '{n}' already exists", n=name)
             self.events.append(name)
 
     def remove_events(self, events):
         ''' Remove from the list of known events'''
 
-        log("De-registering %s events" %(len(events),), system=self.system)
+        #self.log.debug("De-registering {n} events", n=len(events))
         for name in events:
             if name not in self.events:
-                raise TypeError("Unknown event '%s'" %(name))
+                raise TypeError("Unknown event '{n}'", n=name)
             self.events.remove(name)
 
 

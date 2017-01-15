@@ -4,13 +4,13 @@ from __future__ import absolute_import
 from twisted.internet.defer import Deferred,DeferredList,maybeDeferred,CancelledError
 from twisted.internet import reactor
 
-from ..event import Event
-from ..plugin import Plugin
-from ..exceptions import *
-from ..log import *
+from lumina.event import Event
+from lumina.plugin import Plugin
+from lumina.exceptions import *
+from lumina.log import Logger
 
 # Import responder rules from separate file
-from .rules import alias,responses
+from lumina.plugins.rules import alias,responses
 
 
 # FIXME: Add this as config statements
@@ -24,7 +24,7 @@ class Responder(Plugin):
 
 
     def setup(self, main):
-        self.system = self.name
+        self.log = Logger(namespace=self.name)
 
         self.alias = alias.copy()
         self.responses = responses.copy()
@@ -47,19 +47,19 @@ class Responder(Plugin):
         # Find the job for the given event
         job = self.responses.get(event.name,None)
         if job is None:
-            log("Ignoring event '%s'" %(event), system=self.system)
-            log("  --:  Ignored", system=self.system)
+            self.log.info("Ignoring event '{e}'", e=event)
+            self.log.info("  --:  Ignored",)
             return
 
         # Make a job object and its parse args and run it
-        #log("Event '%s' received" %(event), system=self.system)
+        #self.log.debug("Event '{e}' received", e=event)
         command = Event().load_str(job, parseEvent=event)
-        log("Event '%s' -> '%s'" %(event,command), system=self.system)
+        self.log.info("Event '{e}' -> '{c}'", e=event, c=command)
         return self.run_command(command)
 
 
     def run_command(self, command):
-        log("  --:  Running '%s'" %(command), system=self.system)
+        self.log.info("  --:  Running '{c}'", c=command)
         return self.run_commandlist(command, self.get_commandlist(command))
 
 
@@ -108,7 +108,7 @@ class Responder(Plugin):
         #    raise CommandRunException("'%s' error: Nothing to run" %(command.name))
 
         # Compile a list of all the events which is going to be run (for printing)
-        log("  --:    %s" %(commandlist), system=self.system)
+        self.log.info("  --:    {l}", l=commandlist)
         if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
             #command.result = None
             #else:
@@ -121,7 +121,7 @@ class Responder(Plugin):
                          consumeErrors=True, fireOnOneErrback=True)
 
         def list_ok(result, command, commandlist):
-            logcmdok(commandlist, system=self.system)
+            self.log.info('',cmdok=commandlist)
             # Update the success variable with the number of successful commands
             # if len(command.result) == command.success then all succeeded
             if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
@@ -129,7 +129,7 @@ class Responder(Plugin):
             return command
 
         def list_error(failure, command, commandlist):
-            logcmderr(commandlist, system=self.system)
+            self.log.error('',cmderr=commandlist)
             # Update the success variable with the number of successful commands
             if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
                 command.success = [ c.success for c in commandlist ].count(True)

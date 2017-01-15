@@ -4,9 +4,11 @@ from __future__ import absolute_import
 import os
 import sys
 
-from .log import *
-from .exceptions import *
+from lumina.log import Logger
+from lumina.exceptions import *
 
+
+log=Logger(namespace='config')
 
 
 class Config(object):
@@ -177,7 +179,7 @@ class Config(object):
         self.fileconf.update(conf)
         self.merge_fileconf()
 
-        log("Read %s configuration items from %s (%s unknown items)" %(n,conffile,len(self.fileconf)))
+        log.info("Read %s configuration items from %s (%s unknown items)" %(n,conffile,len(self.fileconf)))
 
 
     def writeconfig(self, conffile):

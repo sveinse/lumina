@@ -5,8 +5,8 @@ import re
 from importlib import import_module
 from twisted.internet import reactor
 
-from .config import Config
-from .log import *
+from lumina.config import Config
+from lumina.log import Logger
 
 
 
@@ -20,6 +20,7 @@ class Lumina(object):
 
 
     def setup(self, conffile=None):
+        self.log = Logger(namespace='-')
 
         #== CONFIGUATION
         self.config = config = Config(settings=self.CONFIG)
@@ -59,13 +60,13 @@ class Lumina(object):
                 continue
 
             try:
-                log("Loading plugin %s..." %(module))
+                self.log.info("Loading plugin {m}...", m=module)
 
                 plugin = import_module('lumina.plugins.' + module).PLUGIN()
                 plugin.name = name
                 plugin.module = module
 
-                log("===  Registering plugin %s as %s" %(module,name))
+                self.log.info("===  Registering plugin {m} as {n}", m=module, n=name)
                 self.plugins[name] = plugin
 
                 # FIXME: Add global config options coming from the plugins. Either via
@@ -80,15 +81,14 @@ class Lumina(object):
                 reactor.addSystemEventTrigger('before','shutdown',plugin.close)
 
             except Exception as e:
-                import traceback
-                err("Failed to load plugin %s, ignoring. Exception:\n" %(module,) + traceback.format_exc())
+                self.log.failure("Failed to load plugin {m}, ignoring.", m=module)
 
         #== Register own shutdown
         reactor.addSystemEventTrigger('before','shutdown',self.close)
 
         # Missing plugins?
         if len(plugins) == 0:
-            warn("No plugins have been configured. Doing nothing.")
+            self.log.warn("No plugins have been configured. Doing nothing.")
 
 
     def close(self):

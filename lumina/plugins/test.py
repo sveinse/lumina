@@ -6,10 +6,10 @@ from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 
-from ..leaf import Leaf
-from ..event import Event
-from ..callback import Callback
-from ..log import *
+from lumina.leaf import Leaf
+from lumina.event import Event
+from lumina.callback import Callback
+
 
 
 class Test(Leaf):
@@ -22,7 +22,7 @@ class Test(Leaf):
         ]
 
         self.commands = {
-            'log'       : lambda a : log('Logging: %s' %(a), system=self.name),
+            'log'       : lambda a : self.log.info('Logging: {a}', a=a),
             'true'      : lambda a : True,
             '1'         : lambda a : 1,
             '2'         : lambda a : 2,

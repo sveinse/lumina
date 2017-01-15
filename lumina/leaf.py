@@ -7,10 +7,10 @@ from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.task import LoopingCall
 
-from .plugin import Plugin
-from .event import Event
-from .exceptions import *
-from .log import *
+from lumina.plugin import Plugin
+from lumina.event import Event
+from lumina.exceptions import *
+from lumina.log import Logger
 
 
 
@@ -21,36 +21,36 @@ class LeafProtocol(LineReceiver):
 
     def __init__(self, parent):
         self.parent = parent
-        self.system = parent.system
+        self.log = parent.log
 
 
     def connectionMade(self):
         self.ip = "%s:%s" %(self.transport.getPeer().host,self.transport.getPeer().port)
         self.parent.protocol = self
-        log("Connected to %s" %(self.ip,), system=self.system)
+        self.log.info("Connected to {ip}", ip=self.ip)
 
         # -- Keepalive pings
         self.keepalive = LoopingCall(self.transport.write, '\n')
         self.keepalive.start(60, False)
 
         # -- Register leaf name
-        log("Registering client %s" %(self.parent.name,), system=self.system)
+        self.log.info("Registering client {n}", n=self.parent.name)
         self.send(Event('name',self.parent.name))
 
         # -- Send host name
-        log("Registering hostname %s" %(self.parent.hostname,), system=self.system)
+        self.log.info("Registering hostname {n}", n=self.parent.hostname)
         self.send(Event('hostname',self.parent.hostname))
 
         # -- Register events
         evlist = self.parent.events
         if len(evlist):
-            log("Registering %s client events" %(len(evlist)), system=self.system)
+            self.log.info("Registering {n} client events", n=len(evlist))
             self.send(Event('events', *evlist))
 
         # -- Register commands
         cmdlist = self.parent.commands.keys()
         if len(cmdlist):
-            log("Registering %s client commands" %(len(cmdlist)), system=self.system)
+            self.log.info("Registering {n} client commands", n=len(cmdlist))
             self.send(Event('commands', *cmdlist))
 
         # -- Flush any queue that might have been accumulated before
@@ -59,7 +59,7 @@ class LeafProtocol(LineReceiver):
 
 
     def connectionLost(self, reason):
-        log("Lost connection with %s" %(self.ip), system=self.system)
+        self.log.info("Lost connection with {ip}", ip=self.ip)
         self.parent.protocol = None
         self.keepalive.stop()
 
@@ -72,17 +72,17 @@ class LeafProtocol(LineReceiver):
         if not len(data):
             return
 
-        lograwin(data, system=self.system)
+        self.log.debug('', rawin=data)
 
         # -- Parse the incoming message
         try:
             event = Event().load_json(data)
-            event.system = self.system
-            logdatain(event, system=self.system)
+            #event.system = self.system
+            self.log.debug('', datain=event)
 
         except (SyntaxError,ValueError) as e:
             # Raised if the load_json didn't succeed
-            err("Protocol error on incoming message: %s" %(e.message), system=self.system)
+            self.log.error("Protocol error on incoming message: {e}", e.message)
             return
 
         # -- Handle 'exit' event
@@ -109,11 +109,11 @@ class LeafProtocol(LineReceiver):
         # this function is used in a callback/errback chain.
 
         # Logging
-        logdataout(event, system=self.system)
+        self.log.debug('', dataout=event)
 
         # Encoding and transmittal
         data=event.dump_json()
-        lograwout(data, system=self.system)
+        self.log.debug('', rawout=data)
         self.transport.write(data+'\n')
 
         return response
@@ -126,18 +126,18 @@ class LeafFactory(ReconnectingClientFactory):
 
     def __init__(self,parent):
         self.parent = parent
-        self.system = parent.system
+        self.log = parent.log
 
     def buildProtocol(self, addr):
         self.resetDelay()
         return LeafProtocol(parent=self.parent)
 
     def clientConnectionLost(self, connector, reason):
-        log(reason.getErrorMessage(), system=self.system)
+        self.log.info(reason.getErrorMessage())
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
-        log(reason.getErrorMessage(), system=self.system)
+        self.log.info(reason.getErrorMessage())
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
 
@@ -156,10 +156,10 @@ class Leaf(Plugin):
 
 
     def setup(self, main):
-        self.hostname = 'foobar'
+        self.log = Logger(namespace=self.name)
+        self.hostname = 'FIXME'
         self.host = main.config.get('server',name=self.name)
         self.port = main.config.get('port',name=self.name)
-        self.system = self.name
         self.protocol = None
         self.queue = []
         self.factory = LeafFactory(parent=self)
@@ -177,7 +177,7 @@ class Leaf(Plugin):
         # FIXME: Return deferred object here?
         self.queue.append(event)
         if self.protocol is None:
-            log("%s  --  Not connected to server, queueing" %(event), system=self.system)
+            self.log.info("{e}  --  Not connected to server, queueing", e=event)
 
         # Attempt sending the message
         self.send_next()
@@ -209,12 +209,12 @@ class Leaf(Plugin):
         # -- Setup filling in the event data from the result
         def cmd_ok(result,event):
             event.set_success(result)
-            logcmdok(event, system=self.system)
+            self.log.info('', cmdok=event)
             return result
 
         def cmd_error(failure,event):
             event.set_fail(failure)
-            logcmderr(event, system=self.system)
+            self.log.info('', cmderr=event)
 
             # FIXME: What failures should be excepted and not passed on?
             #        if not failure.check(CommandException):

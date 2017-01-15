@@ -6,11 +6,10 @@ import sys
 import atexit
 import argparse
 import setproctitle
-from twisted.python import log
 from twisted.internet import reactor
 
-from .lumina import Lumina
-
+from lumina import log
+from lumina.lumina import Lumina
 
 
 #===  Become DAEMON
@@ -79,27 +78,19 @@ def main(args=None):
     #==  SET PROC TITLE
     setproctitle.setproctitle('lumina')
 
-
     #==  DAEMONIZE
     if os.name != 'nt' and opts.daemon:
         daemonize(pidfile=opts.pidfile)
         opts.syslog=True
 
-
     #==  LOGGING
-    if os.name != 'nt' and opts.syslog:
-        from twisted.python import syslog
-        syslog.startLogging(prefix='Lumina')
-    else:
-        log.startLogging(sys.stdout)
-
+    log.startLogging(syslog=(os.name != 'nt' and opts.syslog),syslog_prefix='Lumina')
+    log.Logger(namespace='-').info("PID {pid}", pid=os.getpid())
 
     #== MAIN
     #   This will load the plugins and set them up
     main = Lumina()
     main.setup(conffile=opts.config)
 
-
     #== START TWISTED
-    log.msg('Server PID: %s' %(os.getpid()), system='-')
     reactor.run()

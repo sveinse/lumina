@@ -1,19 +1,19 @@
 # -*-python-*-
-#from __future__ import absolute_import
+from __future__ import absolute_import
 
 from twisted.internet import reactor
 from twisted.internet.protocol import ClientFactory, Protocol, ReconnectingClientFactory
 from twisted.internet.defer import Deferred
 
-from ..leaf import Leaf
-from ..state import State
-from ..event import Event
-from ..exceptions import *
-from ..log import *
+from lumina.leaf import Leaf
+from lumina.state import State
+from lumina.event import Event
+from lumina.log import Logger
+from lumina.exceptions import *
 from lumina import utils
 
 # Import responder rules from separate file
-from .rules import telldus_config
+from lumina.plugins.rules import telldus_config
 
 
 # Can be tested with
@@ -58,7 +58,7 @@ def parsestream(data):
 
 
 
-def parseelements(elements,system=None):
+def parseelements(elements,log):
     ''' Parse elements into events '''
     events = [ ]
 
@@ -76,7 +76,7 @@ def parseelements(elements,system=None):
         }
 
         if cmd not in cmdsize:
-            log("Unknown command '%s', dropping %s" %(cmd, elements), system=system)
+            log.info("Unknown command '{c}', dropping {e}", c=cmd, e=elements)
             elements = [ ]
             break
 
@@ -84,7 +84,7 @@ def parseelements(elements,system=None):
 
         if l > len(elements):
             # Does not got enough data for command. Stop and postpone processing
-            log("Missing elements for command '%s', got %s, needs %s args." %(cmd,elements,l), system=system)
+            log.info("Missing elements for command '{c}', got {e}, needs {l} args.", c=cmd, e=elements, l=l)
             elements = [ ]
             break
 
@@ -133,18 +133,18 @@ class TelldusInFactory(ReconnectingClientFactory):
     def __init__(self, protocol, parent):
         self.protocol = protocol
         self.parent = parent
-        self.system = protocol.system
+        self.log = protocol.log
 
     def buildProtocol(self, addr):
         self.resetDelay()
         return self.protocol
 
     def clientConnectionLost(self, connector, reason):
-        log(reason.getErrorMessage(), system=self.system)
+        self.log.error('Connection lost: {e}', e=reason.getErrorMessage())
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
-        log(reason.getErrorMessage(), system=self.system)
+        self.log.error('Connect failed: {e}', e=reason.getErrorMessage())
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
         self.protocol.state.set_ERROR(self.protocol.path,reason.getErrorMessage())
 
@@ -164,9 +164,9 @@ class TelldusIn(Protocol):
 
 
     def __init__(self,parent):
+        self.log = Logger(namespace = parent.name + '/in')
         self.parent = parent
-        self.system = parent.system + '/in'
-        self.state = State('init', system=self.system,
+        self.state = State('init', log=self.log,
                             change_callback=lambda *a:self.parent.changestate(self,*a) )
         self.factory = TelldusInFactory(self, self.parent)
 
@@ -177,14 +177,14 @@ class TelldusIn(Protocol):
 
 
     def connectionMade(self):
-        log("Connected to %s" %(self.path,), system=self.system)
+        self.log.info("Connected to {p}", p=self.path)
         self.state.set_READY()
         self.data = ''
         self.elements = [ ]
 
 
     def connectionLost(self, reason):
-        log("Lost connection with %s" %(self.path,), system=self.system)
+        self.log.info("Lost connection with {p}", p=self.path)
         self.state.set_DOWN(reason.getErrorMessage())
 
 
@@ -194,13 +194,13 @@ class TelldusIn(Protocol):
 
 
     def dataReceived(self, data):
-        lograwin(data, system=self.system)
+        self.log.debug('',rawin=data)
 
         data = self.data + data
 
         # Interpret the data
         (elements, data) = parsestream(data)
-        (events, elements) = parseelements(elements, system=self.system)
+        (events, elements) = parseelements(elements, log=self.log)
 
         # Save remaining data for next call (incomplete frame received)
         self.data = data
@@ -211,7 +211,7 @@ class TelldusIn(Protocol):
 
         # Iterate over the received events
         for event in events:
-            logdatain(event, system=self.system)
+            self.log.debug('', datain=event)
             self.parent.parse_event(event)
 
 
@@ -222,7 +222,7 @@ class TelldusOutFactory(ClientFactory):
     def __init__(self, protocol, parent):
         self.protocol = protocol
         self.parent = parent
-        self.system = protocol.system
+        self.log = protocol.log
 
     def buildProtocol(self, addr):
         return self.protocol
@@ -253,9 +253,9 @@ class TelldusOut(Protocol):
     #   -> disconnect() -> connectionLost() [ -> send_next() ... ]
 
     def __init__(self,parent):
+        self.log = Logger(namespace = parent.name + '/out')
         self.parent = parent
-        self.system = parent.system + '/out'
-        self.state = State('init', system=self.system,
+        self.state = State('init', log=self.log,
                            change_callback=lambda *a:self.parent.changestate(self,*a))
         self.queue = []
         self.active = None
@@ -292,7 +292,7 @@ class TelldusOut(Protocol):
 
     def dataReceived(self, data):
         self.state.set_UP()
-        lograwin(data, system=self.system)
+        self.log.debug('', rawin=data)
         (elements, data) = parsestream(data)
 
         # FIXME: Is it correct to send element to the callback? ....yes
@@ -314,7 +314,7 @@ class TelldusOut(Protocol):
 
 
     def send(self):
-        logdataout(self.data, system=self.system)
+        self.log.debug('', dataout=self.data)
         self.transport.write(self.data)
 
 
@@ -340,7 +340,7 @@ class TelldusOut(Protocol):
 
     def timedout(self, defer):
         # The timeout response is to fail the request and proceed with the next command
-        log("Command '%s' timed out" %(self.active,), system=self.system)
+        self.log.err("Command '{c}' timed out", c=self.active)
         self.disconnect()
         self.state.set_ERROR('Timeout')
         defer.errback(TimeoutException())
@@ -357,7 +357,7 @@ class Telldus(Leaf):
         Leaf.setup(self, main)
         self.inport = TelldusIn(self)
         self.outport = TelldusOut(self)
-        self.state = State('init', system=self.system)
+        self.state = State('init', log=self.log)
         self.inport.connect()
 
     def close(self):
@@ -419,8 +419,7 @@ class Telldus(Leaf):
             args = parserawargs(event[1])
 
             if 'protocol' not in args:
-                log("Missing protocol from %s, dropping event" %(cmd),
-                        system=self.inport.system)
+                self.inport.log.info("Missing protocol from {c}, dropping event", c=cmd)
                 return
 
             #if args['protocol'] != 'arctech':
@@ -473,7 +472,7 @@ class Telldus(Leaf):
                 return
 
         # Ignore the other events
-        log("Ignoring '%s' %s" %(cmd,event[1:]), system=self.inport.system)
+        self.inport.log.info("Ignoring '{c}' {e}", c=cmd, e=event[1:])
 
 
     # --- Interfaces

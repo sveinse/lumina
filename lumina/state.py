@@ -1,6 +1,7 @@
 #-*- python -*-
+from __future__ import absolute_import
 
-from .log import *
+from lumina.log import Logger
 
 
 # FIXME:  Useful States
@@ -20,9 +21,12 @@ class State(object):
         on changes.
     '''
 
-    def __init__(self,state,system=None,change_callback=None,*args):
+    def __init__(self,state,log=None,change_callback=None,*args):
         self.state = state or 'init'
-        self.system = system
+        if log is None:
+            self.log = Logger()
+        else:
+            self.log = log
         self.args = args[:]
         self.change_callback = change_callback
 
@@ -34,7 +38,7 @@ class State(object):
         if len(args):
             s = ' (%s)' %(",".join(args))
         if state != old:
-            log("STATE change: %s --> %s%s" %(old,state,s), system=self.system)
+            self.log.info('{_state}{extra}', state=(old,state), extra=s)
 
             if self.change_callback:
                 self.change_callback(self.state, old, *args)
