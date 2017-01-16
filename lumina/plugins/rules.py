@@ -7,11 +7,12 @@ from __future__ import absolute_import
 alias = {
     # Command -> ( list of 'commands' )
 
-    # Test aliases
-    'two'    : ( 'test/3', 'test/nope', ),
-    'one'    : ( 'test/1', 'test/2', 'two', ),
-    'list'   : ( 'test/list', ),
-    'empty'  : ( '', ),
+    # Test and debug aliases
+    'zero'   : tuple(),
+    'one'    : ( 'test/1', ),
+    'two'    : ( 'test/1', 'test/2' ),
+    'fail'   : ( 'test/1', 'test/fail', 'test/2' ),
+    'unknown': ( 'test/1', 'gone', 'test/2' ),
 
     # Original aliases
     'light/full'      : ( 'telldus/light/on', 'telldus/ledpwr/on', 'led/white/on' ),
@@ -42,9 +43,17 @@ alias = {
 responses = {
     # Event -> Action
 
-    # Test responses
-    'test/timer'  : 'test/1',
-    'test'        : 'one',
+    # Test and debug responses
+    'zero' : 'zero',
+    'one' : 'one',
+    'two' : 'two',
+    'fail' : 'fail',
+    'unknown' : 'unknown',
+    'test/zero' : 'zero',
+    'test/one' : 'one',
+    'test/two' : 'two',
+    'test/fail' : 'fail',
+    'test/unknown' : 'unknown',
 
     # Oppo initialization
     #'oppo/connected' : 'oppo/verbose',
@@ -70,14 +79,14 @@ responses = {
     'telldus/remote/8/on'    : 'led{122,0,29,0}',
     'telldus/remote/8/off'   : 'led{10,0,4,0}',
 
-    'telldus/remote/9/on'    : 'telldus/led/on',
-    'telldus/remote/9/off'   : 'telldus/led/off',
-    'telldus/remote/10/on'    : 'telldus/light/table/on',
-    'telldus/remote/10/off'   : 'telldus/light/table/off',
-    'telldus/remote/11/on'    : 'telldus/light/roof/on',
-    'telldus/remote/11/off'   : 'telldus/light/roof/off',
-    'telldus/remote/12/on'    : 'telldus/light/on',
-    'telldus/remote/12/off'   : 'telldus/light/off',
+    'telldus/remote/9/on'    : 'telldus/ledpwr/on',
+    'telldus/remote/9/off'   : 'telldus/ledpwr/off',
+    'telldus/remote/10/on'   : 'telldus/light/table/on',
+    'telldus/remote/10/off'  : 'telldus/light/table/off',
+    'telldus/remote/11/on'   : 'telldus/light/roof/on',
+    'telldus/remote/11/off'  : 'telldus/light/roof/off',
+    'telldus/remote/12/on'   : 'telldus/light/on',
+    'telldus/remote/12/off'  : 'telldus/light/off',
 
     # Veggbryter overst hjemmekino
     'telldus/wallsw1/on'     : 'light/normal',
@@ -124,10 +133,10 @@ telldus_config = [
     dict(t='in', house=392498,   group=0, unit=1,       name='wallsw2/{method}' ),
 
     # Temperature devices
-    dict(t='temp', id=11,  name='temp/ute' ),
-    dict(t='temp', id=12,  name='temp/kjeller' ),
-    dict(t='temp', id=247, name='temp/fryser' ),
-    dict(t='temp', id=135, name='temp/kino/ute' ),
-    dict(t='temp', id=151, name='temp/kino/inne' ),
+    #dict(t='temp', id=11,  name='temp/ute' ),
+    #dict(t='temp', id=12,  name='temp/kjeller' ),
+    #dict(t='temp', id=247, name='temp/fryser' ),
+    #dict(t='temp', id=135, name='temp/kino/ute' ),
+    #dict(t='temp', id=151, name='temp/kino/inne' ),
 
 ]

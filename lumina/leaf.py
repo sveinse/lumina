@@ -13,6 +13,11 @@ from lumina.exceptions import *
 from lumina.log import Logger
 
 
+# Exception types that will not result in a local traceback
+validLeafExceptions = (
+    NoConnectionException,
+)
+
 
 class LeafProtocol(LineReceiver):
     noisy = False
@@ -38,8 +43,8 @@ class LeafProtocol(LineReceiver):
         self.send(Event('name',self.parent.name))
 
         # -- Send host name
-        self.log.info("Registering hostname {n}", n=self.parent.hostname)
-        self.send(Event('hostname',self.parent.hostname))
+        #self.log.info("Registering hostname {n}", n=self.parent.hostname)
+        #self.send(Event('hostname',self.parent.hostname))
 
         # -- Register events
         evlist = self.parent.events
@@ -55,7 +60,7 @@ class LeafProtocol(LineReceiver):
 
         # -- Flush any queue that might have been accumulated before
         #    connecting to the controller
-        self.parent.send_next()
+        self.parent.emit_next()
 
 
     def connectionLost(self, reason):
@@ -78,7 +83,7 @@ class LeafProtocol(LineReceiver):
         try:
             event = Event().load_json(data)
             #event.system = self.system
-            self.log.debug('', datain=event)
+            self.log.debug('', cmdin=event)
 
         except (SyntaxError,ValueError) as e:
             # Raised if the load_json didn't succeed
@@ -109,7 +114,7 @@ class LeafProtocol(LineReceiver):
         # this function is used in a callback/errback chain.
 
         # Logging
-        self.log.debug('', dataout=event)
+        self.log.debug('', cmdout=event)
 
         # Encoding and transmittal
         data=event.dump_json()
@@ -133,11 +138,11 @@ class LeafFactory(ReconnectingClientFactory):
         return LeafProtocol(parent=self.parent)
 
     def clientConnectionLost(self, connector, reason):
-        self.log.info(reason.getErrorMessage())
+        #self.log.info(reason.getErrorMessage())
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
-        self.log.info(reason.getErrorMessage())
+        self.log.error('Server connect failed: {e}', e=reason.getErrorMessage())
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
 
@@ -157,7 +162,7 @@ class Leaf(Plugin):
 
     def setup(self, main):
         self.log = Logger(namespace=self.name)
-        self.hostname = 'FIXME'
+        #self.hostname = 'FIXME'
         self.host = main.config.get('server',name=self.name)
         self.port = main.config.get('port',name=self.name)
         self.protocol = None
@@ -166,24 +171,23 @@ class Leaf(Plugin):
         reactor.connectTCP(self.host, self.port, self.factory)
 
 
-    def event(self, event, *args, **kw):
-        self.send(Event(event,*args,**kw))
-
-
-    def send(self, event):
+    def emit(self, name, *args, **kw):
+        # Emit an event to the server
         # Queue it here rather than in the procol, as the procol object is created
         # when the connection to the controller is made
 
         # FIXME: Return deferred object here?
+        
+        event = Event(name,*args,**kw)
         self.queue.append(event)
         if self.protocol is None:
-            self.log.info("{e}  --  Not connected to server, queueing", e=event)
+            self.log.info("{e}  --  Not connected to server, queueing. {n} items in queue", e=event, n=len(self.queue))
 
         # Attempt sending the message
-        self.send_next()
+        self.emit_next()
 
 
-    def send_next(self):
+    def emit_next(self):
         ''' Send the next event(s) in the queue '''
 
         if self.protocol is None:
@@ -219,6 +223,11 @@ class Leaf(Plugin):
             # FIXME: What failures should be excepted and not passed on?
             #        if not failure.check(CommandException):
             #        log(failure.getTraceback(), system=self.system)
+
+            # Accept the exception if listed in validLeafExceptions.
+            for exc in validLeafExceptions:
+                if failure.check(exc):
+                    return None
 
             # If failure is returned, it will create a "unhandled exception" and a traceback in
             # the logs. Hence a log() traceback is only necessary when the exception is handled,

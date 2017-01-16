@@ -49,7 +49,7 @@ class Responder(Plugin):
         if job is None:
             self.log.info("Ignoring event '{e}'", e=event)
             self.log.info("  --:  Ignored",)
-            return
+            return None
 
         # Make a job object and its parse args and run it
         #self.log.debug("Event '{e}' received", e=event)
@@ -103,43 +103,79 @@ class Responder(Plugin):
     def run_commandlist(self, command, commandlist): #, timeout=DEFAULT_TIMEOUT):
         ''' Run the commandlist (which should be an Event object) '''
 
-        # We need at least one command to run.
-        #if not len(commandlist):
-        #    raise CommandRunException("'%s' error: Nothing to run" %(command.name))
-
-        # Compile a list of all the events which is going to be run (for printing)
+        # Print the events
         self.log.info("  --:    {l}", l=commandlist)
-        if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
-            #command.result = None
-            #else:
-            command.result = commandlist
-            command.success = False
+        
+        # If the command and the commandlist contains the same command (which happens
+        # if you call self.run_command() on a non-composite alias command), then
+        # simply call it as an ordinary command
+        if len(commandlist)==1 and id(command) == id(commandlist[0]):
+            return self.server.run_command(command)
+            
+        # Helper-class for executing the command-list
+        class RunCommandList:
+            def __init__(self,command,commandlist,log):
+                self.log = log
+                self.defer = Deferred()
+                self.request = command
+                self.commandlist = commandlist
+                self.remain = len(commandlist)
+                self.failed = []
+                self.success = 0
 
-        # Chain all commands into one deferred list
-        s = self.server
-        d = DeferredList([ s.run_command(cmd, fail_on_unknown=False) for cmd in commandlist ],
-                         consumeErrors=True, fireOnOneErrback=True)
+            def execute(self,server):
 
-        def list_ok(result, command, commandlist):
-            self.log.info('',cmdok=commandlist)
-            # Update the success variable with the number of successful commands
-            # if len(command.result) == command.success then all succeeded
-            if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
-                command.success = [ c.success for c in commandlist ].count(True)
-            return command
+                # Null-lengthed commandlists must be completed by manually calling the
+                # dispatch handler.
+                if self.remain == 0:
+                    self.cmd_done(None)
 
-        def list_error(failure, command, commandlist):
-            self.log.error('',cmderr=commandlist)
-            # Update the success variable with the number of successful commands
-            if not ( len(commandlist)==1 and command.name == commandlist[0].name ):
-                command.success = [ c.success for c in commandlist ].count(True)
+                else:
+                    # Execute all of the commands in the commandlist
+                    for cmd in self.commandlist:
 
-            # Report the actual error back to the caller
-            return failure.value.subFailure
+                        # Attach callbacks to handle progress
+                        d2 = server.run_command(cmd)
+                        d2.addCallback(self.cmd_ok,cmd)
+                        d2.addErrback(self.cmd_err,cmd)
+                        d2.addBoth(self.cmd_done)
+                        
+                        # ...the d2 deferred object is not needed by anyone else...
+                    
+                return self.defer
+                
+            def cmd_ok(self,result,cmd):
+                self.success += 1
+                return result
+                
+            def cmd_err(self,failure,cmd):
+                self.failed.append(cmd)
+                return failure
+                
+            def cmd_done(self,result):
+                self.remain -= 1
+                # Done?
+                if self.remain <= 0:
+                    # Prepare the response
+                    request = self.request
+                    request.result = self.commandlist
+                    request.success = self.success
+                    
+                    # Success is when all sub-jobs succeeds
+                    if self.success == len(self.commandlist):
+                        self.log.info('', cmdok=request)
+                        self.defer.callback(request)
 
-        d.addCallback(list_ok, command, commandlist)
-        d.addErrback(list_error, command, commandlist)
-        return d
+                    else:
+                        self.log.error('{_cmderr}, {f}/{n} succeeded', cmderr=request, f=self.success, n=len(self.commandlist))
+                        self.defer.errback(CommandRunException(request))
+                
+                # We want to accept the fault/error
+                return None
+
+        rundata = RunCommandList(command=command, commandlist=commandlist, log=self.log)
+        return rundata.execute(self.server)
+
 
 
 PLUGIN = Responder

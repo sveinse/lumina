@@ -19,6 +19,13 @@ class Test(Leaf):
     def configure(self):
         self.events = [
             'timer',
+            
+            # For testing echo
+            'zero',
+            'one',
+            'two',
+            'fail',
+            'unknown'
         ]
 
         self.commands = {
@@ -31,6 +38,7 @@ class Test(Leaf):
             'delay'     : lambda a : self.delay(2,(1,2,3)),
             'fail'      : lambda a : self.err(),
             'never'     : lambda a : Deferred(),
+            'echo'      : lambda a : self.emit(a.args[0]),
         }
 
 
@@ -49,7 +57,7 @@ class Test(Leaf):
     # --- Worker
     def loop_cb(self):
         self.n = self.n+1
-        self.send(Event('timer',self.n))
+        self.emit('timer',self.n)
 
     def delay(self,time,data):
         d = Deferred()

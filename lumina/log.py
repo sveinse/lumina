@@ -126,10 +126,12 @@ class LuminaLogObserver(object):
         specials = (
             ('rawin',   lambda d: "RAW  >>>  ({l})'{d}'".format(l=len(d),d=d) ),
             ('rawout',  lambda d: "RAW  <<<  ({l})'{d}'".format(l=len(d),d=d) ),
-            ('datain',  lambda d: "   -->  {d}".format(d=d) ),
-            ('dataout', lambda d: "   <--  {d}".format(d=d) ),
-            ('cmdok',   lambda d: "    OK  {d}".format(d=d) ),
-            ('cmderr',  lambda d: "   ERR  {d}".format(d=d) ),
+            ('datain',  lambda d: "  >>>  {d}".format(d=d) ),
+            ('dataout', lambda d: "  <<<  {d}".format(d=d) ),
+            ('cmdin',   lambda d: "  -->  {d}".format(d=d) ),
+            ('cmdout',  lambda d: "  <--  {d}".format(d=d) ),
+            ('cmdok',   lambda d: "   OK  {d}".format(d=d) ),
+            ('cmderr',  lambda d: "  ERR  {d}".format(d=d) ),
             ('state',   lambda d: "STATE change: {o} --> {n}".format(o=d[0],n=d[1]))
         )
 
@@ -171,8 +173,7 @@ class LuminaLogObserver(object):
 def startLogging(syslog,syslog_prefix):
     
         # This logger will take over the system and will not give any feedback if the logger is failing
-        #globalLogBeginner.beginLoggingTo([LuminaLogObserver(syslog=syslog,syslog_prefix=syslog_prefix)])
+        globalLogBeginner.beginLoggingTo([LuminaLogObserver(syslog=syslog,syslog_prefix=syslog_prefix)])
 
         # This logger will allow failures on the logging system to be seen
-        globalLogPublisher.addObserver( 
-            LuminaLogObserver(syslog=syslog,syslog_prefix=syslog_prefix) )
+        #globalLogPublisher.addObserver(LuminaLogObserver(syslog=syslog,syslog_prefix=syslog_prefix) )

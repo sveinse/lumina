@@ -140,7 +140,7 @@ class TelldusInFactory(ReconnectingClientFactory):
         return self.protocol
 
     def clientConnectionLost(self, connector, reason):
-        self.log.error('Connection lost: {e}', e=reason.getErrorMessage())
+        # This is handled in TelldusIn.connectionLost()
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
@@ -445,7 +445,7 @@ class Telldus(Leaf):
                         continue
 
                     # Match found, process it as an event
-                    self.event(ev)
+                    self.emit(ev)
                     return
 
             elif args['protocol'] == 'mandolyn' or args['protocol'] == 'fineoffset':
@@ -463,13 +463,13 @@ class Telldus(Leaf):
 
                     # Match found, process it as an event
                     if 'humidity' in args:
-                        self.event(ev,('temp',args['temp']),('humidity',args['humidity']))
+                        self.emit(ev,('temp',args['temp']),('humidity',args['humidity']))
                     else:
-                        self.event(ev,('temp',args['temp']))
+                        self.emit(ev,('temp',args['temp']))
                     return
 
-                # Not interested in logging temp events we don't subscribe to
-                return
+                # Uncommant if not interested in logging temp events we don't subscribe to
+                #return
 
         # Ignore the other events
         self.inport.log.info("Ignoring '{c}' {e}", c=cmd, e=event[1:])

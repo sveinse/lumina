@@ -101,7 +101,7 @@ class ServerProtocol(LineReceiver):
         # -- Special *** notation which puts the session into interactive mode
         if data.startswith('***'):
             self.interactive = True
-            addObserver(self.interactive_logger)
+            #addObserver(self.interactive_logger)
             self.log.info("Starting interactive mode")
             return
 
@@ -113,7 +113,7 @@ class ServerProtocol(LineReceiver):
             else:
                 # Load string mode with shell-like parsing in interactive mode
                 event = Event().load_str(data,shell=True)
-            self.log.debug('', datain=event)
+            self.log.debug('', cmdin=event)
 
         except (SyntaxError,ValueError) as e:
             # Raised if the parsing didn't succeed
@@ -133,10 +133,10 @@ class ServerProtocol(LineReceiver):
             return
 
         # -- Register host name
-        elif event.name == 'hostname':
-            self.log.info('Client {h} is named {n}', h=self.hostname, n=event.args[0])
-            self.hostname = event.args[0]
-            return
+        #elif event.name == 'hostname':
+        #    self.log.info('Client {h} is named {n}', h=self.hostname, n=event.args[0])
+        #    self.hostname = event.args[0]
+        #    return
 
         # -- Register client events
         elif event.name == 'events':
@@ -166,13 +166,13 @@ class ServerProtocol(LineReceiver):
         # -- Handle a reply to a former command
         elif event.seq in self.requests:
 
-            # Rewrite the event to name/event before sending to the handler
-            event.name = self.name + '/' + event.name
-
             # Copy received data into request
             request = self.requests.pop(event.seq)
             request.success = event.success
             request.result = event.result
+
+            # Rewrite the event to name/event before sending to the handler
+            request.name = self.name + '/' + event.name
 
             # Take the defer handler and remove it from the request to prevent calling it twice
             (defer, self.defer) = (request.defer, None)
@@ -186,7 +186,7 @@ class ServerProtocol(LineReceiver):
 
                 # Send an error back
                 exc = ClientException(*request.result)
-                self.log.info('', cmderr=request)
+                self.log.error('', cmderr=request)
                 defer.errback(exc)
 
             return
@@ -201,7 +201,11 @@ class ServerProtocol(LineReceiver):
                 return
 
             try:
-                self.parent.handle_event(event)
+                d=self.parent.handle_event(event)
+                
+                # Slurp failure from running the event, but pass others
+                if d:
+                    d.addErrback(lambda r: r.trap(CommandRunException) )
 
             # Any error at this point should be on the server's own accord and should not
             # affect the client connection, so this except is required
@@ -237,7 +241,7 @@ class ServerProtocol(LineReceiver):
         self.requests[event.seq] = event
 
         # -- Encode and send the command
-        self.log.debug('', dataout=event)
+        self.log.debug('', cmdout=event)
         data=event.dump_json()
         self.log.debug('', rawout=data)
         self.transport.write(data+'\n')
@@ -254,8 +258,10 @@ class ServerProtocol(LineReceiver):
         def raw_reply(result,event):
             reply("SUCCESS: %s" %(event))
         def raw_error(failure,event):
-            reply("FAILED: %s" %(event))
-            #reply(failure.getTraceback())
+            reply("FAILED: %s: %s" %(event,failure.getErrorMessage()))
+            # This will be reported as an unhandled error in Deferred unless we return
+            # none here.
+            return None
 
         cmd = event.name
         c = cmd[0]
@@ -270,7 +276,10 @@ class ServerProtocol(LineReceiver):
             elif c == '*':
                 # Interpret as event
                 event.name = cmd[1:]
-                self.parent.handle_event(event)
+                d=self.parent.handle_event(event)
+                if d:
+                    d.addCallback(raw_reply, event)
+                    d.addErrback(raw_error, event)                
 
             elif cmd == 'exit':
                 self.transport.loseConnection()
@@ -300,7 +309,8 @@ class ServerProtocol(LineReceiver):
 
         except Exception as e:
             # Handles any errors before the commands are run
-            reply('ERROR %s: %s\n' %(e.message,event))
+            reply('ERROR: %s: %s' %(event, e.message))
+            self.log.failure("Exception on {e}: {m}", e=event, m=e.message)
 
 
     def interactive_logger(self,msg):
@@ -344,11 +354,13 @@ class Server(Plugin):
     def run_command(self, event, fail_on_unknown=True):
         ''' Send a command to a client and return a deferred object for the reply '''
 
+        # FIXME: Do we need the fail_on_unknown option?
+        
         def unknown_command(event):
             exc = UnknownCommandException(event.name)
             event.set_fail(exc)
             if fail_on_unknown:
-                self.log.error("Unknown command: '{n}'", n=event.name)
+                self.log.error('', cmderr=event)
                 raise exc
             self.log.warn("Ignoring unknown command: '{n}'", n=event.name)
 
