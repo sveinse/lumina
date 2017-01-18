@@ -132,7 +132,6 @@ class LuminaLogObserver(object):
             ('cmdout',  lambda d: "  <--  {d}".format(d=d) ),
             ('cmdok',   lambda d: "   OK  {d}".format(d=d) ),
             ('cmderr',  lambda d: "  ERR  {d}".format(d=d) ),
-            ('state',   lambda d: "STATE change: {o} --> {n}".format(o=d[0],n=d[1]))
         )
 
         # Replace the specials

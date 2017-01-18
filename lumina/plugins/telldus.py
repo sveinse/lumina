@@ -4,9 +4,10 @@ from __future__ import absolute_import
 from twisted.internet import reactor
 from twisted.internet.protocol import ClientFactory, Protocol, ReconnectingClientFactory
 from twisted.internet.defer import Deferred
+from twisted.internet.task import LoopingCall
 
 from lumina.leaf import Leaf
-from lumina.state import State
+from lumina.state import ColorState
 from lumina.event import Event
 from lumina.log import Logger
 from lumina.exceptions import *
@@ -140,61 +141,68 @@ class TelldusInFactory(ReconnectingClientFactory):
         return self.protocol
 
     def clientConnectionLost(self, connector, reason):
-        # This is handled in TelldusIn.connectionLost()
+        # This is handled in TelldusIn.connectionLost(), and is present here
+        # to handle reconnection.
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
         self.log.error('Connect failed: {e}', e=reason.getErrorMessage())
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
-        self.protocol.state.set_ERROR(self.protocol.path,reason.getErrorMessage())
+        self.protocol.state.set_RED(self.protocol.path,reason.getErrorMessage())
 
 
-# STATE FLOW:
-#                  ,--<------------------.
-#    init -> starting -> ready -> up     |
-#             |           ^  `--+-'      |
-#             |           |     v        |
-#             `-> error -'    down >-----'
-#
 class TelldusIn(Protocol):
     ''' Class for incoming Telldus events '''
 
     noisy = False
     path = '/tmp/TelldusEvents'
+    idleTimeout = 20
 
 
     def __init__(self,parent):
         self.log = Logger(namespace = parent.name + '/in')
         self.parent = parent
-        self.state = State('init', log=self.log,
-                            change_callback=lambda *a:self.parent.changestate(self,*a) )
+        self.state = ColorState(log=self.log, format={0:0}, # <-- a hack to avoid color
+                                change_callback=lambda *a:self.parent.changestate(self,*a) )
+        self.connected = False
         self.factory = TelldusInFactory(self, self.parent)
 
 
     def connect(self):
-        self.state.set_STARTING()
+        self.state.set_OFF()
         reactor.connectUNIX(self.path, self.factory)
 
 
     def connectionMade(self):
         self.log.info("Connected to {p}", p=self.path)
-        self.state.set_READY()
+        self.connected = True
+        self.state.set_YELLOW()
         self.data = ''
         self.elements = [ ]
+        self.timer = LoopingCall(self.dataTimeout)
+        self.timer.start(self.idleTimeout, now=False)
 
 
     def connectionLost(self, reason):
+        self.connected = False
         self.log.info("Lost connection with {p}", p=self.path)
-        self.state.set_DOWN(reason.getErrorMessage())
+        self.state.set_OFF(reason.getErrorMessage())
+        if self.timer.running:
+            self.timer.stop()
 
 
     def disconnect(self):
-        if self.state.is_in('ready','up'):
+        if self.connected:
             self.transport.loseConnection()
 
 
     def dataReceived(self, data):
         self.log.debug('',rawin=data)
+
+        if self.timer.running:
+            self.timer.reset()
+        else:
+            self.timer.start(self.idleTimeout, now=False)
 
         data = self.data + data
 
@@ -207,12 +215,18 @@ class TelldusIn(Protocol):
         self.elements = elements
 
         # At this point, we can consider the connection up
-        self.state.set_UP()
+        self.state.set_GREEN()
 
         # Iterate over the received events
         for event in events:
             self.log.debug('', datain=event)
             self.parent.parse_event(event)
+
+
+    def dataTimeout(self):
+        self.timer.stop()
+        self.log.info("No telldus activity. Lost connection?")
+        self.state.set_YELLOW()
 
 
 
@@ -232,12 +246,9 @@ class TelldusOutFactory(ClientFactory):
 
 
 
-# STATE FLOW:
-#                  ,--<-------------------.
-#    init -> starting -> ready -> up -> idle
-#             |    ^       ^
-#             |    |       |
-#             `-> error <-'
+#
+# The Telldus client protocol requires opening the a UNIX socket to the client address,
+# write the command and close the connection when done.
 #
 class TelldusOut(Protocol):
     ''' Class for outgoing Telldus commands '''
@@ -255,43 +266,52 @@ class TelldusOut(Protocol):
     def __init__(self,parent):
         self.log = Logger(namespace = parent.name + '/out')
         self.parent = parent
-        self.state = State('init', log=self.log,
-                           change_callback=lambda *a:self.parent.changestate(self,*a))
+        self.state = ColorState(log=self.log, format={0:0}, # <-- a hack to avoid color
+                                change_callback=lambda *a:self.parent.changestate(self,*a))
+        self.connected = False
+        self.completed = False
+        self.running = True
         self.queue = []
         self.active = None
         self.factory = TelldusOutFactory(self, self.parent)
 
 
     def connectionMade(self):
-        self.state.set_READY()
+        if self.state.is_in('OFF'):
+            self.state.set_YELLOW()
+        self.connected = True
+        self.completed = False
         self.send()
 
 
     def connectionLost(self, reason):
-        if self.state.is_in('ready'):
+        self.connected = False
+        if not self.completed:
             # Lost connection before we could get any reply back.
-            self.state.set_ERROR(self.path,reason.getErrorMessage())
+            self.state.set_RED(self.path,reason.getErrorMessage())
             (defer, self.defer) = (self.defer, None)
             defer.errback(LostConnectionException(reason.getErrorMessage()))
-        else:
-            self.state.set_IDLE(reason.getErrorMessage())
-        self.send_next(proceed=True)
+        self.completed = False
+        if self.running:
+            self.send_next(proceed=True)
 
 
     def clientConnectionFailed(self, reason):
-        self.state.set_ERROR(self.path,reason.getErrorMessage())
+        self.state.set_RED(self.path,reason.getErrorMessage())
         (defer, self.defer) = (self.defer, None)
         defer.errback(NoConnectionException(reason.getErrorMessage()))
         self.send_next(proceed=True)
 
 
     def disconnect(self):
-        if self.state.is_in('ready','up'):
+        if self.connected:
+            self.running = False
             self.transport.loseConnection()
+        self.state.set_OFF()
 
 
     def dataReceived(self, data):
-        self.state.set_UP()
+        self.state.set_GREEN()
         self.log.debug('', rawin=data)
         (elements, data) = parsestream(data)
 
@@ -299,8 +319,8 @@ class TelldusOut(Protocol):
         (defer, self.defer) = (self.defer, None)
         defer.callback(elements)
 
-        self.disconnect()
-        #self.send_next()
+        self.completed = True
+        self.transport.loseConnection()
 
 
     def command(self, cmd):
@@ -326,23 +346,15 @@ class TelldusOut(Protocol):
         if len(self.queue):
             (self.defer, self.active, self.data) = self.queue.pop(0)
 
-            #if self.state.is_in('ready','up'):
-            #    self.send()
-            #else:
-
             # Next will be connectionMade() or clientConnectionFailed()
-            self.state.set_STARTING()
             reactor.connectUNIX(self.path, self.factory)
-
-        #else:
-        #    self.disconnect()
 
 
     def timedout(self, defer):
         # The timeout response is to fail the request and proceed with the next command
         self.log.err("Command '{c}' timed out", c=self.active)
         self.disconnect()
-        self.state.set_ERROR('Timeout')
+        self.state.set_RED('Timeout')
         defer.errback(TimeoutException())
         self.send_next(proceed=True)
 
@@ -357,7 +369,7 @@ class Telldus(Leaf):
         Leaf.setup(self, main)
         self.inport = TelldusIn(self)
         self.outport = TelldusOut(self)
-        self.state = State('init', log=self.log)
+        self.state = ColorState(log=self.log)
         self.inport.connect()
 
     def close(self):
@@ -366,19 +378,8 @@ class Telldus(Leaf):
 
 
     # --- Callbacks
-    # FIXME: Implement overall state logic
     def changestate(self,cls,state,oldstate,*args):
-        return
-        #if cls == self.inport:
-        #    if state == 'connected':
-        #        self.event('connected')
-        #    elif state == 'closed':
-        #        self.event('disconnected',*args)
-        #    elif state == 'error':
-        #        self.event('error',*args)
-        #elif cls == self.outport:
-        #    if state == 'error':
-        #        self.event('error',*args)
+        self.state.combine(self.inport.state,self.outport.state)
 
 
     # --- Commands

@@ -21,32 +21,35 @@ class State(object):
         on changes.
     '''
 
-    def __init__(self,state,log=None,change_callback=None,*args):
+    def __init__(self,state=None,states=None,format=None,log=None,change_callback=None,*args):
         self.state = state or 'init'
         if log is None:
             self.log = Logger()
         else:
             self.log = log
+        self.states = states 
+        self.format = format or {}
         self.args = args[:]
         self.change_callback = change_callback
 
 
     def set(self,state,*args):
+        if self.states and state not in self.states:
+            raise ValueError("Invalid state '%s'" %(state))
         (old, self.state) = (self.state, state)
         self.args = args[:]
         s = ''
         if len(args):
             s = ' (%s)' %(",".join(args))
         if state != old:
-            self.log.info('{_state}{extra}', state=(old,state), extra=s)
+            pstate = self.format.get(state,state)
+            self.log.info('STATE change: {o} --> {n}{s}', o=old, n=pstate, s=s)
 
             if self.change_callback:
                 self.change_callback(self.state, old, *args)
 
-
     def get(self):
         return self.state
-
 
     def is_in(self,*args):
         if self.state in args:
@@ -57,15 +60,43 @@ class State(object):
         return not self.is_in(*args)
 
 
-    def set_DOWN(self,*args):
-        self.set('down',*args)
-    def set_ERROR(self,*args):
-        self.set('error',*args)
-    def set_IDLE(self,*args):
-        self.set('idle',*args)
-    def set_READY(self,*args):
-        self.set('ready',*args)
-    def set_STARTING(self,*args):
-        self.set('starting',*args)
-    def set_UP(self,*args):
-        self.set('up',*args)
+
+class ColorState(State):
+    ''' A simple four state color inspired state variable; OFF RED YELLOW GREEN. combine()
+        can be used to combine multiple ColorState objects into one common metric.
+    ''' 
+    
+    def __init__(self,state=None,format=None,**kw):
+        State.__init__(self,
+                       state=state or 'OFF',
+                       states=('OFF','YELLOW','RED','GREEN'),
+                       format=format or { 'OFF': '\x1b[34mOFF\x1b[0m',
+                                          'YELLOW': '\x1b[33mYELLOW\x1b[0m',
+                                          'RED': '\x1b[31mRED\x1b[0m',
+                                          'GREEN': '\x1b[32mGREEN\x1b[0m'},
+                       **kw)
+
+    def set_OFF(self,*a):
+        self.set('OFF',*a)
+    def set_YELLOW(self,*a):
+        self.set('YELLOW',*a)
+    def set_RED(self,*a):
+        self.set('RED',*a)
+    def set_GREEN(self,*a):
+        self.set('GREEN',*a)
+
+    def combine(self,*state):
+        ''' Combine a list of states into self.state. If any is RED, then output
+            will be RED. If all are OFF or GREEN, the result will be OFF or GREEN
+            respectively. Otherwise the state will be YELLOW. '''
+        off = [ s.state == 'OFF' for s in state ]
+        reds = [ s.state == 'RED' for s in state ]
+        green = [ s.state == 'GREEN' for s in state ]
+        if any(reds):
+            self.set('RED')
+        elif all(green):
+            self.set('GREEN')
+        elif all(off):
+            self.set('OFF')
+        else:
+            self.set('YELLOW')
