@@ -148,7 +148,8 @@ class TelldusInFactory(ReconnectingClientFactory):
     def clientConnectionFailed(self, connector, reason):
         self.log.error('Connect failed: {e}', e=reason.getErrorMessage())
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
-        self.protocol.state.set_RED(self.protocol.path,reason.getErrorMessage())
+        self.protocol.status.set_RED(self.protocol.path,reason.getErrorMessage())
+
 
 
 class TelldusIn(Protocol):
@@ -162,21 +163,21 @@ class TelldusIn(Protocol):
     def __init__(self,parent):
         self.log = Logger(namespace = parent.name + '/in')
         self.parent = parent
-        self.state = ColorState(log=self.log, format={0:0}, # <-- a hack to avoid color
+        self.status = ColorState(log=self.log, format={0:0}, # <-- a hack to avoid color
                                 change_callback=lambda *a:self.parent.changestate(self,*a) )
         self.connected = False
         self.factory = TelldusInFactory(self, self.parent)
 
 
     def connect(self):
-        self.state.set_OFF()
+        self.status.set_OFF()
         reactor.connectUNIX(self.path, self.factory)
 
 
     def connectionMade(self):
         self.log.info("Connected to {p}", p=self.path)
         self.connected = True
-        self.state.set_YELLOW()
+        self.status.set_YELLOW('Connection made')
         self.data = ''
         self.elements = [ ]
         self.timer = LoopingCall(self.dataTimeout)
@@ -186,7 +187,7 @@ class TelldusIn(Protocol):
     def connectionLost(self, reason):
         self.connected = False
         self.log.info("Lost connection with {p}", p=self.path)
-        self.state.set_OFF(reason.getErrorMessage())
+        self.status.set_OFF(reason.getErrorMessage())
         if self.timer.running:
             self.timer.stop()
 
@@ -215,7 +216,7 @@ class TelldusIn(Protocol):
         self.elements = elements
 
         # At this point, we can consider the connection up
-        self.state.set_GREEN()
+        self.status.set_GREEN()
 
         # Iterate over the received events
         for event in events:
@@ -225,8 +226,8 @@ class TelldusIn(Protocol):
 
     def dataTimeout(self):
         self.timer.stop()
-        self.log.info("No telldus activity. Lost connection?")
-        self.state.set_YELLOW()
+        self.log.info("No telldus activity. No connection?")
+        self.status.set_YELLOW('No activity')
 
 
 
@@ -266,7 +267,7 @@ class TelldusOut(Protocol):
     def __init__(self,parent):
         self.log = Logger(namespace = parent.name + '/out')
         self.parent = parent
-        self.state = ColorState(log=self.log, format={0:0}, # <-- a hack to avoid color
+        self.status = ColorState(log=self.log, format={0:0}, # <-- a hack to avoid color
                                 change_callback=lambda *a:self.parent.changestate(self,*a))
         self.connected = False
         self.completed = False
@@ -277,8 +278,8 @@ class TelldusOut(Protocol):
 
 
     def connectionMade(self):
-        if self.state.is_in('OFF'):
-            self.state.set_YELLOW()
+        if self.status.is_in('OFF'):
+            self.status.set_YELLOW('Connection made')
         self.connected = True
         self.completed = False
         self.send()
@@ -288,7 +289,7 @@ class TelldusOut(Protocol):
         self.connected = False
         if not self.completed:
             # Lost connection before we could get any reply back.
-            self.state.set_RED(self.path,reason.getErrorMessage())
+            self.status.set_RED(self.path,reason.getErrorMessage())
             (defer, self.defer) = (self.defer, None)
             defer.errback(LostConnectionException(reason.getErrorMessage()))
         self.completed = False
@@ -297,7 +298,7 @@ class TelldusOut(Protocol):
 
 
     def clientConnectionFailed(self, reason):
-        self.state.set_RED(self.path,reason.getErrorMessage())
+        self.status.set_RED(self.path,reason.getErrorMessage())
         (defer, self.defer) = (self.defer, None)
         defer.errback(NoConnectionException(reason.getErrorMessage()))
         self.send_next(proceed=True)
@@ -307,11 +308,11 @@ class TelldusOut(Protocol):
         if self.connected:
             self.running = False
             self.transport.loseConnection()
-        self.state.set_OFF()
+        self.status.set_OFF('Done')
 
 
     def dataReceived(self, data):
-        self.state.set_GREEN()
+        self.status.set_GREEN()
         self.log.debug('', rawin=data)
         (elements, data) = parsestream(data)
 
@@ -354,7 +355,7 @@ class TelldusOut(Protocol):
         # The timeout response is to fail the request and proceed with the next command
         self.log.err("Command '{c}' timed out", c=self.active)
         self.disconnect()
-        self.state.set_RED('Timeout')
+        self.status.set_RED('Timeout')
         defer.errback(TimeoutException())
         self.send_next(proceed=True)
 
@@ -369,7 +370,7 @@ class Telldus(Leaf):
         Leaf.setup(self, main)
         self.inport = TelldusIn(self)
         self.outport = TelldusOut(self)
-        self.state = ColorState(log=self.log)
+        self.status = ColorState(log=self.log)
         self.inport.connect()
 
     def close(self):
@@ -379,16 +380,10 @@ class Telldus(Leaf):
 
     # --- Callbacks
     def changestate(self,cls,state,oldstate,*args):
-        self.state.combine(self.inport.state,self.outport.state)
+        self.status.combine(self.inport.status,self.outport.status)
 
 
     # --- Commands
-    #def ison(self):
-    #    if self.inport.state.is_in('connected','active'):
-    #        return True
-    #    else:
-    #        return False
-
     def turnOn(self,num):
         cmd = ( 'tdTurnOn', num )
         return self.outport.command(cmd)
@@ -480,10 +475,7 @@ class Telldus(Leaf):
     def configure(self):
 
         # Baseline commands and events
-        self.commands = {
-            #'state' : lambda a : (self.inport.state.get(), self.outport.state.get()),
-            #'ison'  : lambda a : self.ison(),
-        }
+        self.commands = {}
         self.events = {}
 
         # Telldus operations

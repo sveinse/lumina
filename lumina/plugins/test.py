@@ -35,7 +35,7 @@ class Test(Leaf):
             '2'         : lambda a : 2,
             '3'         : lambda a : 3,
             'list'      : lambda a : (1,2,3),
-            'delay'     : lambda a : self.delay(2,(1,2,3)),
+            'delay'     : lambda a : self.delay(a.args[0],(1,2,3)),
             'fail'      : lambda a : self.err(),
             'never'     : lambda a : Deferred(),
             'echo'      : lambda a : self.emit(a.args[0]),

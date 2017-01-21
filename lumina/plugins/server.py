@@ -12,6 +12,7 @@ from lumina.event import Event
 from lumina.exceptions import *
 from lumina.log import Logger
 from lumina import utils
+from lumina.state import ColorState
 
 
 # FIXME: Add this as a config statement
@@ -57,6 +58,9 @@ class ServerProtocol(LineReceiver):
         self.observer = None
         self.log.info("Connect from {ip}", ip=self.ip, system=self.servername)
 
+        # Inform parent class
+        self.parent.connectionMade(self)
+
 
     def connectionLost(self, reason):
         self.log.info("Lost connection from '{n}' ({ip})", n=self.name, ip=self.ip)
@@ -74,9 +78,15 @@ class ServerProtocol(LineReceiver):
         self.events = []
         self.commands = []
         if self.interactive:
-            removeObserver(self.interactive_logger)
+            #removeObserver(self.interactive_logger)
             self.interactive = False
-        # FIXME: Cancel all pending request?
+
+        # Cancel any pending requests
+        for (seq,request) in self.requests.items():
+            self.connectionLostResponse(request)
+
+        # Inform parent class
+        self.parent.connectionLost(self)
 
 
     def lineReceived(self, data):
@@ -175,7 +185,7 @@ class ServerProtocol(LineReceiver):
             request.name = self.name + '/' + event.name
 
             # Take the defer handler and remove it from the request to prevent calling it twice
-            (defer, self.defer) = (request.defer, None)
+            (defer, request.defer) = (request.defer, None)
 
             if event.success:
 
@@ -214,6 +224,19 @@ class ServerProtocol(LineReceiver):
                 return
 
 
+    def connectionLostResponse(self, event):
+        ''' Response if connection are lost during connection '''
+        exc = LostConnectionException()
+        event.set_fail(exc)
+        event.defer.errback(exc)
+
+
+    def timeoutResponse(self, event):
+        ''' Response if command suffers a timeout '''
+        exc = TimeoutException()
+        event.set_fail(exc)
+        event.defer.errback(exc)
+
 
     # -- Send a command to the client
     def send(self, event):
@@ -226,11 +249,7 @@ class ServerProtocol(LineReceiver):
 
         # -- Setup a timeout, and add a timeout err handler making sure the event data failure
         #    is properly set
-        def timeout():
-            exc = TimeoutException()
-            event.set_fail(exc)
-            d.errback(exc)
-        timer = utils.add_defer_timeout(d, self.timeout, timeout)
+        timer = utils.add_defer_timeout(d, self.timeout, self.timeoutResponse, event)
 
         # FIXME: Add transform functions for changing ClientException() into other
         #        exception types?
@@ -326,23 +345,40 @@ class ServerFactory(Factory):
         self.name = parent.name
     def buildProtocol(self, addr):
         return ServerProtocol(parent=self.parent)
+    def doStart(self):
+        self.parent.status.set_YELLOW('Waiting for connections')
+        Factory.doStart(self)
+    def doStop(self):
+        self.parent.status.set_OFF()
+        Factory.doStop(self)
 
 
 
 class Server(Plugin):
+    ''' Lumina TCP server which serves as connection points for Leaf
+        objects '''
+
     name = 'SERVER'
 
     CONFIG = {
-        'port': dict( default=8081, help='Controller server port', type=int ),
+        'port': dict( default=5326, help='Controller server port', type=int ),
     }
 
 
     def setup(self, main):
-        # Set logging system name
+        # Setup logging and status
         self.log = Logger(namespace=self.name)
+        self.status = ColorState(log=self.log)
+
+        # Config options
         self.port = main.config.get('port',name=self.name)
+
+        # List of commands and events
         self.events = []
         self.commands = {}
+
+        # List of connected clients
+        self.clients = []
 
         # Setup default do-nothing handler for the incoming events
         self.handle_event = lambda a : self.log.info("Ignoring event '{a}'", a=a)
@@ -367,7 +403,20 @@ class Server(Plugin):
         return maybeDeferred(self.commands.get(event.name, unknown_command), event)
 
 
-    # --- COMMANDS
+    # --- INTERNAL COMMANDS
+    def connectionMade(self, client):
+        ''' Register the connected client '''
+        self.clients.append(client)
+        self.status.set_GREEN()
+
+
+    def connectionLost(self, client):
+        ''' Remove the disconnected client '''
+        self.clients.remove(client)
+        if not self.clients:
+            self.status.set_YELLOW('No clients connected')
+
+
     def add_commands(self, commands):
         ''' Add to the dict of known commands and register their callback fns '''
 
@@ -383,12 +432,9 @@ class Server(Plugin):
 
         #self.log.debug("De-registering {n} commands", n=len(commands))
         for name in commands:
-            if name not in self.commands:
-                raise TypeError("Unknown command '{n}'", n=name)
             del self.commands[name]
 
 
-    # --- EVENTS
     def add_events(self,events):
         ''' Add to the list of known events'''
 
@@ -398,13 +444,12 @@ class Server(Plugin):
                 raise TypeError("Event '{n}' already exists", n=name)
             self.events.append(name)
 
+
     def remove_events(self, events):
         ''' Remove from the list of known events'''
 
         #self.log.debug("De-registering {n} events", n=len(events))
         for name in events:
-            if name not in self.events:
-                raise TypeError("Unknown event '{n}'", n=name)
             self.events.remove(name)
 
 

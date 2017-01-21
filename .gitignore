@@ -10,3 +10,11 @@
 # Contrib dirs
 /contrib/ola/
 /contrib/old_machines/
+
+# Ignore old files
+/lumina/old
+
+# Misc excludes
+/tmp/
+/.vscode/
+/access-lumina.log

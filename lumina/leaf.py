@@ -155,7 +155,7 @@ class Leaf(Plugin):
 
     # Endpoint configuration options
     CONFIG = {
-        'port'  : dict(default=8081, help='Controller server port', type=int ),
+        'port'  : dict(default=5326, help='Controller server port', type=int ),
         'server': dict(default='localhost', help='Controller to connect to' ),
     }
 

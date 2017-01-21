@@ -1,23 +1,26 @@
 # -*-python-*-
-import os,sys
-import html
+from __future__ import absolute_import
+import os
+#import json
 
-from twisted.web.resource import Resource,NoResource,ErrorPage
-from twisted.web.server import Site,NOT_DONE_YET
+from twisted.web.resource import Resource, NoResource, ErrorPage
+from twisted.web.server import Site, NOT_DONE_YET
 import twisted.web.http as http
 from twisted.internet import reactor
 from twisted.web.static import File
-from twisted.python import log
-from twisted.internet.defer import Deferred,maybeDeferred
-import json
 
-from event import Event
-from exceptions import *
+#from lumina.event import Event
+from lumina.plugin import Plugin
+from lumina.state import ColorState
+from lumina.log import Logger
+from lumina.exceptions import *
+#from lumina import html
+
 
 class WebException(LuminaException):
     pass
 
-
+''' FIXME: Need refactor
 class PageCtrl(Resource):
     isLeaf = True
     noisy = False
@@ -71,8 +74,9 @@ class PageCtrl(Resource):
         except CommandException as e:
             log.err(system=self.system)
             return ErrorPage(http.BAD_REQUEST,'Error in %s' %(command.name,),e.message).render(request)
+'''
 
-
+''' FIXME: Need refactor
 class ConfigPage(Resource):
     isLeaf = True
     noisy = False
@@ -108,26 +112,41 @@ class ConfigPage(Resource):
             return ErrorPage(http.BAD_REQUEST,'Error','No such config').render(request)
 
         return json.dumps(path)
+'''
 
 
-class Web(object):
+class Web(Plugin):
+    name = 'WEB'
 
     CONFIG = {
-        'web_port': dict(default=8080, help='Web server port', type=int ),
-        'web_root': dict(default=os.getcwd()+'/www', help='Path for web server files' ),
+        'port': dict(default=8081, help='Web server port', type=int ),
+        'root': dict(default=os.getcwd()+'/www', help='Path for web server files' ),
+        'log': dict(default='access-lumina.log', help='Path for web server logs'),
     }
 
-    def setup(self, controller, config):
-        self.controller = controller
+    def setup(self, main):
+        self.log = Logger(namespace=self.name)
 
-        self.port = config['web_port']
-        self.webroot = config['web_root']
+        #self.controller = controller
+
+        self.port = main.config.get('port', name=self.name)
+        self.webroot = main.config.get('root', name=self.name)
+        self.logpath = main.config.get('log', name=self.name)
+
+        self.status = ColorState()
 
         root = File(self.webroot)
         root.noisy = False
         root.putChild('', File(os.path.join(self.webroot,'index.html')))
-        root.putChild('ctrl', PageCtrl('ctrl',self.controller))
-        root.putChild('config', ConfigPage('config',config))
+        #root.putChild('ctrl', PageCtrl('ctrl',self.controller))
+        #root.putChild('config', ConfigPage('config',config))
 
-        self.site = Site(root)
+        self.site = Site(root, logPath=self.logpath)
+        self.site.noisy = False
+
         reactor.listenTCP(self.port, self.site)
+
+        self.log.info("Logging access in {p}", p=self.logpath)
+
+
+PLUGIN = Web

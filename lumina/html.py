@@ -2,13 +2,10 @@
 #
 # Small framwork for generaring HTML web pages
 #
-#   import html
-#   page = new html.Document()
-#   page.
+from __future__ import absolute_import
 
-
-import os
 import cgi
+
 
 
 class ElementContents(list):
@@ -274,6 +271,10 @@ class Document(object):
         return '<!DOCTYPE html>' + o_html.render() + '\n'
 
 
+
+# The nl tuple:
+# "\n<TAG>\n  ...data...  \n</TAG>\n'
+#  [0]    [1]             [2]    [3]
 
 #
 #  HTML objects
