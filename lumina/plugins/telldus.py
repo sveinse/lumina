@@ -146,9 +146,9 @@ class TelldusInFactory(ReconnectingClientFactory):
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
-        self.log.error('Connect failed: {e}', e=reason.getErrorMessage())
+        self.log.error('Connect failed {p}: {e}', p=self.protocol.path, e=reason.getErrorMessage())
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
-        self.protocol.status.set_RED(self.protocol.path,reason.getErrorMessage())
+        self.protocol.status.set_RED('IN connection failed')
 
 
 
@@ -164,7 +164,7 @@ class TelldusIn(Protocol):
         self.log = Logger(namespace = parent.name + '/in')
         self.parent = parent
         self.status = ColorState(log=self.log, format={0:0}, # <-- a hack to avoid color
-                                change_callback=lambda *a:self.parent.changestate(self,*a) )
+                                callback=lambda *a:self.parent.changestate(self,*a) )
         self.connected = False
         self.factory = TelldusInFactory(self, self.parent)
 
@@ -177,7 +177,7 @@ class TelldusIn(Protocol):
     def connectionMade(self):
         self.log.info("Connected to {p}", p=self.path)
         self.connected = True
-        self.status.set_YELLOW('Connection made')
+        self.status.set_YELLOW('IN connection made, waiting for data')
         self.data = ''
         self.elements = [ ]
         self.timer = LoopingCall(self.dataTimeout)
@@ -186,8 +186,8 @@ class TelldusIn(Protocol):
 
     def connectionLost(self, reason):
         self.connected = False
-        self.log.info("Lost connection with {p}", p=self.path)
-        self.status.set_OFF(reason.getErrorMessage())
+        self.log.info("Lost connection with {p}: {e}", p=self.path, e=reason.getErrorMessage())
+        self.status.set_OFF('IN connection closed')
         if self.timer.running:
             self.timer.stop()
 
@@ -227,7 +227,7 @@ class TelldusIn(Protocol):
     def dataTimeout(self):
         self.timer.stop()
         self.log.info("No telldus activity. No connection?")
-        self.status.set_YELLOW('No activity')
+        self.status.set_YELLOW('No IN activity')
 
 
 
@@ -268,7 +268,7 @@ class TelldusOut(Protocol):
         self.log = Logger(namespace = parent.name + '/out')
         self.parent = parent
         self.status = ColorState(log=self.log, format={0:0}, # <-- a hack to avoid color
-                                change_callback=lambda *a:self.parent.changestate(self,*a))
+                                 callback=lambda *a:self.parent.changestate(self,*a))
         self.connected = False
         self.completed = False
         self.running = True
@@ -279,7 +279,7 @@ class TelldusOut(Protocol):
 
     def connectionMade(self):
         if self.status.is_in('OFF'):
-            self.status.set_YELLOW('Connection made')
+            self.status.set_YELLOW('OUT connection made')
         self.connected = True
         self.completed = False
         self.send()
@@ -289,7 +289,8 @@ class TelldusOut(Protocol):
         self.connected = False
         if not self.completed:
             # Lost connection before we could get any reply back.
-            self.status.set_RED(self.path,reason.getErrorMessage())
+            self.log.error("Lost connection {p}: {e}", p=self.protocol.path, e=reason.getErrorMessage())
+            self.status.set_RED('Lost OUT connection')
             (defer, self.defer) = (self.defer, None)
             defer.errback(LostConnectionException(reason.getErrorMessage()))
         self.completed = False
@@ -298,7 +299,8 @@ class TelldusOut(Protocol):
 
 
     def clientConnectionFailed(self, reason):
-        self.status.set_RED(self.path,reason.getErrorMessage())
+        self.log.error('Connection failed {p}: {e}', p=self.protocol.path, e=reason.getErrorMessage())
+        self.status.set_RED('OUT connection failed')
         (defer, self.defer) = (self.defer, None)
         defer.errback(NoConnectionException(reason.getErrorMessage()))
         self.send_next(proceed=True)
@@ -362,6 +364,8 @@ class TelldusOut(Protocol):
 
 
 class Telldus(Leaf):
+    ''' Plugin to communicate with wireless lighting equipment and sensors.
+    '''
     name = 'TELLDUS'
 
 
@@ -370,7 +374,6 @@ class Telldus(Leaf):
         Leaf.setup(self, main)
         self.inport = TelldusIn(self)
         self.outport = TelldusOut(self)
-        self.status = ColorState(log=self.log)
         self.inport.connect()
 
     def close(self):

@@ -35,8 +35,15 @@ angular.module('LuminaApp')
                 });
         }
 
-        var plugins = function(conf) {
+        var get_plugins = function(conf) {
             return $http.get('/rest/plugins/' + conf)
+                .then(function(response) {
+                    return response.data;
+                });
+        }
+
+        var get_nodes = function(conf) {
+            return $http.get('/rest/nodes/' + conf)
                 .then(function(response) {
                     return response.data;
                 });
@@ -46,7 +53,8 @@ angular.module('LuminaApp')
             config: config,
             debug: debug,
             command: command,
-            plugins: plugins,
+            get_plugins: get_plugins,
+            get_nodes: get_nodes,
         };
 
     }]);

@@ -19,9 +19,11 @@ class State(object):
     ''' Class for keeping a state variable. States can be set using set(state, *args), and read
         with get(). It will log an entry when the state changes on set, and it can run a callback
         on changes.
+
+        def callback_fn(new_state, old_state, why)
     '''
 
-    def __init__(self,state=None,states=None,format=None,log=None,change_callback=None,why=None):
+    def __init__(self,state=None,states=None,format=None,log=None,callback=None,why=None):
         self.state = state or 'init'
         if log is None:
             self.log = Logger()
@@ -30,14 +32,18 @@ class State(object):
         self.states = states 
         self.format = format or {}
         self.why = why
-        self.change_callback = change_callback
+        self.callback = callback
+
+
+    def add_callback(self,callback):
+        self.callback = callback
 
 
     def set(self,state,why=None):
         if self.states and state not in self.states:
             raise ValueError("Invalid state '%s'" %(state))
         (old, self.state) = (self.state, state)
-        self.why = why
+        (oldwhy, self.why) = (self.why, why)
         s = ''
         if why is not None:
             s = ' (%s)' %(why,)
@@ -45,8 +51,8 @@ class State(object):
             pstate = self.format.get(state,state)
             self.log.info('STATE change: {o} --> {n}{s}', o=old, n=pstate, s=s)
 
-            if self.change_callback:
-                self.change_callback(state, old, why)
+        if self.callback and (state != old or why != oldwhy):
+            self.callback(state, old, why)
 
     def get(self):
         return self.state
@@ -95,11 +101,12 @@ class ColorState(State):
         off = [ s.state == 'OFF' for s in state ]
         reds = [ s.state == 'RED' for s in state ]
         green = [ s.state == 'GREEN' for s in state ]
+        why = ". ".join([ s.why for s in state if s.why is not None ])
         if any(reds):
-            self.set('RED')
+            self.set('RED', why)
         elif all(green):
-            self.set('GREEN')
+            self.set('GREEN', why)
         elif all(off):
-            self.set('OFF')
+            self.set('OFF', why)
         else:
-            self.set('YELLOW')
+            self.set('YELLOW', why)

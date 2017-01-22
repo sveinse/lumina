@@ -11,6 +11,8 @@ from lumina.plugin import Plugin
 from lumina.event import Event
 from lumina.exceptions import *
 from lumina.log import Logger
+from lumina.state import ColorState
+
 
 
 # Exception types that will not result in a local traceback
@@ -57,6 +59,9 @@ class LeafProtocol(LineReceiver):
         if len(cmdlist):
             self.log.info("Registering {n} client commands", n=len(cmdlist))
             self.send(Event('commands', *cmdlist))
+
+        # -- Send status
+        self.send(Event('status',self.parent.status.state,self.parent.status.why))
 
         # -- Flush any queue that might have been accumulated before
         #    connecting to the controller
@@ -162,11 +167,16 @@ class Leaf(Plugin):
 
     def setup(self, main):
         self.log = Logger(namespace=self.name)
+
+        # Subscribe to the change of state by sending status back to server
+        self.status = ColorState(log=self.log, callback=self.emit_status)
+        
         #self.hostname = 'FIXME'
         self.host = main.config.get('server',name=self.name)
         self.port = main.config.get('port',name=self.name)
         self.protocol = None
         self.queue = []
+
         self.factory = LeafFactory(parent=self)
         reactor.connectTCP(self.host, self.port, self.factory)
 
@@ -195,6 +205,10 @@ class Leaf(Plugin):
         while(len(self.queue)):
             event = self.queue.pop(0)
             self.protocol.send(event)
+
+
+    def emit_status(self, status, old, why):
+        self.emit('status',status,why)
 
 
     def run_command(self, event, unknown_command=True):

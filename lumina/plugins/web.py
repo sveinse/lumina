@@ -140,7 +140,7 @@ class RestAdminPlugins(LuminaResource):
             od = {
                 'name'      : plugin,
                 'module'    : p.module,
-                'sequence'  : p.sequence,
+                'sequence'  : p.module_sequence,
                 'doc'       : p.__doc__,
                 'status'    : str(p.status),
                 'status_why': p.status.why,
@@ -149,7 +149,40 @@ class RestAdminPlugins(LuminaResource):
 
         return json.dumps(rlist)
 
-    
+
+
+class RestAdminNodes(LuminaResource):
+
+    def render_GET(self, request):
+        request.setHeader(b'Content-Type', b'application/json')
+        path = request.postpath[0]
+
+        server = self.main.get_plugin_by_module('server')
+        if not server:
+            return ErrorPage(http.BAD_REQUEST,'Error','No server present').render(request)
+
+        nodes = server.clients
+
+        if path == '':
+            pass
+        else:
+            return ErrorPage(http.BAD_REQUEST,'Error','No such node').render(request)
+
+        rlist = [ ]
+        for node in nodes:
+            od = {
+                'name'      : node.name,
+                'host'      : node.host,
+                'seqence'   : node.sequence,
+                'status'    : node.status,
+                'status_why': node.status_why,
+                'num_commands': len(node.commands),
+                'num_events' : len(node.events),
+            }
+            rlist.append(od)
+
+        return json.dumps(rlist)
+
 
 
 class Web(Plugin):
@@ -165,6 +198,7 @@ class Web(Plugin):
 
     def setup(self, main):
         self.log = Logger(namespace=self.name)
+        self.status = ColorState()
 
         #self.controller = controller
 
@@ -172,13 +206,12 @@ class Web(Plugin):
         self.webroot = main.config.get('root', name=self.name)
         self.logpath = main.config.get('log', name=self.name)
 
-        self.status = ColorState()
-
         # Setup the rest interfaces
         rest = Resource()
         rest.noisy = False
         rest.putChild('plugins', RestAdminPlugins(main, self.log))
         rest.putChild('config', RestAdminConfig(main, self.log))
+        rest.putChild('nodes', RestAdminNodes(main, self.log))
 
         root = File(self.webroot)
         root.noisy = False

@@ -74,9 +74,9 @@ class Lumina(object):
                 plugin = import_module('lumina.plugins.' + module).PLUGIN()
                 plugin.name = name
                 plugin.module = module
-                plugin.sequence = count
+                plugin.module_sequence = count
 
-                self.log.info("===  Registering plugin {m} as {n}", m=module, n=name)
+                self.log.info("===  Registering #{c} plugin {m} as {n}", c=count, m=module, n=name)
                 self.plugins[name] = plugin
                 self.sequence.append(name)
 
@@ -101,7 +101,7 @@ class Lumina(object):
                 plugin = FailedPlugin()
                 plugin.name = name
                 plugin.module = name
-                plugin.sequence = count
+                plugin.module_sequence = count
                 plugin.status = ColorState('RED',log=self.log,why=msg)
 
                 self.plugins[name] = plugin

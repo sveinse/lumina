@@ -9,9 +9,16 @@ angular.module('LuminaApp')
         $scope, $routeParams, LuminaComm) {
 
         (function() {
-            LuminaComm.plugins('')
+            LuminaComm.get_plugins('')
                 .then(function(data) {
                     $scope.plugins = data;
+                });
+        }());
+
+        (function() {
+            LuminaComm.get_nodes('')
+                .then(function(data) {
+                    $scope.nodes = data;
                 });
         }());
 

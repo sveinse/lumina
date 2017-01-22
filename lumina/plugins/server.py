@@ -47,16 +47,17 @@ class ServerProtocol(LineReceiver):
 
     def connectionMade(self):
         (h,p) = (self.transport.getPeer().host,self.transport.getPeer().port)
+        self.host = h
         self.ip = "%s:%s" %(h,p)
         self.log.namespace = self.servername + ':' + self.ip
+        self.log.info("Connect from {ip}", ip=self.ip, system=self.servername)
         self.name = self.ip
         self.hostname = h
         self.events = []
         self.commands = []
         self.requests = { }
         self.interactive = False
-        self.observer = None
-        self.log.info("Connect from {ip}", ip=self.ip, system=self.servername)
+        #self.observer = None
 
         # Inform parent class
         self.parent.connectionMade(self)
@@ -171,6 +172,12 @@ class ServerProtocol(LineReceiver):
         # -- Handle 'exit' event
         elif event.name == 'exit':
             self.transport.loseConnection()
+            return
+
+        # -- Handle status update
+        elif event.name == 'status':
+            self.status = event.args[0]
+            self.status_why = event.args[1]
             return
 
         # -- Handle a reply to a former command
@@ -379,6 +386,7 @@ class Server(Plugin):
 
         # List of connected clients
         self.clients = []
+        self.sequence = 0
 
         # Setup default do-nothing handler for the incoming events
         self.handle_event = lambda a : self.log.info("Ignoring event '{a}'", a=a)
@@ -406,6 +414,8 @@ class Server(Plugin):
     # --- INTERNAL COMMANDS
     def connectionMade(self, client):
         ''' Register the connected client '''
+        self.sequence += 1
+        client.sequence = self.sequence
         self.clients.append(client)
         self.status.set_GREEN('%s clients connected' %(len(self.clients)))
 
