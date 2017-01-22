@@ -1,0 +1,22 @@
+<div class="container">
+
+  <h2>Plugins</h2>
+  <table class="table table-striped table-hover">
+    <tr>
+      <th>#</th>
+      <th>Name</th>
+      <th>Module</th>
+      <th>Status</th>
+      <th>Message</th>
+      <th>Documentation</th>
+    </tr>
+    <tr ng-repeat="entry in plugins">
+      <td>{{entry.sequence}}</td>    
+      <td>{{entry.name}}</td>
+      <td>{{entry.module}}</td>
+      <td>{{entry.status}}</td>
+      <td>{{entry.status_why}}</td>
+      <td>{{entry.doc}}</td>
+    </tr>
+  </table>
+</div>

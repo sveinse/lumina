@@ -9,10 +9,12 @@ from twisted.internet import reactor
 from lumina.leaf import Leaf
 from lumina.event import Event
 from lumina.callback import Callback
+from lumina.state import ColorState
 
 
 
 class Test(Leaf):
+    ''' Test leaf node '''
     name = 'TEST'
 
     # --- Interfaces
@@ -44,6 +46,7 @@ class Test(Leaf):
 
     # --- Initialization
     def __init__(self):
+        self.status = ColorState('GREEN')
         self.configure()
         self.cbevent = Callback()
         self.n = 0

@@ -8,6 +8,7 @@ from lumina.event import Event
 from lumina.plugin import Plugin
 from lumina.exceptions import *
 from lumina.log import Logger
+from lumina.state import ColorState
 
 # Import responder rules from separate file
 from lumina.plugins.rules import alias,responses
@@ -20,11 +21,15 @@ DEFAULT_TIMEOUT = 10
 
 
 class Responder(Plugin):
+    ''' Receives events from leaf clients nodes and reacts to
+        them with programmable rules.
+    '''
     name = 'RESPONDER'
 
 
     def setup(self, main):
         self.log = Logger(namespace=self.name)
+        self.status = ColorState(log=self.log)
 
         self.alias = alias.copy()
         self.responses = responses.copy()
@@ -39,6 +44,9 @@ class Responder(Plugin):
         # Register the aliases as commands. Note that get_commandfnlist() below
         # depends on that the handler for the commands are self.run_command
         server.add_commands({a: self.run_command for a in self.alias})
+
+        # This plugin does not have active statuses
+        self.status.set_GREEN()
 
 
     def handle_event(self, event):

@@ -355,8 +355,8 @@ class ServerFactory(Factory):
 
 
 class Server(Plugin):
-    ''' Lumina TCP server which serves as connection points for Leaf
-        objects '''
+    ''' Lumina leaf client server.
+    '''
 
     name = 'SERVER'
 
@@ -407,7 +407,7 @@ class Server(Plugin):
     def connectionMade(self, client):
         ''' Register the connected client '''
         self.clients.append(client)
-        self.status.set_GREEN()
+        self.status.set_GREEN('%s clients connected' %(len(self.clients)))
 
 
     def connectionLost(self, client):
@@ -415,6 +415,8 @@ class Server(Plugin):
         self.clients.remove(client)
         if not self.clients:
             self.status.set_YELLOW('No clients connected')
+        else:
+            self.status.set_GREEN('%s clients connected' %(len(self.clients)))
 
 
     def add_commands(self, commands):

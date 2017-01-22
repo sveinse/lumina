@@ -21,7 +21,7 @@ class State(object):
         on changes.
     '''
 
-    def __init__(self,state=None,states=None,format=None,log=None,change_callback=None,*args):
+    def __init__(self,state=None,states=None,format=None,log=None,change_callback=None,why=None):
         self.state = state or 'init'
         if log is None:
             self.log = Logger()
@@ -29,24 +29,24 @@ class State(object):
             self.log = log
         self.states = states 
         self.format = format or {}
-        self.args = args[:]
+        self.why = why
         self.change_callback = change_callback
 
 
-    def set(self,state,*args):
+    def set(self,state,why=None):
         if self.states and state not in self.states:
             raise ValueError("Invalid state '%s'" %(state))
         (old, self.state) = (self.state, state)
-        self.args = args[:]
+        self.why = why
         s = ''
-        if len(args):
-            s = ' (%s)' %(",".join(args))
+        if why is not None:
+            s = ' (%s)' %(why,)
         if state != old:
             pstate = self.format.get(state,state)
             self.log.info('STATE change: {o} --> {n}{s}', o=old, n=pstate, s=s)
 
             if self.change_callback:
-                self.change_callback(self.state, old, *args)
+                self.change_callback(state, old, why)
 
     def get(self):
         return self.state
@@ -58,6 +58,9 @@ class State(object):
 
     def not_in(self,*args):
         return not self.is_in(*args)
+
+    def __str__(self):
+        return str(self.state)
 
 
 

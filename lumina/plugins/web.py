@@ -1,13 +1,15 @@
 # -*-python-*-
 from __future__ import absolute_import
+
 import os
-#import json
+import json
 
 from twisted.web.resource import Resource, NoResource, ErrorPage
 from twisted.web.server import Site, NOT_DONE_YET
 import twisted.web.http as http
 from twisted.internet import reactor
 from twisted.web.static import File
+from twisted.web.util import Redirect
 
 #from lumina.event import Event
 from lumina.plugin import Plugin
@@ -17,8 +19,18 @@ from lumina.exceptions import *
 #from lumina import html
 
 
-class WebException(LuminaException):
-    pass
+#class WebException(LuminaException):
+#    pass
+
+class LuminaResource(Resource):
+    isLeaf = True
+    noisy = False
+
+    def __init__(self,main,log):
+        self.log = log
+        self.main = main
+
+
 
 ''' FIXME: Need refactor
 class PageCtrl(Resource):
@@ -76,46 +88,73 @@ class PageCtrl(Resource):
             return ErrorPage(http.BAD_REQUEST,'Error in %s' %(command.name,),e.message).render(request)
 '''
 
-''' FIXME: Need refactor
-class ConfigPage(Resource):
-    isLeaf = True
-    noisy = False
-    system = 'WEB'
 
-    def __init__(self,path,config):
-        self.path = '/' + path
-        self.config = config
+class RestAdminConfig(LuminaResource):
 
     def render_GET(self, request):
         request.setHeader(b'Content-Type', b'application/json')
+        path = request.postpath[0]
 
-        # Extract the last part of the path
-        path = request.path
-        if path.startswith(self.path):
-            path = path.replace(self.path,'',1)
-        if path.startswith('/'):
-            path = path.replace('/','',1)
-
-        # Get a dump of all the settings and modify it to be
-        # able to send over JSON
-        c = self.config.getall()
-        for (k,e) in c.items():
-            if 'type' in e:
-                e['type'] = e['type'].__name__
-            e['key'] = k
+        config = self.main.config.getall()
 
         if path == '':
-            return json.dumps(c)
-        elif path in c:
-            return json.dumps(c[path])
+            ck = config.keys()
+            ck.sort()
+        elif path in conf:
+            ck = [ path, ]
         else:
             return ErrorPage(http.BAD_REQUEST,'Error','No such config').render(request)
 
-        return json.dumps(path)
-'''
+        rlist = [ ]
+        for k in ck:
+            c = config[k]
+            od = {
+                'key'     : k,
+                'type'    : c.get('type',str).__name__,
+                'value'   : c.get('value'),
+                'default' : c.get('default'),
+                'help'    : c.get('help'),
+            }
+            rlist.append(od)
+
+        return json.dumps(rlist)
+
+
+
+class RestAdminPlugins(LuminaResource):
+
+    def render_GET(self, request):
+        request.setHeader(b'Content-Type', b'application/json')
+        path = request.postpath[0]
+
+        plugins = self.main.sequence
+
+        if path == '':
+            pass
+        else:
+            return ErrorPage(http.BAD_REQUEST,'Error','No such plugin').render(request)
+
+        rlist = [ ]
+        for plugin in plugins:
+            p = self.main.plugins[plugin]
+            od = {
+                'name'      : plugin,
+                'module'    : p.module,
+                'sequence'  : p.sequence,
+                'doc'       : p.__doc__,
+                'status'    : str(p.status),
+                'status_why': p.status.why,
+            }
+            rlist.append(od)
+
+        return json.dumps(rlist)
+
+    
 
 
 class Web(Plugin):
+    ''' Lumina Web server interface.
+    '''
     name = 'WEB'
 
     CONFIG = {
@@ -135,9 +174,17 @@ class Web(Plugin):
 
         self.status = ColorState()
 
+        # Setup the rest interfaces
+        rest = Resource()
+        rest.noisy = False
+        rest.putChild('plugins', RestAdminPlugins(main, self.log))
+        rest.putChild('config', RestAdminConfig(main, self.log))
+
         root = File(self.webroot)
         root.noisy = False
-        root.putChild('', File(os.path.join(self.webroot,'index.html')))
+        #root.putChild('', File(os.path.join(self.webroot,'lumina.html')))
+        root.putChild('', Redirect('lumina.html'))
+        root.putChild('rest', rest)
         #root.putChild('ctrl', PageCtrl('ctrl',self.controller))
         #root.putChild('config', ConfigPage('config',config))
 
@@ -147,6 +194,10 @@ class Web(Plugin):
         reactor.listenTCP(self.port, self.site)
 
         self.log.info("Logging access in {p}", p=self.logpath)
+
+        # FIXME: Is there a way to determine up or down?
+        self.status.set_GREEN()
+
 
 
 PLUGIN = Web

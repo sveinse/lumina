@@ -21,8 +21,10 @@ angular.module('LuminaApp', ['ngRoute'])
                 templateUrl: 'LuminaConfig.html',
                 controller: 'LuminaConfig'
             })
+            .when('/admin', {
+                templateUrl: 'LuminaAdmin.html',
+                controller: 'LuminaAdmin'
+            })
             .otherwise( {redirectTo:'/main'} );
-
-        //$locationProvider.html5Mode(true);
 
     }]);
