@@ -18,8 +18,8 @@ def daemonize(pidfile):
         in/out and by forking. '''
 
     try:
-        with file(pidfile, 'r') as pf:
-            pid = int(pf.read().strip())
+        with file(pidfile, 'r') as pidf:
+            pid = int(pidf.read().strip())
     except IOError:
         pid = None
     if pid:
@@ -66,15 +66,19 @@ def daemonize(pidfile):
 
 #===  MAIN function
 def main(args=None):
-
+    ''' Lumina main function '''
 
     #==  PARSE ARGS
     ap = argparse.ArgumentParser()
-    ap.add_argument('-c', '--config', default=None, metavar='CONFIG', help='Read configuration file')
+    ap.add_argument('-c', '--config', default=None, metavar='CONFIG',
+                    help='Read configuration file')
     if os.name != 'nt':
-        ap.add_argument('--pidfile', default='/var/run/lumid.pid', metavar='FILENAME', help='Set the pidfile')
-        ap.add_argument('--daemon', action='store_true', help='Daemonize application')
-        ap.add_argument('--syslog', action='store_true', default=False, help='Enable syslog logging')
+        ap.add_argument('--pidfile', default='/var/run/lumid.pid', metavar='FILENAME',
+                        help='Set the pidfile')
+        ap.add_argument('--daemon', action='store_true',
+                        help='Daemonize application')
+        ap.add_argument('--syslog', action='store_true', default=False,
+                        help='Enable syslog logging')
     opts = ap.parse_args()
 
 
@@ -87,13 +91,13 @@ def main(args=None):
         opts.syslog = True
 
     #==  LOGGING
-    log.startLogging(syslog=(os.name != 'nt' and opts.syslog),syslog_prefix='Lumina')
+    log.startLogging(syslog=(os.name != 'nt' and opts.syslog), syslog_prefix='Lumina')
     log.Logger(namespace='-').info("PID {pid}", pid=os.getpid())
 
     #== MAIN
     #   This will load the plugins and set them up
-    main = Lumina()
-    main.setup(conffile=opts.config)
+    lumina = Lumina()
+    lumina.setup(conffile=opts.config)
 
     #== START TWISTED
     reactor.run()

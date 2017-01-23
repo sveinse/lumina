@@ -1,17 +1,18 @@
 # -*- python -*-
 
+
 class Callback(object):
     ''' Small class for implementing callback mechanism. Templated on Twisted's Deferred()
         mechanism, but with support for multi-fire operation.
     '''
 
     def __init__(self):
-        self.callbacks = [ ]
+        self.callbacks = []
         self.fired = 0
 
 
     def addCallback(self, callback, *args, **kw):
-        self.callbacks.append( (callback, args, kw) )
+        self.callbacks.append((callback, args, kw))
 
 
     def callback(self, result, condition=None):
@@ -19,14 +20,14 @@ class Callback(object):
             if not condition:
                 return
         self.fired += 1
-        for cb, args, kw in self.callbacks:
+        for callback, args, kw in self.callbacks:
             args = args or ()
             kw = kw or {}
-            cb(result, *args, **kw)
+            callback(result, *args, **kw)
 
 
     def __str__(self):
-        return "<Callback instance; fired=%s, cbs=%s>" %(self.fired,self.callbacks)
+        return "<Callback instance; fired=%s, cbs=%s>" %(self.fired, self.callbacks)
 
 
 

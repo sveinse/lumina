@@ -1,16 +1,16 @@
-#-*- python -*-
-#from __future__ import absolute_import
+# -*- python -*-
+from __future__ import absolute_import
 
 from twisted.internet import reactor
 
 
-def add_defer_timeout(defer, timeout, fn, *args, **kw):
-    ''' Add a timeout to the defer object and return the timer. It will call fn(*args,**kw) on
-        timeout. The timer will be cleaned up automatically, both if the timer times out, or if
-        the deferred object is fired by other cases.
+def add_defer_timeout(defer, timeout, callback, *args, **kw):
+    ''' Add a timeout to the defer object and return the timer. It will call callback(*args,**kw)
+        on timeout. The timer will be cleaned up automatically, both if the timer times out, or
+        if the deferred object is fired by other cases.
     '''
 
-    timer = reactor.callLater(timeout, fn, *args, **kw)
+    timer = reactor.callLater(timeout, callback, *args, **kw)
 
     def timeout_cancel(result):
         ''' Stop the timer if it has not been fired '''
@@ -23,13 +23,13 @@ def add_defer_timeout(defer, timeout, fn, *args, **kw):
     return timer
 
 
-def cmp_dict(a,b,l):
+def cmp_dict(a, b, l):
     ''' Compare dict a with dict b using keys from l. Return True if all elements are
         either equal (using !=) or if element is not present in either a or b.
         '''
     for i in l:
-        ia=i in a
-        ib=i in b
-        if ia != ib or (ia and ib and a[i] != b[i]):
+        ina = i in a
+        inb = i in b
+        if ina != inb or (ina and inb and a[i] != b[i]):
             return False
     return True

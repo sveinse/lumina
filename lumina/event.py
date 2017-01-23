@@ -4,16 +4,13 @@ from __future__ import absolute_import
 import re
 import json
 import shlex
-from twisted.python import log
 from twisted.python.failure import Failure
 
-from .exceptions import *
-from .log import *
 
 
 class MyEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj,Event):
+        if isinstance(obj, Event):
             obj = obj._json_encoder()
         else:
             obj = super(MyEncoder, self).default(obj)
@@ -31,6 +28,9 @@ class Event(object):
            'nul{arg1=foo,arg2=bar,5}'
     '''
 
+    RE_LOAD_STR = re.compile(r'^([^{}]+)({(.*)})?$')
+
+
     def __init__(self, name=None, *args):
         # Event data
         self.name = name
@@ -45,26 +45,26 @@ class Event(object):
 
 
     def __repr__(self):
-        t=''
+        t = ''
         if len(self.args) < 5:
             s = [str(a) for a in self.args]
         else:
-            s = [ '...%s args...' %(len(self.args)) ]
+            s = ['...%s args...' %(len(self.args))]
         if self.success is not None:
-            s.append('<%s,%s>' %(self.success,self.result))
+            s.append('<%s,%s>' %(self.success, self.result))
         # Uncomment this to print the id of the object
         #s.append(' ' + hex(id(self)))
         #if s:
-        t='{' + ','.join(s) + '}'
-        return "%s%s" %(self.name,t)
+        t = '{' + ','.join(s) + '}'
+        return "%s%s" %(self.name, t)
 
 
     def copy(self):
         ''' Return new copy of this object.  '''
-        o = Event()
-        o.name = self.name
-        o.args = self.args[:]
-        return o
+        other = Event()
+        other.name = self.name
+        other.args = self.args[:]
+        return other
 
 
     #----- IMPORT and EXPORT functions ------
@@ -76,33 +76,33 @@ class Event(object):
             'args': self.args,
         }
         if self.seq is not None:
-            js.update( {
+            js.update({
                 'seq': self.seq,
-            } )
+            })
         if self.success is not None:
-            js.update( {
+            js.update({
                 'success': self.success,
                 'result': self.result,
-            } )
+            })
         return js
 
 
     # -- dict import/export
 
-    def load_dict(self,d):
+    def load_dict(self, other):
         ''' Load the data from a dict '''
-        self.name = d.get('name')
+        self.name = other.get('name')
         if self.name is None:
             raise ValueError("Missing event name")
-        self.name = d.get('name')
-        self.args = d.get('args',[])
-        self.success = d.get('success')
-        self.seq = d.get('seq')
+        self.name = other.get('name')
+        self.args = other.get('args', [])
+        self.success = other.get('success')
+        self.seq = other.get('seq')
 
-        result = d.get('result')
+        result = other.get('result')
 
         # FIXME: What does this do?
-        if isinstance(result,dict) and 'seq' in result:
+        if isinstance(result, dict) and 'seq' in result:
             result = Event().load_dict(result)
 
         self.result = result
@@ -116,16 +116,16 @@ class Event(object):
         ''' Return a json representation of the instance data '''
         return json.dumps(self, cls=MyEncoder)
 
-    def load_json(self, s):
+    def load_json(self, string):
         ''' Load the data from a json string '''
-        js = json.loads(s,encoding='ascii')
+        js = json.loads(string, encoding='ascii')
         self.load_dict(js)
         return self
 
-    def load_json_args(self, s):
+    def load_json_args(self, string):
         ''' Load args from a json string '''
-        if len(s):
-            self.args = json.loads(s,encoding='ascii')
+        if string:
+            self.args = json.loads(string, encoding='ascii')
         else:
             self.args = []
         return self
@@ -136,60 +136,62 @@ class Event(object):
     # Unused it seems
     def dump_str(self):
         ''' Dump the data a string '''
-        (s,t) = ([str(a) for a in self.args],'')
+        (s, t) = ([str(a) for a in self.args], '')
         if s:
-            t='{' + ','.join(s) + '}'
-        return "%s%s" %(self.name,t)
+            t = '{' + ','.join(s) + '}'
+        return "%s%s" %(self.name, t)
 
 
-    def load_str(self, s, parseEvent=None, shell=False):
+    def load_str(self, string, parseEvent=None, shell=False):
         ''' Load the data from a string '''
-        s=s.encode('ascii')
+        string = string.encode('ascii')
 
         # Support shell-like command parsing
         if shell:
-            l = shlex.split(s)
-            if not len(l):
+            args = shlex.split(string)
+            if not len(args):
                 return self
-            self.name = l[0]
-            self.args = l[1:]
+            self.name = args[0]
+            self.args = args[1:]
             return self
 
-        m = re.match(r'^([^{}]+)({(.*)})?$', s)
+        m = self.RE_LOAD_STR.match(string)
         if not m:
-            raise SyntaxError("Invalid syntax '%s'" %(s))
+            raise SyntaxError("Invalid syntax '%s'" %(string))
         self.name = m.group(1)
         opts = m.group(3)
         if opts:
             self.args = opts.split(',')
-
-            # If '$' agruments is encountered, replace with positional argument
-            # from parseEvent
-            if parseEvent:
-                args = []
-                for a in self.args:
-                    if a == '$*':
-                        args += parseEvent.args
-                    elif a == '$n':
-                        args.append(parseEvent.name)
-                    elif a.startswith('$'):
-                        index = a[1:]
-                        o = a
-                        try:
-                            o = parseEvent.args[int(index)-1]
-                        except IndexError:
-                            raise IndexError("%s argument index error '$%s', but event/request has %s args" %(
-                                self.name, index, len(parseEvent.args)) )
-                        except ValueError:
-                            raise ValueError("%s argument value error '$%s'" %(
-                                self.name, index) )
-                        args.append(o)
-                    else:
-                        args.append(a)
-                self.args = args
-
         else:
             self.args = []
+
+        # If '$' agruments is encountered, replace with positional argument
+        # from parseEvent
+        if parseEvent and opts:
+            args = []
+            for arg in self.args:
+                if arg == '$*':
+                    args += parseEvent.args
+                elif arg == '$n':
+                    args.append(parseEvent.name)
+                elif arg.startswith('$'):
+                    index = arg[1:]
+                    opt = arg
+                    try:
+                        opt = parseEvent.args[int(index)-1]
+                    except IndexError:
+                        raise IndexError(
+                            "%s argument index error '$%s', but event/request has %s args" %(
+                                self.name, index, len(parseEvent.args)))
+                    except ValueError:
+                        raise ValueError(
+                            "%s argument value error '$%s'" %(
+                                self.name, index))
+                    args.append(opt)
+                else:
+                    args.append(arg)
+            self.args = args
+
         return self
 
 
@@ -215,23 +217,23 @@ class Event(object):
     #    self.result = None
 
 
-    def set_success(self,result):
+    def set_success(self, result):
         ''' Set event commant to succeed '''
         self.success = True
-        if isinstance(result,Event):
+        if isinstance(result, Event):
             self.result = result.result
         else:
             self.result = result
 
 
-    def set_fail(self,exc):
+    def set_fail(self, exc):
         ''' Set event command state to fail '''
         # If this is run in the scope of an errback, exc will be a Failure object which
         # contains the actual exception in exc.value
-        if isinstance(exc,Failure):
-            (failure,exc) = (exc,exc.value)
+        if isinstance(exc, Failure):
+            (failure, exc) = (exc, exc.value)
         self.success = False
-        self.result = (exc.__class__.__name__,str(exc.message))
+        self.result = (exc.__class__.__name__, str(exc.message))
 
 
     #----- DEFERRED ------

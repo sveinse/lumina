@@ -2,27 +2,26 @@
 from __future__ import absolute_import
 
 import os
-import sys
 
 from lumina.log import Logger
-from lumina.exceptions import *
+from lumina.exceptions import ConfigException
 
 
-log=Logger(namespace='config')
+log = Logger(namespace='config')
 
 
 class Config(object):
 
     def __init__(self, settings=None):
-        self.c = { }
-        self.fileconf = { }
+        self.c = {}
+        self.fileconf = {}
         if settings is not None:
             self.register(settings)
 
 
-    def register(self,settings,name=None):
+    def register(self, settings, name=None):
         ''' Register new configuration settings to the config class '''
-        for (k,v) in settings.items():
+        for (k, v) in settings.items():
             if name:
                 k = name + '.' + k
             e = self.c.get(k, {})
@@ -32,13 +31,13 @@ class Config(object):
 
 
     def merge_fileconf(self):
-        for (k,v) in self.fileconf.items():
+        for (k, v) in self.fileconf.items():
             if k in self.c:
-                self.c[k]['value'] = Config.parsevalue(v,self.c[k].get('type'))
+                self.c[k]['value'] = Config.parsevalue(v, self.c[k].get('type'))
                 del self.fileconf[k]
 
 
-    def __getitem__(self,k):
+    def __getitem__(self, k):
         if k in self.c:
             e = self.c[k]
             if 'value' in e:
@@ -48,14 +47,14 @@ class Config(object):
         raise KeyError(k)
 
 
-    def set(self,k,v):
+    def set(self, k, v):
         if k in self.c:
             self.c[k]['value'] = v
             return
         raise KeyError(k)
 
 
-    def get(self,k,name=None):
+    def get(self, k, name=None):
         if name:
             return self[name + '.' + k]
         else:
@@ -64,7 +63,7 @@ class Config(object):
 
     def getall(self):
         c = {}
-        for (k,e) in self.c.items():
+        for (k, e) in self.c.items():
             c[k] = e.copy()
         return c
 
@@ -88,55 +87,55 @@ class Config(object):
     def parsefile(filename, all=False, raw=False):
         with open(filename, 'rU') as f:
 
-            n=0
+            n = 0
             for l in f:
-                n+=1
+                n += 1
                 line = l.strip()
 
                 # Skip empty lines and comments
                 if not len(line):
                     if all:
-                        yield (n,l,None,None)
+                        yield (n, l, None, None)
                     continue
                 if line.startswith('#'):
                     if all:
-                        yield (n,l,None,None)
+                        yield (n, l, None, None)
                     continue
 
                 # Split on =. Allow only one =
                 li = line.split('=')
                 if len(li) < 2:
-                    raise ConfigException("%s:%s: Missing '='. '%s'" %(filename,n,l))
+                    raise ConfigException("%s:%s: Missing '='. '%s'" %(filename, n, l))
                 if len(li) > 2:
-                    raise ConfigException("%s:%s: Too many '='. '%s'" %(filename,n,l))
+                    raise ConfigException("%s:%s: Too many '='. '%s'" %(filename, n, l))
 
                 # Remove leading and trailing whitespaces
-                key  = li[0].strip()
+                key = li[0].strip()
                 data = li[1].strip()
 
                 # Do not accept empty key names
                 if not len(key):
-                    raise ConfigException("%s:%s: Empty key. '%s'" %(filename,n,l))
+                    raise ConfigException("%s:%s: Empty key. '%s'" %(filename, n, l))
                 key = key.lower()
 
                 # Remove trailing AND leading ". Fail if " is in string
-                d2=data
-                if len(d2)>1 and d2.startswith('"') and d2.endswith('"'):
-                    d2=d2[1:-1]
+                d2 = data
+                if len(d2) > 1 and d2.startswith('"') and d2.endswith('"'):
+                    d2 = d2[1:-1]
                 if '"' in d2:
-                    raise ConfigException("%s:%s: Invalid char in entry. '%s'" %(filename,n,l))
+                    raise ConfigException("%s:%s: Invalid char in entry. '%s'" %(filename, n, l))
 
                 # Remove the " unless raw mode
                 if not raw:
-                    data=d2
+                    data = d2
 
                 # Send back lineno, line, key and data
-                yield (n,l,key,data)
+                yield (n, l, key, data)
 
 
     @staticmethod
     def confvalue(v):
-        if isinstance(v,list) or isinstance(v,tuple):
+        if isinstance(v, list) or isinstance(v, tuple):
             v = " ".join(v)
         else:
             v = str(v)
@@ -153,7 +152,7 @@ class Config(object):
 
 
     @staticmethod
-    def parsevalue(v,typ=None):
+    def parsevalue(v, typ=None):
         if typ is None:
             return v
         elif typ is list:
@@ -168,9 +167,9 @@ class Config(object):
         conf = {}
 
         # Process each line in config file
-        for (n,l,k,v) in Config.parsefile(conffile):
+        for (n, l, k, v) in Config.parsefile(conffile):
             if k in conf:
-                raise ConfigException("%s:%s: Config entry already used. '%s'" %(conffile,n,l))
+                raise ConfigException("%s:%s: Config entry already used. '%s'" %(conffile, n, l))
             conf[k] = v
 
         n = len(conf)
@@ -179,16 +178,17 @@ class Config(object):
         self.fileconf.update(conf)
         self.merge_fileconf()
 
-        log.info("Read %s configuration items from %s (%s unknown items)" %(n,conffile,len(self.fileconf)))
+        log.info("Read %s configuration items from %s (%s unknown items)" %(
+            n, conffile, len(self.fileconf)))
 
 
     def writeconfig(self, conffile):
 
         auto_sep = "# Automatically added by Lumina"
 
-        outlines = [ ]
+        outlines = []
         conf = {}
-        for (k,e) in self.c.items():
+        for (k, e) in self.c.items():
             if 'value' in e:
                 conf[k] = e['value']
 
@@ -196,7 +196,7 @@ class Config(object):
         if os.path.exists(conffile):
 
             # Process each line in existing configuration file
-            for (n,l,k,v) in self.parsefile(conffile,all=True,raw=True):
+            for (n, l, k, v) in self.parsefile(conffile, all=True, raw=True):
 
                 # If we see the separator in the, we dont add it later to avoid
                 # overfilling the conffile with auto separators
@@ -207,7 +207,7 @@ class Config(object):
                 # the new configuration value
                 if k in conf:
                     line = l
-                    line = line.replace(v,Config.confvalue(conf[k]))
+                    line = line.replace(v, Config.confvalue(conf[k]))
                     outlines.append(line)
                     del conf[k]
 
@@ -223,10 +223,10 @@ class Config(object):
                 outlines.append("\n" + auto_sep + "\n")
 
             # Append the next values
-            for (k,v) in conf.items():
-                outlines.append("%s = %s\n" %(k.upper(),Config.confvalue(v)))
+            for (k, v) in conf.items():
+                outlines.append("%s = %s\n" %(k.upper(), Config.confvalue(v)))
 
         # And then finally writeout the config
-        with open(conffile,'w') as f:
+        with open(conffile, 'w') as f:
             for line in outlines:
                 f.write(line)

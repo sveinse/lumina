@@ -1,13 +1,11 @@
 # -*- python -*-
 from __future__ import absolute_import
 
-from twisted.python import log
 from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 
 from lumina.node import Node
-from lumina.event import Event
 from lumina.callback import Callback
 
 
@@ -20,7 +18,7 @@ class Test(Node):
     def configure(self):
         self.events = [
             'timer',
-            
+
             # For testing echo
             'zero',
             'one',
@@ -30,16 +28,16 @@ class Test(Node):
         ]
 
         self.commands = {
-            'log'       : lambda a : self.log.info('Logging: {a}', a=a),
-            'true'      : lambda a : True,
-            '1'         : lambda a : 1,
-            '2'         : lambda a : 2,
-            '3'         : lambda a : 3,
-            'list'      : lambda a : (1,2,3),
-            'delay'     : lambda a : self.delay(a.args[0],(1,2,3)),
-            'fail'      : lambda a : self.err(),
-            'never'     : lambda a : Deferred(),
-            'echo'      : lambda a : self.emit(a.args[0]),
+            'log'       : lambda a: self.log.info('Logging: {a}', a=a),
+            'true'      : lambda a: True,
+            '1'         : lambda a: 1,
+            '2'         : lambda a: 2,
+            '3'         : lambda a: 3,
+            'list'      : lambda a: (1, 2, 3),
+            'delay'     : lambda a: self.delay(a.args[0], (1, 2, 3)),
+            'fail'      : lambda a: self.err(),
+            'never'     : lambda a: Deferred(),
+            'echo'      : lambda a: self.emit(a.args[0]),
         }
 
 
@@ -47,7 +45,7 @@ class Test(Node):
     def __init__(self):
         self.configure()
         self.cbevent = Callback()
-        self.n = 0
+        self.count = 0
 
     def setup(self, main):
         Node.setup(self, main)
@@ -58,16 +56,16 @@ class Test(Node):
 
     # --- Worker
     def loop_cb(self):
-        self.n = self.n+1
-        self.emit('timer',self.n)
+        self.count += 1
+        self.emit('timer', self.count)
 
-    def delay(self,time,data):
-        d = Deferred()
-        reactor.callLater(int(time),self.done,d,data)
-        return d
+    def delay(self, time, data):
+        defer = Deferred()
+        reactor.callLater(int(time), self.done, defer, data)
+        return defer
 
-    def done(self,d,data):
-        d.callback(data)
+    def done(self, defer, data):
+        defer.callback(data)
 
     def err(self):
         raise Exception("Failed")

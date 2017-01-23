@@ -8,19 +8,25 @@ from twisted.internet import reactor
 from lumina.config import Config
 from lumina.log import Logger
 from lumina.state import ColorState
+from lumina.plugin import Plugin
 
 
-class FailedPlugin(object):
-    ''''''
+
+class FailedPlugin(Plugin):
+    ''' Plugin failed to load. '''
+    name = "FAILED"
 
 
 
 class Lumina(object):
 
+    # The plugin= syntax in the configuration file
+    RE_PLUGIN_SYNTAX = re.compile(r'^([\w]+)(\(([\w]+)\))?$')
+
     # Overall (default) config options
     CONFIG = {
-        'conffile'   : dict( default='lumina.conf', help='Configuration file' ),
-        'plugins'    : dict( default=( ), help='Plugins to load', type=tuple ),
+        'conffile'   : dict(default='lumina.conf', help='Configuration file'),
+        'plugins'    : dict(default=(), help='Plugins to load', type=tuple),
     }
 
 
@@ -36,9 +42,8 @@ class Lumina(object):
             self.config.set('conffile', conffile)
 
         #== PLUGINS
-        self.plugins = { }
+        self.plugins = {}
         self.sequence = []
-        re_name = re.compile(r'^([\w]+)(\(([\w]+)\))?$')
 
         count = 0
 
@@ -56,7 +61,7 @@ class Lumina(object):
             try:
 
                 # Check the name syntax
-                m = re_name.match(module)
+                m = self.RE_PLUGIN_SYNTAX.match(module)
                 if not m:
                     raise Exception("Syntax error in plugin name")
 
@@ -85,24 +90,24 @@ class Lumina(object):
 
                 # Setup plugin
                 plugin.configure()
-                config.register(plugin.CONFIG,name=name)
+                config.register(plugin.CONFIG, name=name)
                 plugin.setup(main=self)
 
                 # Setup for closing the plugin on close
-                reactor.addSystemEventTrigger('before','shutdown',plugin.close)
+                reactor.addSystemEventTrigger('before', 'shutdown', plugin.close)
 
 
             # -- Handle errors loading
             except Exception as e:
-                msg = "Failed to load plugin '{m}': {e}".format(m=module,e=e)
+                msg = "Failed to load plugin '{m}': {e}".format(m=module, e=e)
                 self.log.failure("{m}  --  IGNORING", m=msg)
 
                 # Put in a empty failed placeholder
                 plugin = FailedPlugin()
                 plugin.name = name
-                plugin.module = name
+                plugin.module = FailedPlugin.name
                 plugin.module_sequence = count
-                plugin.status = ColorState('RED',log=self.log,why=msg)
+                plugin.status = ColorState('RED', log=self.log, why=msg)
 
                 self.plugins[name] = plugin
                 if name not in self.sequence:
@@ -110,7 +115,7 @@ class Lumina(object):
 
 
         #== Register own shutdown
-        reactor.addSystemEventTrigger('before','shutdown',self.close)
+        reactor.addSystemEventTrigger('before', 'shutdown', self.close)
 
         # Missing plugins?
         if not self.plugins:
@@ -124,7 +129,7 @@ class Lumina(object):
     #== SERVICE FUNCTIONS
     def get_plugin_by_module(self, module):
         ''' Return the instance for plugin given by the module argument '''
-        for name,inst in self.plugins.items():
+        for name, inst in self.plugins.items():
             if inst.module == module:
                 return inst
         return None
