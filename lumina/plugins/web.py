@@ -16,7 +16,6 @@ from lumina.plugin import Plugin
 from lumina.state import ColorState
 from lumina.log import Logger
 from lumina.exceptions import *
-#from lumina import html
 
 
 #class WebException(LuminaException):
