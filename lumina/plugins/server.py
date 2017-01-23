@@ -233,7 +233,7 @@ class ServerProtocol(LineReceiver):
 
     def connectionLostResponse(self, event):
         ''' Response if connection are lost during connection '''
-        exc = LostConnectionException()
+        exc = NoConnectionException()
         event.set_fail(exc)
         event.defer.errback(exc)
 

@@ -6,31 +6,29 @@ class LuminaException(Exception):
     ''' Base exception class for Lumina '''
 
 
-class CommandException(LuminaException):
-    ''' Command execution exception base class '''
-class NotConnectedException(CommandException):
-    pass
-class CommandFailedException(CommandException):
-    pass
-class TimeoutException(CommandException):
-    pass
-class CommandParseException(CommandException):
-    pass
-class CommandRunException(CommandException):
-    ''' Error running a command '''
-class UnknownCommandException(CommandException):
-    pass
+class TimeoutException(LuminaException):
+    ''' Operation has timed out '''
 
+class CommandParseException(LuminaException):
+    ''' Problems parsing the command '''
+
+class CommandRunException(LuminaException):
+    ''' Error running a command '''
+
+class UnknownCommandException(LuminaException):
+    ''' Unknown command '''
 
 class NodeException(LuminaException):
-    ''' Unknown error received from node '''
-
+    ''' Error received from a node '''
 
 class ConfigException(LuminaException):
     ''' Errors related to configuration '''
 
-
 class NoConnectionException(LuminaException):
     ''' Connection errors '''
-class LostConnectionException(LuminaException):
-    ''' Lost connection error '''
+
+#class CommandException(LuminaException):
+#    ''' Command execution exception '''
+
+#class CommandFailedException(LuminaException):
+#    pass

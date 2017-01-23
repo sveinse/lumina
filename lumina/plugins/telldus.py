@@ -292,7 +292,7 @@ class TelldusOut(Protocol):
             self.log.error("Lost connection {p}: {e}", p=self.protocol.path, e=reason.getErrorMessage())
             self.status.set_RED('Lost OUT connection')
             (defer, self.defer) = (self.defer, None)
-            defer.errback(LostConnectionException(reason.getErrorMessage()))
+            defer.errback(NoConnectionException(reason.getErrorMessage()))
         self.completed = False
         if self.running:
             self.send_next(proceed=True)
