@@ -157,7 +157,7 @@ class LuminaLogObserver(object):
         if 'rawin' in event or 'rawout' in event:
             return False
 
-        # Ignore data in and data out messages for client connection on server
+        # Ignore data in and data out messages for node connection on server
         if ':' in namespace and ('datain' in event or 'dataout' in event or 'cmdok' in event):
             return False
             

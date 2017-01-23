@@ -6,14 +6,14 @@ from twisted.internet.task import LoopingCall
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 
-from lumina.leaf import Leaf
+from lumina.node import Node
 from lumina.event import Event
 from lumina.callback import Callback
 
 
 
-class Test(Leaf):
-    ''' Test leaf node '''
+class Test(Node):
+    ''' Test node '''
     name = 'TEST'
 
     # --- Interfaces
@@ -50,7 +50,7 @@ class Test(Leaf):
         self.n = 0
 
     def setup(self, main):
-        Leaf.setup(self, main)
+        Node.setup(self, main)
         self.status.set_GREEN()
         self.loop = LoopingCall(self.loop_cb)
         self.loop.start(20, False)

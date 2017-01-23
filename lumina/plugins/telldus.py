@@ -6,7 +6,7 @@ from twisted.internet.protocol import ClientFactory, Protocol, ReconnectingClien
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 
-from lumina.leaf import Leaf
+from lumina.node import Node
 from lumina.state import ColorState
 from lumina.event import Event
 from lumina.log import Logger
@@ -363,7 +363,7 @@ class TelldusOut(Protocol):
 
 
 
-class Telldus(Leaf):
+class Telldus(Node):
     ''' Plugin to communicate with wireless lighting equipment and sensors.
     '''
     name = 'TELLDUS'
@@ -371,7 +371,7 @@ class Telldus(Leaf):
 
     # --- Initialization
     def setup(self, main):
-        Leaf.setup(self, main)
+        Node.setup(self, main)
         self.inport = TelldusIn(self)
         self.outport = TelldusOut(self)
         self.inport.connect()

@@ -16,12 +16,12 @@ from lumina.state import ColorState
 
 
 # Exception types that will not result in a local traceback
-validLeafExceptions = (
+validNodeExceptions = (
     NoConnectionException,
 )
 
 
-class LeafProtocol(LineReceiver):
+class NodeProtocol(LineReceiver):
     noisy = False
     delimiter='\n'
 
@@ -40,8 +40,8 @@ class LeafProtocol(LineReceiver):
         self.keepalive = LoopingCall(self.transport.write, '\n')
         self.keepalive.start(60, False)
 
-        # -- Register leaf name
-        self.log.info("Registering client {n}", n=self.parent.name)
+        # -- Register node name
+        self.log.info("Registering node {n}", n=self.parent.name)
         self.send(Event('name',self.parent.name))
 
         # -- Send host name
@@ -51,13 +51,13 @@ class LeafProtocol(LineReceiver):
         # -- Register events
         evlist = self.parent.events
         if len(evlist):
-            self.log.info("Registering {n} client events", n=len(evlist))
+            self.log.info("Registering {n} node events", n=len(evlist))
             self.send(Event('events', *evlist))
 
         # -- Register commands
         cmdlist = self.parent.commands.keys()
         if len(cmdlist):
-            self.log.info("Registering {n} client commands", n=len(cmdlist))
+            self.log.info("Registering {n} node commands", n=len(cmdlist))
             self.send(Event('commands', *cmdlist))
 
         # -- Send status
@@ -129,7 +129,7 @@ class LeafProtocol(LineReceiver):
         return response
 
 
-class LeafFactory(ReconnectingClientFactory):
+class NodeFactory(ReconnectingClientFactory):
     noisy = False
     maxDelay = 10
     factor=1.6180339887498948
@@ -140,7 +140,7 @@ class LeafFactory(ReconnectingClientFactory):
 
     def buildProtocol(self, addr):
         self.resetDelay()
-        return LeafProtocol(parent=self.parent)
+        return NodeProtocol(parent=self.parent)
 
     def clientConnectionLost(self, connector, reason):
         #self.log.info(reason.getErrorMessage())
@@ -152,8 +152,8 @@ class LeafFactory(ReconnectingClientFactory):
 
 
 
-class Leaf(Plugin):
-    ''' Leaf objects for plugins '''
+class Node(Plugin):
+    ''' Node objects for plugins '''
 
     events = { }
     commands = { }
@@ -177,7 +177,7 @@ class Leaf(Plugin):
         self.protocol = None
         self.queue = []
 
-        self.factory = LeafFactory(parent=self)
+        self.factory = NodeFactory(parent=self)
         reactor.connectTCP(self.host, self.port, self.factory)
 
 
@@ -238,8 +238,8 @@ class Leaf(Plugin):
             #        if not failure.check(CommandException):
             #        log(failure.getTraceback(), system=self.system)
 
-            # Accept the exception if listed in validLeafExceptions.
-            for exc in validLeafExceptions:
+            # Accept the exception if listed in validNodeExceptions.
+            for exc in validNodeExceptions:
                 if failure.check(exc):
                     return None
 

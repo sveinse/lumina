@@ -19,9 +19,9 @@ from lumina.state import ColorState
 DEFAULT_TIMEOUT = 10
 
 
-# Valid exceptions that we can receive from the client/leaf. All other exception
-# types will be mapped to ClientException()
-#validClientExceptions = (
+# Valid exceptions that we can receive from a node. All other exception
+# types will be mapped to NodeException()
+#validNodeExceptions = (
 #    #CommandException,
 #    CommandRunException,
 #    UnknownCommandException,
@@ -101,7 +101,7 @@ class ServerProtocol(LineReceiver):
 
 
     def processData(self, data):
-        ''' Handle messages from the clients '''
+        ''' Handle messages from nodes '''
 
         # -- Empty lines are simply ignored
         if not len(data):
@@ -136,20 +136,20 @@ class ServerProtocol(LineReceiver):
             if self.processInteractive(event) is None:
                 return
 
-        # -- Register client name
+        # -- Register node name
         if event.name == 'name':
             self.name = event.args[0]
             self.log.namespace = self.servername + ':' + event.args[0]
-            self.log.info("Registering client {n} ({ip})", n=event.args[0], ip=self.ip)
+            self.log.info("Registering node {n} ({ip})", n=event.args[0], ip=self.ip)
             return
 
         # -- Register host name
         #elif event.name == 'hostname':
-        #    self.log.info('Client {h} is named {n}', h=self.hostname, n=event.args[0])
+        #    self.log.info('Node {h} is named {n}', h=self.hostname, n=event.args[0])
         #    self.hostname = event.args[0]
         #    return
 
-        # -- Register client events
+        # -- Register node events
         elif event.name == 'events':
             evlist = [ self.name + '/' + e for e in event.args ]
             if len(evlist):
@@ -159,7 +159,7 @@ class ServerProtocol(LineReceiver):
                 self.parent.add_events(evlist)
             return
 
-        # -- Register client commands
+        # -- Register node commands
         elif event.name == 'commands':
             evlist = [ self.name + '/' + e for e in event.args ]
             if len(evlist):
@@ -202,7 +202,7 @@ class ServerProtocol(LineReceiver):
             else:
 
                 # Send an error back
-                exc = ClientException(*request.result)
+                exc = NodeException(*request.result)
                 self.log.error('', cmderr=request)
                 defer.errback(exc)
 
@@ -225,7 +225,7 @@ class ServerProtocol(LineReceiver):
                     d.addErrback(lambda r: r.trap(CommandRunException) )
 
             # Any error at this point should be on the server's own accord and should not
-            # affect the client connection, so this except is required
+            # affect the node connection, so this except is required
             except Exception as e:
                 self.log.failure("Failed to process event '{e}'", e=event)
                 return
@@ -245,7 +245,7 @@ class ServerProtocol(LineReceiver):
         event.defer.errback(exc)
 
 
-    # -- Send a command to the client
+    # -- Send a command to the node
     def send(self, event):
         # -- Remove the 'name/' prefix
         prefix = self.name + '/'
@@ -258,7 +258,7 @@ class ServerProtocol(LineReceiver):
         #    is properly set
         timer = utils.add_defer_timeout(d, self.timeout, self.timeoutResponse, event)
 
-        # FIXME: Add transform functions for changing ClientException() into other
+        # FIXME: Add transform functions for changing NodeException() into other
         #        exception types?
 
         # -- Generate new seq for request, save it in request list and setup for
@@ -362,7 +362,7 @@ class ServerFactory(Factory):
 
 
 class Server(Plugin):
-    ''' Lumina leaf client server.
+    ''' Lumina node server.
     '''
 
     name = 'SERVER'
@@ -384,8 +384,8 @@ class Server(Plugin):
         self.events = []
         self.commands = {}
 
-        # List of connected clients
-        self.clients = []
+        # List of connected nodes
+        self.nodes = []
         self.sequence = 0
 
         # Setup default do-nothing handler for the incoming events
@@ -396,7 +396,7 @@ class Server(Plugin):
         
 
     def run_command(self, event, fail_on_unknown=True):
-        ''' Send a command to a client and return a deferred object for the reply '''
+        ''' Send a command to a node and return a deferred object for the reply '''
 
         # FIXME: Do we need the fail_on_unknown option?
         
@@ -412,21 +412,21 @@ class Server(Plugin):
 
 
     # --- INTERNAL COMMANDS
-    def connectionMade(self, client):
-        ''' Register the connected client '''
+    def connectionMade(self, node):
+        ''' Register the connected node '''
         self.sequence += 1
-        client.sequence = self.sequence
-        self.clients.append(client)
-        self.status.set_GREEN('%s clients connected' %(len(self.clients)))
+        node.sequence = self.sequence
+        self.nodes.append(node)
+        self.status.set_GREEN('%s nodes connected' %(len(self.nodes)))
 
 
-    def connectionLost(self, client):
-        ''' Remove the disconnected client '''
-        self.clients.remove(client)
-        if not self.clients:
-            self.status.set_YELLOW('No clients connected')
+    def connectionLost(self, node):
+        ''' Remove the disconnected node '''
+        self.nodes.remove(node)
+        if not self.nodes:
+            self.status.set_YELLOW('No nodes connected')
         else:
-            self.status.set_GREEN('%s clients connected' %(len(self.clients)))
+            self.status.set_GREEN('%s nodes connected' %(len(self.nodes)))
 
 
     def add_commands(self, commands):

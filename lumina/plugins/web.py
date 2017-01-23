@@ -161,7 +161,7 @@ class RestAdminNodes(LuminaResource):
         if not server:
             return ErrorPage(http.BAD_REQUEST,'Error','No server present').render(request)
 
-        nodes = server.clients
+        nodes = server.nodes
 
         if path == '':
             pass

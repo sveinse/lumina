@@ -22,8 +22,8 @@ class UnknownCommandException(CommandException):
     pass
 
 
-class ClientException(LuminaException):
-    ''' Unknown error received from client '''
+class NodeException(LuminaException):
+    ''' Unknown error received from node '''
 
 
 class ConfigException(LuminaException):

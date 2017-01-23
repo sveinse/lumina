@@ -21,7 +21,7 @@ DEFAULT_TIMEOUT = 10
 
 
 class Responder(Plugin):
-    ''' Receives events from leaf clients nodes and reacts to
+    ''' Handles events from nodes and reacts to
         them with programmable rules.
     '''
     name = 'RESPONDER'
