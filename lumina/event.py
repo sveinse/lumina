@@ -28,13 +28,11 @@ class Event(object):
            'nul{arg1=foo,arg2=bar,5}'
     '''
 
-    RE_LOAD_STR = re.compile(r'^([^{}]+)({(.*)})?$')
-
-
-    def __init__(self, name=None, *args):
+    def __init__(self, name=None, *args, **kw):
         # Event data
         self.name = name
-        self.args = args[:]
+        self.args = args
+        self.kw = kw
 
         # Event execution metas
         self.success = None  # Callback successful. True or False execution has occurred
@@ -45,46 +43,54 @@ class Event(object):
 
 
     def __repr__(self):
-        t = ''
-        if len(self.args) < 5:
-            s = [str(a) for a in self.args]
-        else:
-            s = ['...%s args...' %(len(self.args))]
+        def pr_elem(elem):
+            if isinstance(elem, list):
+                return '[..#%s..]' %(len(elem))
+            if isinstance(elem, tuple):
+                return '(..#%s..)' %(len(elem))
+            if isinstance(elem, dict):
+                return '{..#%s..}' %(len(elem))
+            elem = str(elem)
+            if len(elem) > 10:
+                return elem[:10] + '...'
+            return elem
+
+        alist = [pr_elem(a) for a in self.args]
+        alist += ['%s=%s' %(k, pr_elem(self.kw[k])) for k in self.kw.keys()]
+        slist = alist[:5]
+        if len(alist) > 5:
+            slist.append(' ... +%s more' %(len(alist)-5))
         if self.success is not None:
-            s.append('<%s,%s>' %(self.success, self.result))
+            slist.append('<%s,%s>' %(self.success, self.result))
         # Uncomment this to print the id of the object
-        #s.append(' ' + hex(id(self)))
-        #if s:
-        t = '{' + ','.join(s) + '}'
-        return "%s%s" %(self.name, t)
+        #slist.append(' ' + hex(id(self)))
+        return "%s{%s}" %(self.name, ','.join(slist))
 
 
     def copy(self):
         ''' Return new copy of this object.  '''
-        other = Event()
-        other.name = self.name
-        other.args = self.args[:]
-        return other
+        return Event(self.name, *self.args, **self.kw)
 
 
     #----- IMPORT and EXPORT functions ------
 
     def _json_encoder(self):
         ''' Internal JSON encoder '''
-        js = {
+        jdict = {
             'name': self.name,
             'args': self.args,
+            'kw': self.kw,
         }
         if self.seq is not None:
-            js.update({
+            jdict.update({
                 'seq': self.seq,
             })
         if self.success is not None:
-            js.update({
+            jdict.update({
                 'success': self.success,
                 'result': self.result,
             })
-        return js
+        return jdict
 
 
     # -- dict import/export
@@ -95,15 +101,16 @@ class Event(object):
         if self.name is None:
             raise ValueError("Missing event name")
         self.name = other.get('name')
-        self.args = other.get('args', [])
+        self.args = other.get('args', tuple())
+        self.kw = other.get('kw', {})
         self.success = other.get('success')
         self.seq = other.get('seq')
 
         result = other.get('result')
 
         # FIXME: What does this do?
-        if isinstance(result, dict) and 'seq' in result:
-            result = Event().load_dict(result)
+        #if isinstance(result, dict) and 'seq' in result:
+        #    result = Event().load_dict(result)
 
         self.result = result
 
@@ -118,28 +125,24 @@ class Event(object):
 
     def load_json(self, string):
         ''' Load the data from a json string '''
-        js = json.loads(string, encoding='ascii')
-        self.load_dict(js)
+        jdict = json.loads(string, encoding='ascii')
+        self.load_dict(jdict)
         return self
 
-    def load_json_args(self, string):
-        ''' Load args from a json string '''
-        if string:
-            self.args = json.loads(string, encoding='ascii')
-        else:
-            self.args = []
-        return self
+    # FIXME: web.py used to use this
+    #def load_json_args(self, string):
+    #    ''' Load args from a json string '''
+    #    if string:
+    #        self.args = json.loads(string, encoding='ascii')
+    #    else:
+    #        self.args = (,)
+    #    return self
 
 
     # -- String import/export
 
-    # Unused it seems
-    def dump_str(self):
-        ''' Dump the data a string '''
-        (s, t) = ([str(a) for a in self.args], '')
-        if s:
-            t = '{' + ','.join(s) + '}'
-        return "%s%s" %(self.name, t)
+    # Regex to load from string
+    RE_LOAD_STR = re.compile(r'^([^{}]+)({(.*)})?$')
 
 
     def load_str(self, string, parseEvent=None, shell=False):
@@ -153,17 +156,20 @@ class Event(object):
                 return self
             self.name = args[0]
             self.args = args[1:]
+            self.kw = tuple()
             return self
 
         m = self.RE_LOAD_STR.match(string)
         if not m:
             raise SyntaxError("Invalid syntax '%s'" %(string))
-        self.name = m.group(1)
         opts = m.group(3)
+        args = []
         if opts:
-            self.args = opts.split(',')
-        else:
-            self.args = []
+            args = opts.split(',')
+
+        self.name = m.group(1)
+        self.args = tuple(args)
+        self.kw = tuple()  # Load from string does not support kw yet
 
         # If '$' agruments is encountered, replace with positional argument
         # from parseEvent
@@ -190,7 +196,7 @@ class Event(object):
                     args.append(opt)
                 else:
                     args.append(arg)
-            self.args = args
+            self.args = tuple(args)
 
         return self
 

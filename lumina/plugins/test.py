@@ -43,7 +43,6 @@ class Test(Node):
 
     # --- Initialization
     def __init__(self):
-        self.configure()
         self.cbevent = Callback()
         self.count = 0
 

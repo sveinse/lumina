@@ -92,7 +92,6 @@ def main(args=None):
 
     #==  LOGGING
     log.startLogging(syslog=(os.name != 'nt' and opts.syslog), syslog_prefix='Lumina')
-    log.Logger(namespace='-').info("PID {pid}", pid=os.getpid())
 
     #== MAIN
     #   This will load the plugins and set them up

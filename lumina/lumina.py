@@ -2,6 +2,9 @@
 from __future__ import absolute_import
 
 import re
+import os
+import socket
+from binascii import hexlify
 from importlib import import_module
 from twisted.internet import reactor
 
@@ -32,6 +35,15 @@ class Lumina(object):
 
     def setup(self, conffile=None):
         self.log = Logger(namespace='-')
+
+        #== GENERAL INFORMATION
+        self.hostname = socket.gethostname()
+        self.hostid = hexlify(os.urandom(4))
+        self.pid = os.getpid()
+
+        self.log.info("Host {host} [{hostid}], PID {pid}", 
+                      host=self.hostname, hostid=self.hostid, pid=self.pid)
+
 
         #== CONFIGUATION
         self.config = config = Config(settings=self.CONFIG)
