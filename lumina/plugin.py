@@ -7,9 +7,18 @@ class Plugin(object):
 
     CONFIG = {}
 
+    def override_name(self, name, main):
+        ''' Override the configured name when instanciating this class.
+            This method shall only be used in very special cases, such as
+            by the admin plugin.
+        '''
+        return name
+
     def configure(self):
-        pass
+        ''' Configure self.commands and self.events '''
+
     def setup(self, main):
-        pass
+        ''' Setup the class and services. '''
+
     def close(self):
-        pass
+        ''' Close any open files and connections '''

@@ -5,6 +5,7 @@ import re
 import json
 import shlex
 from twisted.python.failure import Failure
+from lumina.utils import str_object, listify_dict
 
 
 
@@ -43,28 +44,14 @@ class Event(object):
 
 
     def __repr__(self):
-        def pr_elem(elem):
-            if isinstance(elem, list):
-                return '[..#%s..]' %(len(elem))
-            if isinstance(elem, tuple):
-                return '(..#%s..)' %(len(elem))
-            if isinstance(elem, dict):
-                return '{..#%s..}' %(len(elem))
-            elem = str(elem)
-            if len(elem) > 10:
-                return elem[:10] + '...'
-            return elem
-
-        alist = [pr_elem(a) for a in self.args]
-        alist += ['%s=%s' %(k, pr_elem(self.kw[k])) for k in self.kw.keys()]
-        slist = alist[:5]
-        if len(alist) > 5:
-            slist.append(' ... +%s more' %(len(alist)-5))
+        alist = []
         if self.success is not None:
-            slist.append('<%s,%s>' %(self.success, self.result))
+            alist.append('<%s,%s>' %(self.success, str_object(self.result, max_elements=5)))
+        alist += list(self.args)
+        alist += listify_dict(self.kw)
         # Uncomment this to print the id of the object
-        #slist.append(' ' + hex(id(self)))
-        return "%s{%s}" %(self.name, ','.join(slist))
+        #alist.insert(0,' ' + hex(id(self)))
+        return "%s{%s}" %(self.name, str_object(alist, max_elements=5, brackets=False))
 
 
     def copy(self):
@@ -129,14 +116,13 @@ class Event(object):
         self.load_dict(jdict)
         return self
 
-    # FIXME: web.py used to use this
-    #def load_json_args(self, string):
-    #    ''' Load args from a json string '''
-    #    if string:
-    #        self.args = json.loads(string, encoding='ascii')
-    #    else:
-    #        self.args = (,)
-    #    return self
+    def load_json_args(self, string):
+        ''' Load args only from a json string '''
+        if string:
+            self.args = json.loads(string, encoding='ascii')
+        else:
+            self.args = tuple()
+        return self
 
 
     # -- String import/export

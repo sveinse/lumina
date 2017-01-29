@@ -1,7 +1,7 @@
 /**
  * @license Lumina v0.1
- * (c) 2014-2015 Svein Seldal
- * License: MIT
+ * (c) 2014-2017 Svein Seldal
+ * License: GPL3
 */
 angular.module('LuminaApp', ['ngRoute'])
 
@@ -16,10 +16,6 @@ angular.module('LuminaApp', ['ngRoute'])
             .when('/yamaha', {
                 templateUrl: 'LuminaYamaha.html',
                 controller: 'LuminaYamaha'
-            })
-            .when('/config', {
-                templateUrl: 'LuminaConfig.html',
-                controller: 'LuminaConfig'
             })
             .when('/admin', {
                 templateUrl: 'LuminaAdmin.html',

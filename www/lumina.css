@@ -1,1 +1,9 @@
 body { padding-top: 70px; }
+
+html body .table-borderless td,
+html body .table-borderless th {
+    border-top: 0;
+}
+.table-no-width {
+    width: 0%;
+}

@@ -21,12 +21,15 @@ class UnknownCommandException(LuminaException):
 class NodeException(LuminaException):
     ''' Error received from a node '''
 
+class NodeConfigException(LuminaException):
+    ''' Error from configuring a node '''
+
 class ConfigException(LuminaException):
     ''' Errors related to configuration '''
 
 class NoConnectionException(LuminaException):
     ''' Connection errors '''
-
+    
 #class CommandException(LuminaException):
 #    ''' Command execution exception '''
 

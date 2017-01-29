@@ -18,3 +18,5 @@
 /tmp/
 /.vscode/
 /access-lumina.log
+/tags
+/access-lumina.log*

@@ -68,6 +68,10 @@ class Config(object):
         return c
 
 
+    def __len__(self):
+        return len(self.c)
+
+
     #def __repr__(self):
     #    s=[]
     #    for k,v in self.value.items():

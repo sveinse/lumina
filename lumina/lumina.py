@@ -35,13 +35,14 @@ class Lumina(object):
 
     def setup(self, conffile=None):
         self.log = Logger(namespace='-')
+        self.status = ColorState(log=self.log)
 
         #== GENERAL INFORMATION
         self.hostname = socket.gethostname()
         self.hostid = hexlify(os.urandom(4))
         self.pid = os.getpid()
 
-        self.log.info("Host {host} [{hostid}], PID {pid}", 
+        self.log.info("Host {host} [{hostid}], PID {pid}",
                       host=self.hostname, hostid=self.hostid, pid=self.pid)
 
 
@@ -54,13 +55,17 @@ class Lumina(object):
             self.config.set('conffile', conffile)
 
         #== PLUGINS
-        self.plugins = {}
-        self.sequence = []
+        self.plugins = []
 
         count = 0
 
+        # Ensure the admin plugin is always loaded
+        plugins = list(config['plugins'])
+        if 'admin' not in plugins:
+            plugins.insert(0, 'admin')
+
         # Iterate over the plugins from config
-        for module in config['plugins']:
+        for module in plugins:
 
             # Ignore empty plugin names
             module = module.strip()
@@ -82,20 +87,27 @@ class Lumina(object):
                     module = m.group(1)
                     name = m.group(3)
 
-                # Require unique names
-                if name in self.plugins:
-                    raise Exception("Plugin already exist" %(name))
-
                 self.log.info("Loading plugin {m}...", m=module)
 
                 plugin = import_module('lumina.plugins.' + module).PLUGIN()
+
+                # Get the name to use from the plugin if it is overridden
+                confname = name
+                name = plugin.override_name(confname, self)
+                if name != confname:
+                    self.log.warn("Plugin name overridden from {o} to {n}", o=confname, n=name)
+
+                # Require unique names
+                if self.get_plugin_by_name(name):
+                    raise Exception("Plugin already exist" %(name))
+
+                # Store plugin related information
                 plugin.name = name
                 plugin.module = module
-                plugin.module_sequence = count
+                plugin.sequence = count
 
                 self.log.info("===  Registering #{c} plugin {m} as {n}", c=count, m=module, n=name)
-                self.plugins[name] = plugin
-                self.sequence.append(name)
+                self.plugins.append(plugin)
 
                 # FIXME: Add global config options coming from the plugins. Either via
                 #        global=True, or as a separate GLOBAL_CONFIG variable
@@ -118,12 +130,11 @@ class Lumina(object):
                 plugin = FailedPlugin()
                 plugin.name = name
                 plugin.module = FailedPlugin.name
-                plugin.module_sequence = count
+                plugin.sequence = count
                 plugin.status = ColorState('RED', log=self.log, why=msg)
 
-                self.plugins[name] = plugin
-                if name not in self.sequence:
-                    self.sequence.append(name)
+                # FIXME: self.plugins might already have added the failed plugin
+                self.plugins.append(plugin)
 
 
         #== Register own shutdown
@@ -141,7 +152,12 @@ class Lumina(object):
     #== SERVICE FUNCTIONS
     def get_plugin_by_module(self, module):
         ''' Return the instance for plugin given by the module argument '''
-        for name, inst in self.plugins.items():
+        for inst in self.plugins:
             if inst.module == module:
                 return inst
-        return None
+
+    def get_plugin_by_name(self, name):
+        ''' Return the instance for a plugin given by the name '''
+        for inst in self.plugins:
+            if inst.name == name:
+                return inst
