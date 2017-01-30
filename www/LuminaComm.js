@@ -56,7 +56,13 @@ angular.module('LuminaApp')
         }
 
         var get_nodes = function(hostid) {
-            return command(hostid + '/' + 'nodes');
+            return command(hostid + '/' + 'nodes')
+                .then(function(data) {
+                    for(var i=0; i < data.length; i++) {
+                        data[i].lastactivity = new Date(data[i].lastactivity);
+                    }
+                    return data;
+                });
         }
 
 

@@ -60,8 +60,10 @@ class NodeProtocol(LineReceiver):
         self.emit('register', **data)
 
         # -- Send status
-        # Note: the parent class handles this
-        #self.emit('status', self.parent.status.state, self.parent.status.why)
+        # The parent class will send update on changes, but in case of
+        # reconnect, a new update must be pushed
+        self.emit('status', self.parent.status.state,
+                  self.parent.status.state, self.parent.status.why)
 
         # -- Flush any queue that might have been accumulated before
         #    connecting to the controller

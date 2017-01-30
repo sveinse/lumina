@@ -112,6 +112,7 @@ class Admin(Node):
                 'status_why'  : node.status_why,
                 'n_commands'  : len(node.commands),
                 'n_events'    : len(node.events),
+                'lastactivity' : node.lastactivity.isoformat()+'Z',
             })
         return response
 

@@ -1,6 +1,8 @@
 # -*- python -*-
 from __future__ import absolute_import
 
+from datetime import datetime
+
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
@@ -50,6 +52,9 @@ class ServerProtocol(LineReceiver):
         self.module = None
         self.status = 'OFF'
         self.status_why = 'No data received yet'
+        self.lastactivity = datetime.utcnow()
+        self.n_commands = 0
+        self.n_events = 0
 
         self.events = []
         self.commands = []
@@ -121,6 +126,9 @@ class ServerProtocol(LineReceiver):
         if self.interactive:
             if self.processInteractive(event) is None:
                 return
+
+        # Update the activity timer
+        self.lastactivity = datetime.utcnow()
 
         # -- Register node name
         if event.name == 'register':

@@ -1,3 +1,10 @@
+2018-01-29 sveinse
+
+    * Add timestamps and counters on
+        - nodes
+        - commands
+        - events
+
 2017-01-28 sveinse
 
     * Allow web to be a remote plugin. This implies making web into a node

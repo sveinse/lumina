@@ -29,6 +29,7 @@
       <th>Host (ID)</th>
       <th># commands /<br># events</th>
       <th>Status</th>
+      <th>Last activity</th>
     </tr>
     <tr ng-repeat="e in nodes">
       <td>{{e.seqence}}</td>
@@ -36,6 +37,7 @@
       <td>{{e.hostname}} ({{e.hostid}})</td>
       <td>{{e.n_commands}} / {{e.n_events}}</td>
       <td>{{e.status}} / {{e.status_why}}</td>
+      <td>{{e.lastactivity | date:'medium'}}</td>
     </tr>
   </table>
 
