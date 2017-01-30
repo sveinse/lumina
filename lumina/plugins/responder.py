@@ -1,17 +1,16 @@
 # -*- python -*-
 from __future__ import absolute_import
 
-from twisted.internet.defer import Deferred,DeferredList,maybeDeferred,CancelledError
-from twisted.internet import reactor
+from twisted.internet.defer import Deferred
 
 from lumina.event import Event
 from lumina.plugin import Plugin
-from lumina.exceptions import *
+from lumina.exceptions import CommandParseException, ConfigException, CommandRunException
 from lumina.log import Logger
 from lumina.state import ColorState
 
 # Import responder rules from separate file
-from lumina.plugins.rules import alias,responses
+from lumina.plugins.rules import alias, responses
 
 
 # FIXME: Add this as config statements
@@ -53,7 +52,7 @@ class Responder(Plugin):
         ''' Respond to the received event '''
 
         # Find the job for the given event
-        job = self.responses.get(event.name,None)
+        job = self.responses.get(event.name, None)
         if job is None:
             self.log.info("Ignoring event '{e}'", e=event)
             self.log.info("  --:  Ignored",)
@@ -61,7 +60,7 @@ class Responder(Plugin):
 
         # Make a job object and its parse args and run it
         #self.log.debug("Event '{e}' received", e=event)
-        command = Event().load_str(job, parseEvent=event)
+        command = Event().load_str(job, parse_event=event)
         self.log.info("Event '{e}' -> '{c}'", e=event, c=command)
         return self.run_command(command)
 
@@ -82,7 +81,7 @@ class Responder(Plugin):
         # is an alias that needs to be expanded. Else this is a function that should be
         # called normally.
         if fn != self.run_command:
-            return [ command ]
+            return [command]
 
         # ...the returned object is a composite and needs to be flattened/expanded
 
@@ -97,13 +96,13 @@ class Responder(Plugin):
 
             # Convert the string alias to Event() object
             try:
-                ev = Event().load_str(cmd, parseEvent=command)
+                event = Event().load_str(cmd, parse_event=command)
             except Exception as e:
-                raise CommandParseException("Command parsing failed: %s" %(e) )
+                raise CommandParseException("Command parsing failed: %s" %(e))
             #ev.system = command.system   # To override log system
 
             # Iterate over the found commands to check if they too are aliases
-            commandlist += self.get_commandlist(ev,depth=depth+1)
+            commandlist += self.get_commandlist(event, depth=depth+1)
 
         return commandlist
 
@@ -113,16 +112,16 @@ class Responder(Plugin):
 
         # Print the events
         self.log.info("  --:    {l}", l=commandlist)
-        
+
         # If the command and the commandlist contains the same command (which happens
         # if you call self.run_command() on a non-composite alias command), then
         # simply call it as an ordinary command
-        if len(commandlist)==1 and id(command) == id(commandlist[0]):
+        if len(commandlist) == 1 and id(command) == id(commandlist[0]):
             return self.server.run_command(command)
-            
+
         # Helper-class for executing the command-list
-        class RunCommandList:
-            def __init__(self,command,commandlist,log):
+        class RunCommandList(object):
+            def __init__(self, command, commandlist, log):
                 self.log = log
                 self.defer = Deferred()
                 self.request = command
@@ -131,7 +130,7 @@ class Responder(Plugin):
                 self.failed = []
                 self.success = 0
 
-            def execute(self,server):
+            def execute(self, server):
 
                 # Null-lengthed commandlists must be completed by manually calling the
                 # dispatch handler.
@@ -143,24 +142,24 @@ class Responder(Plugin):
                     for cmd in self.commandlist:
 
                         # Attach callbacks to handle progress
-                        d2 = server.run_command(cmd)
-                        d2.addCallback(self.cmd_ok,cmd)
-                        d2.addErrback(self.cmd_err,cmd)
-                        d2.addBoth(self.cmd_done)
-                        
-                        # ...the d2 deferred object is not needed by anyone else...
-                    
+                        defer = server.run_command(cmd)
+                        defer.addCallback(self.cmd_ok, cmd)
+                        defer.addErrback(self.cmd_err, cmd)
+                        defer.addBoth(self.cmd_done)
+
+                        # ...the local defer object is not needed by anyone else...
+
                 return self.defer
-                
-            def cmd_ok(self,result,cmd):
+
+            def cmd_ok(self, result, cmd):
                 self.success += 1
                 return result
-                
-            def cmd_err(self,failure,cmd):
+
+            def cmd_err(self, failure, cmd):
                 self.failed.append(cmd)
                 return failure
-                
-            def cmd_done(self,result):
+
+            def cmd_done(self, result):
                 self.remain -= 1
                 # Done?
                 if self.remain <= 0:
@@ -168,16 +167,18 @@ class Responder(Plugin):
                     request = self.request
                     request.result = self.commandlist
                     request.success = self.success
-                    
+
                     # Success is when all sub-jobs succeeds
                     if self.success == len(self.commandlist):
                         self.log.info('', cmdok=request)
                         self.defer.callback(request)
 
                     else:
-                        self.log.error('{_cmderr}, {f}/{n} succeeded', cmderr=request, f=self.success, n=len(self.commandlist))
+                        self.log.error('{_cmderr}, {f}/{n} succeeded',
+                                       cmderr=request, f=self.success,
+                                       n=len(self.commandlist))
                         self.defer.errback(CommandRunException(request))
-                
+
                 # We want to accept the fault/error
                 return None
 

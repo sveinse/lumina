@@ -4,6 +4,8 @@
         - nodes
         - commands
         - events
+    * To be able handle server status aggregation, the State() object
+      must support multiple callbacks
 
 2017-01-28 sveinse
 

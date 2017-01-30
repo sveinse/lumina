@@ -65,7 +65,7 @@ def daemonize(pidfile):
 
 
 #===  MAIN function
-def main(args=None):
+def main(args=None):    # pylint: disable=W0613
     ''' Lumina main function '''
 
     #==  PARSE ARGS
@@ -91,7 +91,7 @@ def main(args=None):
         opts.syslog = True
 
     #==  LOGGING
-    log.startLogging(syslog=(os.name != 'nt' and opts.syslog), syslog_prefix='Lumina')
+    log.start(syslog=(os.name != 'nt' and opts.syslog), syslog_prefix='Lumina')
 
     #== MAIN
     #   This will load the plugins and set them up

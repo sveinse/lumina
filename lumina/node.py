@@ -230,7 +230,7 @@ class Node(Plugin):
             raise UnknownCommandException(event.name)
 
         # FIXME: Add proper unknown_command logic
-        d = maybeDeferred(self.commands.get(event.name, _unknown_command), event)
+        defer = maybeDeferred(self.commands.get(event.name, _unknown_command), event)
 
         # FIXME: Add config setting to enable/disable logcmdok/logcmderr
 
@@ -246,20 +246,18 @@ class Node(Plugin):
             event.set_fail(failure)
             self.log.info('', cmderr=event)
 
-            # FIXME: What failures should be excepted and not passed on?
-            #        if not failure.check(CommandException):
-            #        log(failure.getTraceback(), system=self.system)
-
             # Accept the exception if listed in validNodeExceptions.
             for exc in validNodeExceptions:
                 if failure.check(exc):
                     return None
 
-            # If failure is returned, it will create a "unhandled exception" and a traceback in
-            # the logs. Hence a log() traceback is only necessary when the exception is handled,
-            # but one wants traceback.
+            # If failure is returned, it will create a "unhandled exception" and
+            # a traceback in the logs. Hence a log() traceback
+            #    self.log.info('{tb}',tb=failure.getTraceback())
+            # is only necessary when the exception is handled, but one wants
+            # traceback.
             return failure
 
-        d.addCallback(cmd_ok, event)
-        d.addErrback(cmd_error, event)
-        return d
+        defer.addCallback(cmd_ok, event)
+        defer.addErrback(cmd_error, event)
+        return defer

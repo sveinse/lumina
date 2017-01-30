@@ -8,9 +8,8 @@ from twisted.internet.task import LoopingCall
 
 from lumina.node import Node
 from lumina.state import ColorState
-from lumina.event import Event
 from lumina.log import Logger
-from lumina.exceptions import *
+from lumina.exceptions import NoConnectionException, TimeoutException, ConfigException
 from lumina import utils
 
 # Import responder rules from separate file
@@ -34,34 +33,34 @@ def getnextelement(data):
                         iNs        where N is am integer number
     '''
     if data and data[0] in '0123456789':
-        n = data.split(':',1)
+        n = data.split(':', 1)
         l = int(n[0])
         return (n[1][:l], n[1][l:])
-    elif data and data[0]=='i':
-        n = data.split('s',1)
+    elif data and data[0] == 'i':
+        n = data.split('s', 1)
         l = int(n[0][1:])
-        return (l,n[1])
+        return (l, n[1])
     else:
-        return (None,data)
+        return (None, data)
 
 
 
 def parsestream(data):
     ''' Parse self.data byte stream into list of elements in self.elements '''
-    el = [ ]
+    el = []
 
     # Split the raw data into list of objects (string or integer)
     while True:
-        (element,data) = getnextelement(data)
+        (element, data) = getnextelement(data)
         if element is None:
-            return el,data
+            return el, data
         el.append(element)
 
 
 
-def parseelements(elements,log):
+def parseelements(elements, log):
     ''' Parse elements into events '''
-    events = [ ]
+    events = []
 
     # Extract events from list of objects
     while elements:
@@ -78,21 +77,22 @@ def parseelements(elements,log):
 
         if cmd not in cmdsize:
             log.info("Unknown command '{c}', dropping {e}", c=cmd, e=elements)
-            elements = [ ]
+            elements = []
             break
 
         l = cmdsize[cmd]
 
         if l > len(elements):
             # Does not got enough data for command. Stop and postpone processing
-            log.info("Missing elements for command '{c}', got {e}, needs {l} args.", c=cmd, e=elements, l=l)
-            elements = [ ]
+            log.info("Missing elements for command '{c}', "
+                     "got {e}, needs {l} args.", c=cmd, e=elements, l=l)
+            elements = []
             break
 
         l = cmdsize[cmd]
         args = elements[:l]
         elements = elements[l:]
-        events.append( [cmd] + args )
+        events.append([cmd] + args)
 
     return (events, elements)
 
@@ -106,7 +106,7 @@ def parserawargs(args):
     for a in alist:
         if a:
             o = a.split(':')
-            adict[o[0]]=o[1]
+            adict[o[0]] = o[1]
     return adict
 
 
@@ -114,14 +114,14 @@ def parserawargs(args):
 def generate(args):
     ''' Encode args into telldus string encoding, which is '<LEN>:string' and 'i<NUM>s' for
         integer. '''
-    s=''
+    s = ''
     for a in args:
-        if type(a) is str:
-            s+='%s:%s' %(len(a),a)
-        elif type(a) is int:
-            s+='i%ds' %(a)
+        if isinstance(a, str):
+            s += '%s:%s' %(len(a), a)
+        elif isinstance(a, int):
+            s += 'i%ds' %(a)
         else:
-            raise TypeError("Argument '%s', type '%s' cannot be encoded" %(a,type(a)))
+            raise TypeError("Argument '%s', type '%s' cannot be encoded" %(a, type(a)))
     return s
 
 
@@ -160,11 +160,11 @@ class TelldusIn(Protocol):
     idleTimeout = 20
 
 
-    def __init__(self,parent):
-        self.log = Logger(namespace = parent.name + '/in')
+    def __init__(self, parent):
+        self.log = Logger(namespace=parent.name+'/in')
         self.parent = parent
-        self.status = ColorState(log=self.log, format={0:0}, # <-- a hack to avoid color
-                                callback=lambda *a:self.parent.changestate(self,*a) )
+        self.status = ColorState(log=self.log, state_format={0:0}, # <-- a hack to avoid color
+                                 callback=lambda *a: self.parent.changestate(self, *a))
         self.connected = False
         self.factory = TelldusInFactory(self, self.parent)
 
@@ -179,7 +179,7 @@ class TelldusIn(Protocol):
         self.connected = True
         self.status.set_YELLOW('IN connection made, waiting for data')
         self.data = ''
-        self.elements = [ ]
+        self.elements = []
         self.timer = LoopingCall(self.dataTimeout)
         self.timer.start(self.idleTimeout, now=False)
 
@@ -198,7 +198,7 @@ class TelldusIn(Protocol):
 
 
     def dataReceived(self, data):
-        self.log.debug('',rawin=data)
+        self.log.debug('', rawin=data)
 
         if self.timer.running:
             self.timer.reset()
@@ -264,11 +264,11 @@ class TelldusOut(Protocol):
     #   command() -> send_next() -> connectionMade() -> dataReceived()
     #   -> disconnect() -> connectionLost() [ -> send_next() ... ]
 
-    def __init__(self,parent):
-        self.log = Logger(namespace = parent.name + '/out')
+    def __init__(self, parent):
+        self.log = Logger(namespace=parent.name+'/out')
         self.parent = parent
-        self.status = ColorState(log=self.log, format={0:0}, # <-- a hack to avoid color
-                                 callback=lambda *a:self.parent.changestate(self,*a))
+        self.status = ColorState(log=self.log, state_format={0:0}, # <-- a hack to avoid color
+                                 callback=lambda *a: self.parent.changestate(self, *a))
         self.connected = False
         self.completed = False
         self.running = True
@@ -289,7 +289,8 @@ class TelldusOut(Protocol):
         self.connected = False
         if not self.completed:
             # Lost connection before we could get any reply back.
-            self.log.error("Lost connection {p}: {e}", p=self.protocol.path, e=reason.getErrorMessage())
+            self.log.error("Lost connection {p}: {e}",
+                           p=self.protocol.path, e=reason.getErrorMessage())
             self.status.set_RED('Lost OUT connection')
             (defer, self.defer) = (self.defer, None)
             defer.errback(NoConnectionException(reason.getErrorMessage()))
@@ -299,7 +300,8 @@ class TelldusOut(Protocol):
 
 
     def clientConnectionFailed(self, reason):
-        self.log.error('Connection failed {p}: {e}', p=self.protocol.path, e=reason.getErrorMessage())
+        self.log.error('Connection failed {p}: {e}',
+                       p=self.protocol.path, e=reason.getErrorMessage())
         self.status.set_RED('OUT connection failed')
         (defer, self.defer) = (self.defer, None)
         defer.errback(NoConnectionException(reason.getErrorMessage()))
@@ -327,13 +329,13 @@ class TelldusOut(Protocol):
 
 
     def command(self, cmd):
-        d = Deferred()
-        self.queue.append( (d,cmd,generate(cmd)) )
-        utils.add_defer_timeout(d, self.timeout, self.timedout, d)
+        defer = Deferred()
+        self.queue.append((defer, cmd, generate(cmd)))
+        utils.add_defer_timeout(defer, self.timeout, self.timedout, defer)
 
         # Send the next package
         self.send_next()
-        return d
+        return defer
 
 
     def send(self):
@@ -382,21 +384,21 @@ class Telldus(Node):
 
 
     # --- Callbacks
-    def changestate(self,cls,state,oldstate,*args):
-        self.status.combine(self.inport.status,self.outport.status)
+    def changestate(self, cls, state, oldstate, *args):
+        self.status.combine(self.inport.status, self.outport.status)
 
 
     # --- Commands
-    def turnOn(self,num):
-        cmd = ( 'tdTurnOn', num )
+    def turnOn(self, num):
+        cmd = ('tdTurnOn', num)
         return self.outport.command(cmd)
 
-    def turnOff(self,num):
-        cmd = ( 'tdTurnOff', num )
+    def turnOff(self, num):
+        cmd = ('tdTurnOff', num)
         return self.outport.command(cmd)
 
-    def dim(self,num, val):
-        cmd = ( 'tdDim', num, val )
+    def dim(self, num, val):
+        cmd = ('tdDim', num, val)
         return self.outport.command(cmd)
 
 
@@ -422,7 +424,8 @@ class Telldus(Node):
                 return
 
             #if args['protocol'] != 'arctech':
-            #    #log("Ignoring unknown protocol '%s' in '%s', dropping event" %(args['protocol'],cmd), system=self.inport.system)
+            #    #log("Ignoring unknown protocol '%s' in '%s', dropping event"
+            #    #    %(args['protocol'], cmd), system=self.inport.system)
             #    continue
 
             # Check for matches in eventlist
@@ -430,10 +433,10 @@ class Telldus(Node):
 
                 # Transform 'turnon' to 'on'.
                 if 'method' in args:
-                    args['method'] = args['method'].replace('turn','')
+                    args['method'] = args['method'].replace('turn', '')
 
                 # Traverse events list
-                for (ev,d) in self.events.items():
+                for (ev, d) in self.events.items():
 
                     # Ignore everything not an in device
                     if d['t'] not in ('in',):
@@ -450,7 +453,7 @@ class Telldus(Node):
             elif args['protocol'] == 'mandolyn' or args['protocol'] == 'fineoffset':
 
                 # Traverse events list
-                for (ev,d) in self.events.items():
+                for (ev, d) in self.events.items():
 
                     # Only consider temp devices
                     if d['t'] not in ('temp', ):
@@ -462,9 +465,10 @@ class Telldus(Node):
 
                     # Match found, process it as an event
                     if 'humidity' in args:
-                        self.emit(ev,('temp',args['temp']),('humidity',args['humidity']))
+                        self.emit(ev, ('temp', args['temp']),
+                                  ('humidity', args['humidity']))
                     else:
-                        self.emit(ev,('temp',args['temp']))
+                        self.emit(ev, ('temp', args['temp']))
                     return
 
                 # Uncommant if not interested in logging temp events we don't subscribe to
@@ -483,76 +487,92 @@ class Telldus(Node):
 
         # Telldus operations
         ops = {
-            'on'  : lambda a,i : self.turnOn(i),
-            'off' : lambda a,i : self.turnOff(i),
-            'dim' : lambda a,i : self.dim(i,int(a.args[0])),
+            'on'  : lambda a, i: self.turnOn(i),
+            'off' : lambda a, i: self.turnOff(i),
+            'dim' : lambda a, i: self.dim(i, int(a.args[0])),
         }
 
         # -- Helper functions
-        def add_out(eq,oplist):
+        def add_out(eq, oplist):
             ''' Add commands to an output device '''
             if '{op}' not in eq['name']:
-                raise ConfigException("telldus_config:%s: %s type requires usage of '{op}' in name" %(eq['i'],eq['t']))
+                raise ConfigException("telldus_config:%s: "
+                                      "%s type requires usage of '{op}' in name"
+                                      %(eq['i'], eq['t']))
 
             for op in oplist:
-                d=eq.copy()
+                d = eq.copy()
                 d['op'] = op
                 d['name'] = name = d['name'].format(**d)
                 if name in self.commands:
-                    raise ConfigException("telldus_config:%s: Command '%s' already in list" %(d['i'],name))
+                    raise ConfigException("telldus_config:%s: "
+                                          "Command '%s' already in list"
+                                          %(d['i'], name))
 
                 # The lambda syntax needs to be carefully set, due to late binding the op=op
                 # syntax is very important to bind the variable in this context
                 # http://docs.python-guide.org/en/latest/writing/gotchas/#late-binding-closures
-                self.commands[name] = lambda a,op=op,i=int(d['id']): ops[op](a,i)
+                self.commands[name] = lambda a, op=op, i=int(d['id']): ops[op](a, i)
 
-        def add_event(eq,**kw):
-            d=eq.copy()
+        def add_event(eq, **kw):
+            d = eq.copy()
             d.update(**kw)
             d['name'] = name = d['name'].format(**d)
             if name in self.events:
-                raise ConfigException("telldus_config:%s: Event '%s' already in list" %(d['i'],name))
+                raise ConfigException("telldus_config:%s: "
+                                      "Event '%s' already in list"
+                                      %(d['i'], name))
             self.events[name] = d
 
         def add_in(eq):
             if '{method}' not in eq['name']:
-                raise ConfigException("telldus_config:%s: %s type requires usage of '{op}' in name" %(eq['i'],eq['t']))
+                raise ConfigException("telldus_config:%s: "
+                                      "%s type requires usage of '{op}' in name"
+                                      %(eq['i'], eq['t']))
 
             # Get the unit span and ensure either unit or num_units is set
-            u_first=eq.get('unit')
+            u_first = eq.get('unit')
             num_units = 1
             if u_first is None:
                 u_first = 1
-                num_units=eq.get('num_units')
+                num_units = eq.get('num_units')
                 if num_units is None:
-                    raise ConfigException("telldus_config:%s: Missing unit or num_units" %(eq['i']))
+                    raise ConfigException("telldus_config:%s: "
+                                          "Missing unit or num_units"
+                                          %(eq['i']))
 
             # Loop through all units and methods
-            for unit in range(int(u_first),int(u_first)+int(num_units)):
-                for method in ('on','off'):
+            for unit in range(int(u_first), int(u_first)+int(num_units)):
+                for method in ('on', 'off'):
                     add_event(eq, unit=str(unit), method=method)
 
         # -- Traverse list for equipment and add to either self.commands or self.events
-        for i,_eq in enumerate(telldus_config):
+        for i, rconfig in enumerate(telldus_config):
             # Everything must be str
-            eq = { k:str(v) for k,v in _eq.items() }
+            eq = {k:str(v) for k, v in rconfig.items()}
             eq['i'] = i+1
             t = eq.get('t')
             if t is None:
-                raise ConfigException("telldus_config:%s: Missing type" %(i+1))
+                raise ConfigException("telldus_config:%s: "
+                                      "Missing type"
+                                      %(i+1))
             if 'name' not in eq:
-                raise ConfigException("telldus_config:%s: Missing name" %(i+1))
+                raise ConfigException("telldus_config:%s: "
+                                      "Missing name"
+                                      %(i+1))
 
             if t == 'dimmer':
-                add_out(eq,('on','off','dim'))
+                add_out(eq, ('on', 'off', 'dim'))
             elif t == 'switch':
-                add_out(eq,('on','off'))
+                add_out(eq, ('on', 'off'))
             elif t == 'in':
                 add_in(eq)
             elif t == 'temp':
                 add_event(eq)
             else:
-                raise ConfigException("telldus_config:%s: Unknown telldus equipment type %s" %(i+1,t))
+                raise ConfigException("telldus_config:%s: "
+                                      "Unknown telldus equipment type %s"
+                                      %(i+1, t))
 
 
 # FIXME: Implement ability to generate tellstick.conf from telldus_config

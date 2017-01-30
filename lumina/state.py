@@ -23,14 +23,15 @@ class State(object):
         def callback_fn(new_state, old_state, why)
     '''
 
-    def __init__(self, state=None, states=None, format=None, log=None, callback=None, why=None):
+    def __init__(self, state=None, states=None, state_format=None,
+                 log=None, callback=None, why=None):
         self.state = state or 'init'
         if log is None:
             self.log = Logger()
         else:
             self.log = log
         self.states = states
-        self.format = format or {}
+        self.state_format = state_format or {}
         self.why = why
         self.callback = callback
 
@@ -48,7 +49,7 @@ class State(object):
         if why is not None:
             swhy = ' (%s)' %(why,)
         if state != old:
-            pstate = self.format.get(state, state)
+            pstate = self.state_format.get(state, state)
             self.log.info('STATE change: {o} --> {n}{s}', o=old, n=pstate, s=swhy)
 
         if self.callback and (state != old or why != oldwhy):
@@ -75,14 +76,16 @@ class ColorState(State):
         can be used to combine multiple ColorState objects into one common metric.
     '''
 
-    def __init__(self, state=None, format=None, **kw):
+    def __init__(self, state=None, state_format=None, **kw):
         State.__init__(self,
                        state=state or 'OFF',
                        states=('OFF', 'YELLOW', 'RED', 'GREEN'),
-                       format=format or {'OFF': '\x1b[34mOFF\x1b[0m',
-                                         'YELLOW': '\x1b[33mYELLOW\x1b[0m',
-                                         'RED': '\x1b[31mRED\x1b[0m',
-                                         'GREEN': '\x1b[32mGREEN\x1b[0m'},
+                       state_format=state_format or {
+                           'OFF': '\x1b[34mOFF\x1b[0m',
+                           'YELLOW': '\x1b[33mYELLOW\x1b[0m',
+                           'RED': '\x1b[31mRED\x1b[0m',
+                           'GREEN': '\x1b[32mGREEN\x1b[0m'
+                       },
                        **kw)
 
     def set_OFF(self, *a):

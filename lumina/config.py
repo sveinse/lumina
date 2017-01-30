@@ -88,7 +88,7 @@ class Config(object):
 
 
     @staticmethod
-    def parsefile(filename, all=False, raw=False):
+    def parsefile(filename, do_all=False, raw=False):
         with open(filename, 'rU') as f:
 
             n = 0
@@ -98,11 +98,11 @@ class Config(object):
 
                 # Skip empty lines and comments
                 if not len(line):
-                    if all:
+                    if do_all:
                         yield (n, l, None, None)
                     continue
                 if line.startswith('#'):
-                    if all:
+                    if do_all:
                         yield (n, l, None, None)
                     continue
 
@@ -200,7 +200,7 @@ class Config(object):
         if os.path.exists(conffile):
 
             # Process each line in existing configuration file
-            for (n, l, k, v) in self.parsefile(conffile, all=True, raw=True):
+            for (n, l, k, v) in self.parsefile(conffile, do_all=True, raw=True):
 
                 # If we see the separator in the, we dont add it later to avoid
                 # overfilling the conffile with auto separators

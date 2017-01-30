@@ -79,10 +79,10 @@ class Admin(Node):
         ''' Return an array with the config options '''
         main = self.main
         config = main.config.getall()
-        ck = config.keys()
-        ck.sort()
+        keys = config.keys()
+        keys.sort()
         response = []
-        for k in ck:
+        for k in keys:
             c = config[k]
             response.append({
                 'key'     : k,

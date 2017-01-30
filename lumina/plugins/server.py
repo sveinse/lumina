@@ -11,7 +11,8 @@ from twisted.internet.defer import Deferred, maybeDeferred
 
 from lumina.plugin import Plugin
 from lumina.event import Event
-from lumina.exceptions import *
+from lumina.exceptions import (NodeException, NoConnectionException, TimeoutException,
+                               NodeConfigException, UnknownCommandException)
 from lumina.log import Logger
 from lumina import utils
 from lumina.state import ColorState
@@ -39,15 +40,16 @@ class ServerProtocol(LineReceiver):
 
 
     def connectionMade(self):
-        (h, p) = (self.transport.getPeer().host, self.transport.getPeer().port)
-        self.ip = "%s:%s" %(h, p)
+        client_ip = self.transport.getPeer().host
+        client_port = self.transport.getPeer().port
+        self.ip = "%s:%s" %(client_ip, client_port)
         self.log.namespace = self.servername + ':' + self.ip
         self.log.info("Connect from {ip}", ip=self.ip, system=self.servername)
 
         # Node data
         self.name = self.ip
         self.nodeid = None
-        self.hostname = h
+        self.hostname = client_ip
         self.hostid = None
         self.module = None
         self.status = 'OFF'
@@ -84,14 +86,14 @@ class ServerProtocol(LineReceiver):
     def lineReceived(self, data):
 
         # Process the incoming data
-        self.processData(data)
+        self.process_data(data)
 
         # Interactive prompt
         if self.interactive:
             self.transport.write('lumina> ')
 
 
-    def processData(self, data):
+    def process_data(self, data):
         ''' Handle messages from nodes '''
 
         # -- Empty lines are simply ignored
@@ -200,15 +202,15 @@ class ServerProtocol(LineReceiver):
                 return
 
             try:
-                d = self.parent.handle_event(event)
+                defer = self.parent.handle_event(event)
 
                 # Slurp failure from running the event, but pass others
-                if d:
-                    d.addErrback(lambda r: r.trap(CommandRunException))
+                if defer:
+                    defer.addErrback(lambda r: r.trap(CommandRunException))
 
             # Any error at this point should be on the server's own accord and should not
             # affect the node connection, so this except is required
-            except Exception as e:
+            except Exception as e:    # pylint: disable=W0703
                 self.log.failure("Failed to process event '{e}'", e=event)
                 return
 
@@ -234,11 +236,11 @@ class ServerProtocol(LineReceiver):
         event.name = event.name.replace(prefix, '')
 
         # -- Generate a deferred object
-        event.defer = d = Deferred()
+        event.defer = defer = Deferred()
 
         # -- Setup a timeout, and add a timeout err handler making sure the event data failure
         #    is properly set
-        utils.add_defer_timeout(d, self.timeout, self.timeoutResponse, event)
+        utils.add_defer_timeout(defer, self.timeout, self.timeoutResponse, event)
 
         # FIXME: Add transform functions for changing NodeException() into other
         #        exception types?
@@ -254,7 +256,7 @@ class ServerProtocol(LineReceiver):
         self.log.debug('', rawout=data)
         self.transport.write(data+'\n')
 
-        return d
+        return defer
 
 
     # -- INTERACTIVE mode
@@ -277,17 +279,17 @@ class ServerProtocol(LineReceiver):
             if c == '@':
                 # Interpret as command
                 event.name = cmd[1:]
-                d = self.parent.run_command(event)
-                d.addCallback(raw_reply, event)
-                d.addErrback(raw_error, event)
+                defer = self.parent.run_command(event)
+                defer.addCallback(raw_reply, event)
+                defer.addErrback(raw_error, event)
 
             elif c == '*':
                 # Interpret as event
                 event.name = cmd[1:]
-                d = self.parent.handle_event(event)
-                if d:
-                    d.addCallback(raw_reply, event)
-                    d.addErrback(raw_error, event)
+                defer = self.parent.handle_event(event)
+                if defer:
+                    defer.addCallback(raw_reply, event)
+                    defer.addErrback(raw_error, event)
 
             elif cmd == 'exit':
                 self.transport.loseConnection()
@@ -300,13 +302,9 @@ class ServerProtocol(LineReceiver):
                 if not len(event.args):
                     reply("%s: Too few arguments" %(cmd))
                 elif event.args[0] == 'events':
-                    l = self.parent.events[:]
-                    l.sort()
-                    reply("  ".join(l))
+                    reply("  ".join(sorted(self.parent.events[:])))
                 elif event.args[0] == 'commands':
-                    l = self.parent.commands.keys()
-                    l.sort()
-                    reply("  ".join(l))
+                    reply("  ".join(sorted(self.parent.commands.keys())))
                 else:
                     reply("%s: Syntax error" %(cmd))
 
@@ -315,7 +313,8 @@ class ServerProtocol(LineReceiver):
             else:
                 reply("Unknown command '%s'" %(event.name))
 
-        except Exception as e:
+        except Exception as e:     # pylint: disable=W0703
+            # Ensures commands never fail.
             # Handles any errors before the commands are run
             reply('ERROR: %s: %s' %(event, e.message))
             self.log.failure("Exception on {e}: {m}", e=event, m=e.message)

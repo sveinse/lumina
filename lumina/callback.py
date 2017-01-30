@@ -1,6 +1,8 @@
 # -*- python -*-
 
 
+# FIXME: Obsoleted?
+
 class Callback(object):
     ''' Small class for implementing callback mechanism. Templated on Twisted's Deferred()
         mechanism, but with support for multi-fire operation.

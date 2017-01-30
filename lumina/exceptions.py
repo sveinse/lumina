@@ -29,9 +29,7 @@ class ConfigException(LuminaException):
 
 class NoConnectionException(LuminaException):
     ''' Connection errors '''
-    
-#class CommandException(LuminaException):
-#    ''' Command execution exception '''
 
+#FIXME: Old exception from the old plugins
 #class CommandFailedException(LuminaException):
 #    pass

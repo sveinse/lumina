@@ -131,13 +131,13 @@ class Web(Plugin):
             # Traverse the path and either append to an existing resource
             # or add a new one.
             base = root
-            for p in elements[:-1]:
-                res = base.getStaticEntity(p)
+            for element in elements[:-1]:
+                res = base.getStaticEntity(element)
                 if res is None:
                     res = Resource()
                     res.noisy = False
-                base.putChild(p, res)
-                base = res
+                base.putChild(element, res)
+                base = res      # pylint: disable=redefined-variable-type
 
             # Add our resource to the tree
             base.putChild(elements[-1], resource)

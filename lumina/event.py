@@ -10,9 +10,9 @@ from lumina.utils import str_object, listify_dict
 
 
 class MyEncoder(json.JSONEncoder):
-    def default(self, obj):
+    def default(self, obj):    # pylint: disable=E0202
         if isinstance(obj, Event):
-            obj = obj._json_encoder()
+            obj = obj.json_encoder()
         else:
             obj = super(MyEncoder, self).default(obj)
         return obj
@@ -61,7 +61,7 @@ class Event(object):
 
     #----- IMPORT and EXPORT functions ------
 
-    def _json_encoder(self):
+    def json_encoder(self):
         ''' Internal JSON encoder '''
         jdict = {
             'name': self.name,
@@ -131,7 +131,7 @@ class Event(object):
     RE_LOAD_STR = re.compile(r'^([^{}]+)({(.*)})?$')
 
 
-    def load_str(self, string, parseEvent=None, shell=False):
+    def load_str(self, string, parse_event=None, shell=False):
         ''' Load the data from a string '''
         string = string.encode('ascii')
 
@@ -158,23 +158,23 @@ class Event(object):
         self.kw = tuple()  # Load from string does not support kw yet
 
         # If '$' agruments is encountered, replace with positional argument
-        # from parseEvent
-        if parseEvent and opts:
+        # from parse_event
+        if parse_event and opts:
             args = []
             for arg in self.args:
                 if arg == '$*':
-                    args += parseEvent.args
+                    args += parse_event.args
                 elif arg == '$n':
-                    args.append(parseEvent.name)
+                    args.append(parse_event.name)
                 elif arg.startswith('$'):
                     index = arg[1:]
                     opt = arg
                     try:
-                        opt = parseEvent.args[int(index)-1]
+                        opt = parse_event.args[int(index)-1]
                     except IndexError:
                         raise IndexError(
                             "%s argument index error '$%s', but event/request has %s args" %(
-                                self.name, index, len(parseEvent.args)))
+                                self.name, index, len(parse_event.args)))
                     except ValueError:
                         raise ValueError(
                             "%s argument value error '$%s'" %(

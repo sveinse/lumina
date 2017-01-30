@@ -23,11 +23,11 @@ def add_defer_timeout(defer, timeout, callback, *args, **kw):
     return timer
 
 
-def cmp_dict(a, b, l):
-    ''' Compare dict a with dict b using keys from l. Return True if all elements are
+def cmp_dict(a, b, c):
+    ''' Compare dict a with dict b using keys from c. Return True if all elements are
         either equal (using !=) or if element is not present in either a or b.
         '''
-    for i in l:
+    for i in c:
         ina = i in a
         inb = i in b
         if ina != inb or (ina and inb and a[i] != b[i]):
@@ -35,42 +35,42 @@ def cmp_dict(a, b, l):
     return True
 
 
-def listify_dict(object, max_elements=0):
-    ''' Return a list with 'k=v' elements from object '''
-    return ['%s=%s' %(k, str_object(v, max_elements=0)) for k, v in object.items()]
+def listify_dict(obj):
+    ''' Return a list with 'k=v' elements from obj '''
+    return ['%s=%s' %(k, str_object(v, max_elements=0)) for k, v in obj.items()]
 
 
-def str_object(object, max_elements=0, brackets=True):
-    ''' Return a string representation of object. '''
+def str_object(obj, max_elements=0, brackets=True):
+    ''' Return a string representation of obj. '''
 
     # max_elements=0: [..#34..]
     # max_elements=5: [1,2,3,4,5 ... +3 more]
 
-    if isinstance(object, list):
+    if isinstance(obj, list):
         delim = ('[', ']')
-        object = [str_object(v, max_elements=0) for v in object]
+        obj = [str_object(v, max_elements=0) for v in obj]
 
-    elif isinstance(object, tuple):
+    elif isinstance(obj, tuple):
         delim = ('(', ')')
-        object = [str_object(v, max_elements=0) for v in object]
+        obj = [str_object(v, max_elements=0) for v in obj]
 
-    elif isinstance(object, dict):
+    elif isinstance(obj, dict):
         delim = ('{', '}')
-        object = listify_dict(object)
+        obj = listify_dict(obj)
 
     else:
-        return str(object)
+        return str(obj)
 
     if not brackets:
         delim = ('', '')
 
-    if len(object) > max_elements:
+    if len(obj) > max_elements:
         if max_elements == 0:
-            return delim[0] + '..#' + str(len(object)) + '..' + delim[1]
+            return delim[0] + '..#' + str(len(obj)) + '..' + delim[1]
         else:
-            more = len(object)-max_elements
-            object = object[:max_elements]
-            object.append(' ... +%s more' %(more))
+            more = len(obj)-max_elements
+            obj = obj[:max_elements]
+            obj.append(' ... +%s more' %(more))
             # fallthrough
 
-    return delim[0] + ','.join(object) + delim[1]
+    return delim[0] + ','.join(obj) + delim[1]

@@ -122,7 +122,7 @@ class Lumina(object):
 
 
             # -- Handle errors loading
-            except Exception as e:
+            except Exception as e:    # pylint: disable=broad-except
                 msg = "Failed to load plugin '{m}': {e}".format(m=module, e=e)
                 self.log.failure("{m}  --  IGNORING", m=msg)
 

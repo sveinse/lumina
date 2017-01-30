@@ -59,6 +59,8 @@ confidence=
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
+# sveinse:
+#disable=import-star-module-level,old-octal-literal,oct-method,print-statement,unpacking-in-except,parameter-unpacking,backtick,old-raise-syntax,old-ne-operator,long-suffix,dict-view-method,dict-iter-method,metaclass-assignment,next-method-called,raising-string,indexing-exception,raw_input-builtin,long-builtin,file-builtin,execfile-builtin,coerce-builtin,cmp-builtin,buffer-builtin,basestring-builtin,apply-builtin,filter-builtin-not-iterating,using-cmp-argument,useless-suppression,range-builtin-not-iterating,suppressed-message,no-absolute-import,old-division,cmp-method,reload-builtin,zip-builtin-not-iterating,intern-builtin,unichr-builtin,reduce-builtin,standarderror-builtin,unicode-builtin,xrange-builtin,coerce-method,delslice-method,getslice-method,setslice-method,input-builtin,round-builtin,hex-method,nonzero-method,map-builtin-not-iterating
 disable=import-star-module-level,old-octal-literal,oct-method,print-statement,unpacking-in-except,parameter-unpacking,backtick,old-raise-syntax,old-ne-operator,long-suffix,dict-view-method,dict-iter-method,metaclass-assignment,next-method-called,raising-string,indexing-exception,raw_input-builtin,long-builtin,file-builtin,execfile-builtin,coerce-builtin,cmp-builtin,buffer-builtin,basestring-builtin,apply-builtin,filter-builtin-not-iterating,using-cmp-argument,useless-suppression,range-builtin-not-iterating,suppressed-message,no-absolute-import,old-division,cmp-method,reload-builtin,zip-builtin-not-iterating,intern-builtin,unichr-builtin,reduce-builtin,standarderror-builtin,unicode-builtin,xrange-builtin,coerce-method,delslice-method,getslice-method,setslice-method,input-builtin,round-builtin,hex-method,nonzero-method,map-builtin-not-iterating,missing-docstring,attribute-defined-outside-init
 
 
@@ -67,6 +69,8 @@ disable=import-star-module-level,old-octal-literal,oct-method,print-statement,un
 # Set the output format. Available formats are text, parseable, colorized, msvs
 # (visual studio) and html. You can also give a reporter class, eg
 # mypackage.mymodule.MyReporterClass.
+# sveinse:
+#output-format=text
 output-format=colorized
 
 # Put messages in a separate file for each module / package specified on the
@@ -86,6 +90,8 @@ evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / stateme
 
 # Template used to display messages. This is a python new-style format string
 # used to format the message information. See doc for all details
+# sveinse:
+#msg-template=
 msg-template="{msg_id}:{line:3d},{column:2d}: {msg} ({symbol})"
 
 
@@ -149,8 +155,9 @@ ignore-imports=no
 bad-functions=map,filter,input
 
 # Good variable names which should always be accepted, separated by a comma
-#good-names=i,j,k,ex,Run,_    FIXME sveinse additions:
-good-names=i,j,k,ex,Run,_,v,n,e,f,c,t,kw,s,m,ip
+# sveinse:
+#good-names=i,j,k,ex,Run,_
+good-names=i,j,k,ex,Run,_,v,n,e,f,c,t,kw,s,m,ip,ok,a,b,fn
 
 # Bad variable names which should always be refused, separated by a comma
 bad-names=foo,bar,baz,toto,tutu,tata
@@ -263,7 +270,9 @@ ignored-classes=
 # List of members which are set dynamically and missed by pylint inference
 # system, and so shouldn't trigger E1101 when accessed. Python regular
 # expressions are accepted.
-generated-members=
+# sveinse:
+# generated-members=
+generated-members=twisted.internet.reactor.*
 
 
 [VARIABLES]
@@ -320,7 +329,9 @@ exclude-protected=_asdict,_fields,_replace,_source,_make
 [DESIGN]
 
 # Maximum number of arguments for function / method
-max-args=5
+# sveinse
+#max-args=5
+max-args=10
 
 # Argument names that match this expression will be ignored. Default to name
 # with leading underscore
@@ -342,7 +353,9 @@ max-statements=50
 max-parents=7
 
 # Maximum number of attributes for a class (see R0902).
-max-attributes=7
+# sveinse
+#max-attributes=7
+max-attributes=10
 
 # Minimum number of public methods for a class (see R0903).
 min-public-methods=2
