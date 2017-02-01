@@ -349,7 +349,7 @@ class Server(Plugin):
     name = 'SERVER'
 
     CONFIG = {
-        'port': dict(default=5326, help='Controller server port', type=int),
+        'port': dict(default=5326, help='Hosting server port', type=int),
     }
 
 

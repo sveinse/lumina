@@ -22,7 +22,7 @@ class Config(object):
     def register(self, settings, name=None):
         ''' Register new configuration settings to the config class '''
         for (k, v) in settings.items():
-            if name:
+            if name and not v.get('common', False):
                 k = name + '.' + k
             e = self.c.get(k, {})
             e.update(v)

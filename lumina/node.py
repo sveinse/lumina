@@ -167,8 +167,8 @@ class Node(Plugin):
 
     # Endpoint configuration options
     CONFIG = {
-        'port'  : dict(default=5326, help='Controller server port', type=int),
-        'server': dict(default='localhost', help='Controller to connect to'),
+        'port'  : dict(common=True, default=5326, help='Port to connect to', type=int),
+        'server': dict(common=True, default='localhost', help='Server to connect to'),
     }
 
 
@@ -178,8 +178,8 @@ class Node(Plugin):
         # Subscribe to the change of state by sending status back to server
         self.status = ColorState(log=self.log, callback=self.emit_status)
 
-        self.host = main.config.get('server', name=self.name)
-        self.port = main.config.get('port', name=self.name)
+        self.host = main.config.get('server')
+        self.port = main.config.get('port')
         self.hostname = main.hostname
         self.hostid = main.hostid
         self.nodeid = hexlify(os.urandom(4))
