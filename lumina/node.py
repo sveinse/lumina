@@ -2,42 +2,30 @@
 from __future__ import absolute_import
 
 import os
+from Queue import Queue, Empty
 from binascii import hexlify
 
 from twisted.internet import reactor
-from twisted.internet.defer import maybeDeferred
+from twisted.internet.defer import maybeDeferred, Deferred
 from twisted.internet.protocol import ReconnectingClientFactory
-from twisted.protocols.basic import LineReceiver
 from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
 from lumina.event import Event
-from lumina.exceptions import NoConnectionException, UnknownCommandException
-from lumina.log import Logger
-from lumina.state import ColorState
+from lumina.exceptions import UnknownCommandException
+from lumina.protocol import LuminaProtocol
 
 
 
-# Exception types that will not result in a local traceback
-validNodeExceptions = (
-    NoConnectionException,
-)
-
-
-class NodeProtocol(LineReceiver):
-    noisy = False
-    delimiter = '\n'
-
-
-    def __init__(self, parent):
-        self.parent = parent
-        self.log = parent.log
+class NodeProtocol(LuminaProtocol):
 
 
     def connectionMade(self):
-        self.ip = "%s:%s" %(self.transport.getPeer().host, self.transport.getPeer().port)
+        LuminaProtocol.connectionMade(self)
+        self.log.info("Connected to {ip}", ip=self.peer)
+
+        # -- Give our handle to the parent node class
         self.parent.protocol = self
-        self.log.info("Connected to {ip}", ip=self.ip)
 
         # -- Keepalive pings
         self.keepalive = LoopingCall(self.transport.write, '\n')
@@ -67,72 +55,24 @@ class NodeProtocol(LineReceiver):
 
         # -- Flush any queue that might have been accumulated before
         #    connecting to the controller
-        self.parent.emit_next()
+        self.parent.send_queue()
 
 
     def connectionLost(self, reason):
-        self.log.info("Lost connection with {ip}", ip=self.ip)
+        self.log.info("Lost connection with {ip}", ip=self.peer)
+        LuminaProtocol.connectionLost(self, reason)
+
+        # This will cause the parent to queue new commands
         self.parent.protocol = None
         self.keepalive.stop()
 
 
-    def lineReceived(self, data):
-        ''' Handle messages from the controller, which are commands that shall
-            be executed '''
+    def eventReceived(self, event):
+        ''' Process an incoming event or command '''
 
-        # Empty lines are simply ignored
-        if not len(data):
-            return
+        # -- All new requests to nodes are commands
+        return self.parent.run_command(event)
 
-        self.log.debug('', rawin=data)
-
-        # -- Parse the incoming message
-        try:
-            event = Event().load_json(data)
-            #event.system = self.system
-            self.log.debug('', cmdin=event)
-
-        except (SyntaxError, ValueError) as e:
-            # Raised if the load_json didn't succeed
-            self.log.error("Protocol error on incoming message: {e}", e.message)
-            return
-
-        # -- Handle 'exit' event
-        if event.name == 'exit':
-            self.transport.loseConnection()
-            return
-
-        # -- Handle commands from controller
-        else:
-
-            # Call the command function and setup proper response handlers.
-            defer = self.parent.run_command(event)
-            defer.addBoth(lambda r, c: self.send(c, response=r), event)
-
-            # FIXME: Do we need the defer object for anything else?
-
-            # FIXME: Should the call be encased in a try-except block?
-
-            return
-
-
-    def emit(self, name, *args, **kw):
-        self.send(Event(name, *args, **kw))
-
-
-    def send(self, event, response=None):
-        # The response argument is for passing the deferred responsen when
-        # this function is used in a callback/errback chain.
-
-        # Logging
-        self.log.debug('', cmdout=event)
-
-        # Encoding and transmittal
-        data = event.dump_json()
-        self.log.debug('', rawout=data)
-        self.transport.write(data+'\n')
-
-        return response
 
 
 class NodeFactory(ReconnectingClientFactory):
@@ -173,10 +113,10 @@ class Node(Plugin):
 
 
     def setup(self, main):
-        self.log = Logger(namespace=self.name)
+        Plugin.setup(self, main)
 
         # Subscribe to the change of state by sending status back to server
-        self.status = ColorState(log=self.log, callback=self.emit_status)
+        self.status.add_callback(self.emit_status)
 
         self.host = main.config.get('server')
         self.port = main.config.get('port')
@@ -185,79 +125,86 @@ class Node(Plugin):
         self.nodeid = hexlify(os.urandom(4))
 
         self.protocol = None
-        self.queue = []
+        self.queue = Queue()
 
         self.factory = NodeFactory(parent=self)
         reactor.connectTCP(self.host, self.port, self.factory)
 
 
-    def emit(self, name, *args, **kw):
-        # Emit an event to the server
-        # Queue it here rather than in the procol, as the procol object is created
-        # when the connection to the controller is made
-
-        # FIXME: Return deferred object here?
-
-        event = Event(name, *args, **kw)
-        self.queue.append(event)
-        if self.protocol is None:
-            self.log.info("{e}  --  Not connected to server, "
-                          "queueing. {n} items in queue",
-                          e=event, n=len(self.queue))
-
-        # Attempt sending the message
-        self.emit_next()
-
-
-    def emit_next(self):
-        ''' Send the next event(s) in the queue '''
-
-        if self.protocol is None:
-            return
-        while len(self.queue):
-            event = self.queue.pop(0)
-            self.protocol.send(event)
-
-
-    def emit_status(self, status, old, why):
-        self.emit('status', status, old, why)
-
-
-    def run_command(self, event, unknown_command=True):
+    def run_command(self, event, fail_on_unknown=True):
         ''' Run a command and return a deferred object for the reply '''
 
-        def _unknown_command(event):
-            raise UnknownCommandException(event.name)
+        # Remove the plugin prefix from the name
+        prefix = self.name + '/'
+        name = event.name.replace(prefix, '')
 
-        # FIXME: Add proper unknown_command logic
-        defer = maybeDeferred(self.commands.get(event.name, _unknown_command), event)
+        def unknown_command(event):
+            exc = UnknownCommandException(event.name)
+            event.set_fail(exc)
+            if fail_on_unknown:
+                self.log.error('NODE', cmderr=event)
+                raise exc
+            self.log.warn("Ignoring unknown command: '{n}'", n=event.name)
 
-        # FIXME: Add config setting to enable/disable logcmdok/logcmderr
+        return maybeDeferred(self.commands.get(name, unknown_command), event)
 
-        # FIXME: Implement a timeout mechanism here?
 
-        # -- Setup filling in the event data from the result
-        def cmd_ok(result, event):
-            event.set_success(result)
-            self.log.info('', cmdok=event)
-            return result
+    # -- Commands to communicate with server
+    def emit(self, name, *args, **kw):
+        ''' Emit an event and send to server '''
+        return self.emit_raw(Event(self.name + '/' + name, *args, **kw))
 
-        def cmd_error(failure, event):
-            event.set_fail(failure)
-            self.log.info('', cmderr=event)
+    def emit_status(self, status, old, why):
+        ''' Status update callback '''
+        self.emit_raw(Event('status', status, old, why))
 
-            # Accept the exception if listed in validNodeExceptions.
-            for exc in validNodeExceptions:
-                if failure.check(exc):
-                    return None
+    def emit_raw(self, event):
+        return self.send(event, lambda ev: self.protocol.emit_raw(ev))
 
-            # If failure is returned, it will create a "unhandled exception" and
-            # a traceback in the logs. Hence a log() traceback
-            #    self.log.info('{tb}',tb=failure.getTraceback())
-            # is only necessary when the exception is handled, but one wants
-            # traceback.
-            return failure
+    def request(self, name, *args, **kw):
+        return self.request_raw(Event(name, *args, **kw))
 
-        defer.addCallback(cmd_ok, event)
-        defer.addErrback(cmd_error, event)
+    def request_raw(self, event):
+        return self.send(event, lambda ev: self.protocol.request_raw(ev))
+
+
+    def send(self, event, protofn):
+        ''' Send a message to the protocol. If the node is not connected queue
+            the message.
+        '''
+
+        if self.protocol:
+            # If the protocol is avaible, simply call the function
+            # It will return a deferred for us.
+            return protofn(event)
+
+        # Create a defer object for the future reply
+        defer = Deferred()
+        self.queue.put((defer, protofn, event))
+
+        self.log.info("{e}  --  Not connected to server, "
+                      "queueing. {n} items in queue",
+                      e=event, n=self.queue.qsize())
+
         return defer
+
+
+    def send_queue(self):
+        ''' (Attempt to) send the accumulated queue to the protocol. '''
+
+        if not self.protocol:
+            return
+
+        self.log.info("Flushing queue of {n} items...", n=self.queue.qsize())
+
+        try:
+            while True:
+                (defer, protofn, event) = self.queue.get(False)
+                self.log.info("Sending {e}", e=event)
+                result = protofn(event)
+                if isinstance(result, Deferred):
+                    result.chainDeferred(defer)
+                else:
+                    defer.callback(result)
+        except Empty:
+            pass
