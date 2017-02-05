@@ -13,8 +13,6 @@ from twisted.web.util import Redirect
 
 #from lumina.event import Event
 from lumina.plugin import Plugin
-from lumina.state import ColorState
-from lumina.log import Logger
 from lumina.event import Event
 
 
@@ -104,10 +102,7 @@ class Web(Plugin):
     }
 
     def setup(self, main):
-        self.log = Logger(namespace=self.name)
-        self.status = ColorState()
-
-        #self.controller = controller
+        Plugin.setup(self, main)
 
         self.port = main.config.get('port', name=self.name)
         self.webroot = main.config.get('root', name=self.name)

@@ -163,8 +163,8 @@ class TelldusIn(Protocol):
     def __init__(self, parent):
         self.log = Logger(namespace=parent.name+'/in')
         self.parent = parent
-        self.status = ColorState(log=self.log, state_format={0:0}, # <-- a hack to avoid color
-                                 callback=lambda *a: self.parent.changestate(self, *a))
+        self.status = ColorState(log=self.log, state_format={0:0}) # <-- a hack to avoid color
+        self.status.add_callback(lambda *a: self.parent.changestate(self, *a))
         self.connected = False
         self.factory = TelldusInFactory(self, self.parent)
 
@@ -227,7 +227,7 @@ class TelldusIn(Protocol):
     def dataTimeout(self):
         self.timer.stop()
         self.log.info("No telldus activity. No connection?")
-        self.status.set_YELLOW('No IN activity')
+        self.status.set_YELLOW('No activity')
 
 
 
@@ -267,8 +267,8 @@ class TelldusOut(Protocol):
     def __init__(self, parent):
         self.log = Logger(namespace=parent.name+'/out')
         self.parent = parent
-        self.status = ColorState(log=self.log, state_format={0:0}, # <-- a hack to avoid color
-                                 callback=lambda *a: self.parent.changestate(self, *a))
+        self.status = ColorState(log=self.log, state_format={0:0})  # <-- a hack to avoid color
+        self.status.add_callback(lambda *a: self.parent.changestate(self, *a))
         self.connected = False
         self.completed = False
         self.running = True

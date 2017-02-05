@@ -6,8 +6,6 @@ from twisted.internet.defer import Deferred
 from lumina.event import Event
 from lumina.plugin import Plugin
 from lumina.exceptions import CommandParseException, ConfigException, CommandRunException
-from lumina.log import Logger
-from lumina.state import ColorState
 
 # Import responder rules from separate file
 from lumina.plugins.rules import alias, responses
@@ -27,8 +25,7 @@ class Responder(Plugin):
 
 
     def setup(self, main):
-        self.log = Logger(namespace=self.name)
-        self.status = ColorState(log=self.log)
+        Plugin.setup(self, main)
 
         self.alias = alias.copy()
         self.responses = responses.copy()
@@ -55,7 +52,7 @@ class Responder(Plugin):
         job = self.responses.get(event.name, None)
         if job is None:
             self.log.info("Ignoring event '{e}'", e=event)
-            self.log.info("  --:  Ignored",)
+            #self.log.info("  --:  Ignored",)
             return None
 
         # Make a job object and its parse args and run it

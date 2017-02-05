@@ -20,3 +20,5 @@
 /access-lumina.log
 /tags
 /access-lumina.log*
+
+/deploy/test*.conf

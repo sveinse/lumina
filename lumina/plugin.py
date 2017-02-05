@@ -1,6 +1,9 @@
 # -*- python -*-
 from __future__ import absolute_import
 
+from lumina.log import Logger
+from lumina.state import ColorState
+
 
 class Plugin(object):
     name = 'PLUGIN'
@@ -19,6 +22,9 @@ class Plugin(object):
 
     def setup(self, main):
         ''' Setup the class and services. '''
+
+        self.log = Logger(namespace=self.name)
+        self.status = ColorState(log=self.log)
 
     def close(self):
         ''' Close any open files and connections '''

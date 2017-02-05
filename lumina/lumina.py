@@ -24,7 +24,7 @@ class FailedPlugin(Plugin):
 class Lumina(object):
 
     # The plugin= syntax in the configuration file
-    RE_PLUGIN_SYNTAX = re.compile(r'^([\w]+)(\(([\w]+)\))?$')
+    RE_PLUGIN_SYNTAX = re.compile(r'^([\w.]+)(\(([\w]+)\))?$')
 
     # Overall (default) config options
     CONFIG = {

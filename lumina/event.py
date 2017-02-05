@@ -8,6 +8,8 @@ from twisted.python.failure import Failure
 from lumina.utils import str_object, listify_dict
 
 
+DEBUG=False
+
 
 class MyEncoder(json.JSONEncoder):
     def default(self, obj):    # pylint: disable=E0202
@@ -45,12 +47,16 @@ class Event(object):
 
     def __repr__(self):
         alist = []
+        if DEBUG:
+            alist.append('0x' + hex(id(self))[-6:])
         if self.success is not None:
-            alist.append('<%s,%s>' %(self.success, str_object(self.result, max_elements=5)))
+            alist.append('=<%s,%s>' %(self.success, str_object(self.result, max_elements=5)))
+        if DEBUG and self.seq:
+            alist.append('#%s' %(self.seq))
+        if DEBUG and hasattr(self, 'defer'):
+            alist.append('d=%s' %(str(self.defer),))
         alist += list(self.args)
         alist += listify_dict(self.kw)
-        # Uncomment this to print the id of the object
-        #alist.insert(0,' ' + hex(id(self)))
         return "%s{%s}" %(self.name, str_object(alist, max_elements=5, brackets=False))
 
 

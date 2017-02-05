@@ -16,15 +16,15 @@ from lumina.log import Logger
 
 
 class State(object):
-    ''' Class for keeping a state variable. States can be set using set(state, *args), and read
-        with get(). It will log an entry when the state changes on set, and it can run a callback
-        on changes.
+    ''' Class for keeping a state variable. States can be set using
+        set(state, *args), and read with get(). It will log an entry when the
+        state changes on set, and it can run a callback on changes.
 
         def callback_fn(new_state, old_state, why)
     '''
 
     def __init__(self, state=None, states=None, state_format=None,
-                 log=None, callback=None, why=None):
+                 log=None, why=None):
         self.state = state or 'init'
         if log is None:
             self.log = Logger()
@@ -33,7 +33,7 @@ class State(object):
         self.states = states
         self.state_format = state_format or {}
         self.why = why
-        self.callback = callback
+        self.callback = None
 
 
     def add_callback(self, callback):

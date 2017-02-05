@@ -50,7 +50,7 @@ class Test(Node):
         Node.setup(self, main)
         self.status.set_GREEN()
         self.loop = LoopingCall(self.loop_cb)
-        self.loop.start(20, False)
+        self.loop.start(10, False)
 
 
     # --- Worker
