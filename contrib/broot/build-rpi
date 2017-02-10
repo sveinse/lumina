@@ -1,6 +1,7 @@
 #!/bin/bash
 
 ME="$(basename "$0")"
+base="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 
 # -- Print usage
 usage () {
@@ -134,9 +135,9 @@ rm -rf "$t/r"
 sudo cp /usr/bin/qemu-arm-static $r/usr/bin/qemu-arm-static
 sudo rm -f $r/etc/ld.so.preload
 
-cp -av "$(dirname "$0")/Dockerfile.rpi" $t/Dockerfile
+cp -av "$base/Dockerfile.rpi" $t/Dockerfile
 
-sudo cp setup-rpi $r/tmp/setup-rpi
+sudo cp "$base/setup-rpi" $r/tmp/setup-rpi
 
 sudo docker build -t broot:rpi $t
 

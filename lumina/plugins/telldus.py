@@ -368,8 +368,6 @@ class TelldusOut(Protocol):
 class Telldus(Node):
     ''' Plugin to communicate with wireless lighting equipment and sensors.
     '''
-    name = 'TELLDUS'
-
 
     # --- Initialization
     def setup(self, main):

@@ -19,10 +19,7 @@ Description: Home cinema automation controller
 Package: python-lumina
 Architecture: all
 Depends: ${misc:Depends},
-         ${python:Depends},
-         python-twisted-core,
-         python-twisted-web,
-         python-setproctitle
+         ${python:Depends}
 Recommends: telldus-core,
             ola-python
 Description: Python library for home cinema automation controller

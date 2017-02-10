@@ -79,7 +79,6 @@ class B(Node):
 
 class Selftest(Plugin):
     ''' Selftest Test node '''
-    name = 'SIMPLE'
 
     # --- Initialization
     def __init__(self):

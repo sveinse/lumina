@@ -12,7 +12,6 @@ from lumina.callback import Callback
 
 class Test(Node):
     ''' Test node '''
-    name = 'TEST'
 
     # --- Interfaces
     def configure(self):

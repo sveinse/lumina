@@ -6,6 +6,7 @@
 	dh $@ --with python2 --buildsystem=python_distutils
 
 override_dh_installinit:
+	cp conf/lumina.conf debian/lumina.default
 	dh_installinit --name=lumina
 
 override_dh_clean:

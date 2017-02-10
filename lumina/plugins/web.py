@@ -93,7 +93,6 @@ class RestMasterInfo(LuminaResource):
 class Web(Plugin):
     ''' Lumina Web interface.
     '''
-    name = 'WEB'
 
     CONFIG = {
         'port': dict(default=8081, help='Web server port', type=int),

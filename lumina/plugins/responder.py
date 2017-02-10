@@ -21,8 +21,6 @@ class Responder(Plugin):
     ''' Handles events from nodes and reacts to
         them with programmable rules.
     '''
-    name = 'RESPONDER'
-
 
     def setup(self, main):
         Plugin.setup(self, main)

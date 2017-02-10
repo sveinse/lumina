@@ -6,7 +6,6 @@ from lumina.state import ColorState
 
 
 class Plugin(object):
-    name = 'PLUGIN'
 
     CONFIG = {}
 
