@@ -30,24 +30,43 @@ a work in progress.
 The sources comprise of the following files:
 
  * `bin/` - Binary tools
+   * `bin/lumina.py` - Development tool to be able to run lumina in-source.
  * `conf/` - Lumina configuration example
- * `contrib/` - Various additions and 
-   * `contrib/broot` - Docker based build roots scripts
-   * `contrib/deploy` - Deployment scripts for the author's home cinema
-   * `contrib/ola` - Open Lighting Architecture (for DMX)
-   * `contrib/rpi` - Rasberry Pi installation (Raspian) notes
-   * `contrib/telldus` - Telldus Packages (for lighting and sensor communication)
+ * `contrib/` - Supporing tools and utilities not part of Lumina
  * `debian/` - Debian package descriptions
  * `lumina/` - Main Lumina Python sources
    * `lumina/__init__.py` - The VERSION of Lumina
-   * `lumina/plugins` - Lumina plugins
-   * `lumina/plugins/tests` - Plugins for testing
+   * `lumina/plugins/` - Lumina plugins
+   * `lumina/plugins/tests/` - Plugins for testing
  * `www/` - The web-pages and scripts for Lumina
  * `LICENSE`
  * `Makefile` - Build and packaging helper
- * `README.md` - This file
+ * `MANIFEST.in` - Python package manifest
+ * `README.md` - This file (main readme)
+ * `README.rst` - Python package readme. Contains except from `README.md`.
  * `setup.py` - Main Python installation script
- * `TODO.md` - All things dreamt of but never accomplished
+ * `TODO.md` - All things dreamt of but not yet accomplished
+
+### contrib/ layout
+
+`contrib/` contains a number of extra tools and utilities for implementing
+Lumina on embedded devices, such as Raspberry Pi.
+
+ * `contrib/broot/` - Docker build setup for compiling Lumina and other 
+   supporting packages for embedded devices.
+   [More information...](contrib/broot/README.md).
+ * `contrib/deploy/` - Deployment script for the authors implementation
+   of Lumina. It can serve as an example in how to deploy Lumina to multiple
+   devices.
+   [More information...](contrib/deploy/README.md)
+ * `contrib/ola/` - The Open Lighting Architecture required by the `led`
+   plugin.
+   [More information...](contrib/ola/README.md).
+ * `contrib/rpi/` - Setup description in how to setup and prepare a
+   Raspberry Pi for Lumina.
+   [More information...](contrib/rpi/README.md).
+ * `contrib/telldus` - Packages for Telldus.
+   [More informaion...](contrib/telldus/README.md)
 
 
 ## Installation
@@ -76,6 +95,10 @@ The `venv/` directory is safe to delete after use. As a convenience, the
 `Makefile` contains a small shortcut for doing the steps above:
 `make mk-venv`
 
+**Note:** The python module installation does not install Lumina as a
+system service. To get it installed as a system service, plase consider
+Debian package.
+
 
 ### Debian package
 
@@ -85,12 +108,12 @@ A Debian package can be build using the `Makefile` target
 make debs
 ```
 
-It will build the package in `build/` and produce the debian files in `debs/`.
+It will build the package in `build/` and produce the debian files in `dist/`.
 
-**Note:** It is not recommended to build the Debian package directly like this. 
-Debian pre-cleans the sources before building, and this clean can erase too
-much if there are other directories or packages being worked on in `contrib/`.
-See below for a Docker based build environment.
+**Note:** If you don't want to clobber your host environment with the
+build depends for building this package, please consider running this in
+a Docker container. See below.
+
 
 ### Cross building
 
@@ -164,7 +187,7 @@ steps:
     will call `contrib/broot/run-docker` to build the debian files under
     Docker image `broot:<VARIANT>`. Example: `make docker-debs t=rpi` will
     build Rasberry Pi packages. It will build in `build-rpi/` and place the
-    output in `debs-rpi/`.
+    output in `dist-rpi/`.
 
     **Tips:** If you don't want to clobber the host environment for building
     the native Debian package, using this prodcedure for the `xenial` will

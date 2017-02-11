@@ -11,3 +11,8 @@
 
 # Ignore git
 - /.git*
+
+# Other dev files not needed in the client
+- /tags
+- /.vscode
+- /tmp

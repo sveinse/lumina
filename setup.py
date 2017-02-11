@@ -18,7 +18,7 @@ def data_files(dirname, dest):
     datalist = []
     for base, dirs, files in os.walk(dirname):
         base = base.replace(dirname, dest)
-        files = [os.path.join(dirname, p) for p in files]
+        files = [os.path.relpath(os.path.join(dirname, p)) for p in files]
         datalist.append((base, files))
     return datalist
 
@@ -83,7 +83,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'twisted',
+        'twisted>=16.0.0',
         'setproctitle'
     ],
 
