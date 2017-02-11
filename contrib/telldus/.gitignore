@@ -3,6 +3,7 @@
 /orig/
 /telldus-upstream/
 /telldus-core-*/
+/__keep/
 
 *.deb
 *.changes

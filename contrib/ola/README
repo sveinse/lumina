@@ -1,0 +1,76 @@
+OLA - Open Lighting Architecture
+================================
+
+    * https://www.openlighting.org/
+
+Download and install:
+
+    * https://www.openlighting.org/ola/getting-started/downloads/
+    * https://www.openlighting.org/ola/linuxinstall/
+
+The codebase:
+
+    * https://github.com/OpenLightingProject/ola
+
+
+How to build and install:
+=========================
+
+1a. Download repo
+
+   $ git clone https://github.com/OpenLightingProject/ola.git ola
+   $ git checkout 0.10.2
+
+1b. Download latest release from https://github.com/OpenLightingProject/ola/releases
+
+   $ wget https://github.com/OpenLightingProject/ola/releases/download/0.10.2/ola-0.10.2.tar.gz
+
+2. Install build dependencies
+
+        $ bash-completion pkg-config python
+
+   $ apt install build-essential debhelper autotools-dev bison flex uuid-dev libcppunit-dev libprotobuf-dev libprotoc-dev python-protobuf protobuf-compiler libftdi-dev libusb-1.0-0-dev devscripts fakeroot dh-autoreconf pkg-config bash-completion
+
+3. Build package
+
+   $ dpkg-buildpackage -b -us -uc
+
+   # Which runs a variant of:
+
+   ./configure --disable-all-plugins --enable-dummy --enable-usbdmx --disable-http --enable-python-libs --disable-doxygen-doc --disable-java-libs
+
+4. Install packages and dependencies on target
+
+   $ sudo dpkg -i libola1_*.deb ola_*.deb ola-python_*.deb
+
+5. Configure ola and setup universe
+
+   # ola_dev_info
+Device 1: Dummy Device
+  port 0, OUT Dummy Port, RDM supported
+Device 2: Anyma USB Device
+  port 0, OUT, patched to universe 0
+
+  # ola_plugin_info
+   Id	Plugin Name
+--------------------------------------
+    1	Dummy
+   12	USB
+--------------------------------------
+
+  Patch
+
+  # ola_patch --device 2 --port 0 --universe 0
+
+  # nano /var/lib/ola/conf/ola-port.conf
+
+    12-2-O-0 = 0
+
+  Plugin 12 - device 2 - output - port 0 = universe 0
+
+  It is possible that this isn't needed, as a reboot seems to have update the information. Then perhaps
+  just the ola_patch is enough
+
+  Verify with
+
+  # ola_dmxconsole

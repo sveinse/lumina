@@ -1,20 +1,18 @@
+# Globbed excludes
 *.pyc
 *~
 
+# Exclude project output dirs
 /build/
 /build-*/
-/conf/test*.conf
 /debian/changelog
 /dist/
 /dist-*/
 /lumina.egg-info/
 /venv/
 
-# Contrib dirs
-/contrib/ola/
-/contrib/old_machines/
-
-# Misc excludes
+# Misc development excludes
+/conf/test*.conf
 /tmp/
 /.vscode/
 /access-lumina.log*
