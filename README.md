@@ -19,9 +19,9 @@ based client-server scheme, giving great flexibility.
 
 ### History
 
-This project started as a one-off installation in the authors home cinema.
-The plugins mainly represents the author's own equipment. The project is
-a work in progress.
+This project started as a one-off installation for controlling the equipment
+in the authors home cinema. As a consequence, the current plugins offered
+by Lumina mainly represents the author's own equipment.
 
 
 
@@ -52,20 +52,21 @@ The sources comprise of the following files:
 `contrib/` contains a number of extra tools and utilities for implementing
 Lumina on embedded devices, such as Raspberry Pi.
 
- * `contrib/broot/` - Docker build setup for compiling Lumina and other 
-   supporting packages for embedded devices.
-   [More information...](contrib/broot/README.md).
+ * `contrib/broot/` - Docker build image for setting up a compilation
+   environment for building Lumina and other supporting packages for
+   embedded hosts. 
+   [More information...](contrib/broot/README.md)
  * `contrib/deploy/` - Deployment script for the authors implementation
    of Lumina. It can serve as an example in how to deploy Lumina to multiple
    devices.
    [More information...](contrib/deploy/README.md)
  * `contrib/ola/` - The Open Lighting Architecture required by the `led`
    plugin.
-   [More information...](contrib/ola/README.md).
+   [More information...](contrib/ola/README.md)
  * `contrib/rpi/` - Setup description in how to setup and prepare a
    Raspberry Pi for Lumina.
-   [More information...](contrib/rpi/README.md).
- * `contrib/telldus` - Packages for Telldus.
+   [More information...](contrib/rpi/README.md)
+ * `contrib/telldus/` - Packages for Telldus.
    [More informaion...](contrib/telldus/README.md)
 
 
@@ -97,7 +98,7 @@ The `venv/` directory is safe to delete after use. As a convenience, the
 
 **Note:** The python module installation does not install Lumina as a
 system service. To get it installed as a system service, plase consider
-Debian package.
+installing the Debian package.
 
 
 ### Debian package
@@ -120,71 +121,23 @@ a Docker container. See below.
 Lumina is made for running on embedded targets, e.g the Raspberry Pi or
 on Ubuntu for ARM. The `contrib/broot/` directory contains tools to setup a
 cross build environment to build Lumina using Docker and Qemu. It currently
-support Raspberry Pi, Ubuntu 16.04 ARM and Ubuntu 16.04 native *).
+support Raspberry Pi, Ubuntu 16.04 ARM. It also support building native
+Ubuntu 16.04 packages. This allows building the packages without clobbering
+the host system.
 
-*(The latter target is not an embedded platform per se, but through Docker
-it offers a convenient isolated build environment that does not clobber the
-host.)*
+To build Lumina do the following steps:
 
-**Note:** The author is running Ubuntu, so all these procedures and package
-names refer to Ubuntu package names. Your mileage might vary for other distros. 
-Contributions are very welcome.
+1. **Setup**. Setup the docker build root. This will have to be done
+   once. Please see [Docker build root](contrib/broot/README.md) for
+   instructions how to set it up.
 
-A simple procedure for setting up and cross build Lumina is:
-
-1. **Download**. If building for Raspberry Pi, download the Jessie Light
-   image from
-   [Raspbian SDCard images](https://www.raspberrypi.org/downloads/raspbian/)
-   and unpack the image file.
-
-2. **Install Docker and qemu**. On an Ubuntu this is
-
-   ```
-   apt install docker-engine qemu-user-static debootstrap
-   ```
-
-   **Note:** Some setting up is probably required, which is outside the scope
-   of this description.
-
-3. **Create Docker image**
-
-   ```
-   cd contrib/broot
-   ```
-
-   Then chose one (or all) of the target machines that you'd like to create
-   build root image for. It will create 
-   Docker images named `broot:<VARIANT>`
-
-   ```
-   # Raspberry Pi Build root (broot:rpi)
-   contrib/broot/build-rpi <IMAGE.img>
-
-   # Ubuntu armhf 16.04 Xenial build root (broot:xu)
-   contrib/broot/build-xu
-
-   # Ubuntu native 16.04 Xenial build root (broot:xenial)
-   contrib/broot/build-xenial
-   ```
-
-   **Note:** The `build-rpi` script will require sudo root access to be able to
-   read the files from the SD-Card image. Please inspect the script if you want to 
-   inspect the operations.
-
-   The operation for the ARM variants does not install very fast, outright slow,
-   as it runs ARM code under emulated QEmu environment. Sometimes this emulation
-   fails miserably and the installation completely stops.
-
-Steps 1 - 3 needs only be executed once. To build Lumina do the following
-steps:
-
-4. **Build**
+2. **Build**
 
     ```
     make docker-debs t=<VARIANT>
     ```
 
-    will call `contrib/broot/run-docker` to build the debian files under
+    This will call `contrib/broot/run-docker` to build the debian files under
     Docker image `broot:<VARIANT>`. Example: `make docker-debs t=rpi` will
     build Rasberry Pi packages. It will build in `build-rpi/` and place the
     output in `dist-rpi/`.
@@ -202,3 +155,5 @@ This application is licensed under
 [GNU GPL version 3](http://gnu.org/licenses/gpl.html). This is free software:
 you are free to change and redistrbute it. There is no warranty to the
 extent permitted by law.
+
+Read the full [License](LICENSE)
