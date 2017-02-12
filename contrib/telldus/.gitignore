@@ -1,10 +1,5 @@
 /build-*/
 /old/
-/orig/
 /telldus-upstream/
-/telldus-core-*/
-/__keep/
-
-*.deb
-*.changes
-telldus-core_2.1.2.orig.tar.gz
+/telldus-core*/
+/telldus-core_*/

@@ -176,3 +176,7 @@ development repo, *stretch*.
 See build instructions in [`contrib/telldus/REAME.md`](../telldus/README.md).
 
 > * **`telldus-core libtelldus-core2`** installs `libconfuse-common libconfuse0 libftdi1`
+
+### Ola
+
+> * **`ola ola-python`** installs `liblo7 libmicrohttpd10 libola1 libprotobuf9 ola ola-python python-protobuf`

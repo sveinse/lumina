@@ -2,6 +2,18 @@
 
 > **[http://www.telldus.se](http://www.telldus.se)**
 
+
+### Motivation
+
+Telldus makes equipment which is capable of controlling a wide range of
+commodity smart home sensors and actuators.
+
+Lumina support a [Tellstick Duo](http://telldus.se/produkt/tellstick-duo/) to
+connect to a Raspberry Pi to read switches and control lighting.
+
+
+### Links
+
 The Telldus codebase can be found at:
 
   * http://developer.telldus.se/browser
@@ -26,16 +38,18 @@ Raspberry Pi
 
 ## Build
 
+Telldus has to be build manually because most disto repos (noteably Raspbian)
+does not have Telldus available. This directory contains a custom patched
+version. The patch contains additional changes required to be able to build it
+under Ubuntu 16.04 and some small code improvements taken from newer telldus
+sources.
+
 The [`build`](build) script in this directory provides an easy method to
 build the telldus packages needed by Lumina.
 
  1. Setup broot. See [`contrib/broot/README.md`](../broot/README.md)
 
- 2. Download the original Telldus sources. See the download description
-    in the manual build section below. The only file required to download
-    will be the `telldus-core_*.orig.tar.gz` file.
-
- 3. Run the compilation using the broot builder:
+ 2. Run the compilation using the broot builder:
 
     ```
     $ ../broot/run-docker rpi -- ./build -b build-rpi
@@ -45,7 +59,7 @@ build the telldus packages needed by Lumina.
     `build-rpi` denotes the directory where the output files will be
     placed.
 
- 4. Copy the `build-rpi/*.deb` files to the target system and install them.
+ 3. Copy the `build-rpi/*.deb` files to the target system and install them.
     For lumina it suffices to install the following:
 
     ```

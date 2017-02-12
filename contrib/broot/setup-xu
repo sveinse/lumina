@@ -29,6 +29,7 @@ apt-get install -y \
     debhelper \
     fakeroot \
     sudo \
+    wget \
     \
     python \
     dh-python \

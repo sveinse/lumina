@@ -2,12 +2,10 @@
 
 ME="$(basename "$0")"
 
-# To fetch the source file
-#wget -O ola_$V.orig.tar.gz https://github.com/OpenLightingProject/ola/releases/download/$V/ola-$V.tar.gz
-
 V=0.10.2
-S=ola_$V-1sveinse1.dsc
-D=ola-$V
+N=ola
+S=${N}_${V}-1sveinse1.dsc
+D=${N}-${V}
 bdir=
 
 # -------------------------------------------------------------------------
@@ -100,6 +98,11 @@ if [[ "$bdir" ]]; then
 fi
 
 set -ex
+
+# Download the original sources
+if [[ ! -e "${N}_${V}.orig.tar.gz" ]]; then
+    wget -O ${N}_${V}.orig.tar.gz https://github.com/OpenLightingProject/ola/releases/download/${V}/${N}-${V}.tar.gz
+fi
 
 # Build depends (for Docker instances)
 if [[ "$BROOT" ]]; then

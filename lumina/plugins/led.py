@@ -1,24 +1,30 @@
 # -*-python-*-
-import os,sys
+from __future__ import absolute_import
+
 import array
+
 from ola.OlaClient import OlaClient
-from twisted.python import log
 
-from ..endpoint import Endpoint
+from lumina.node import Node
 
 
-class Led(Endpoint):
+
+class Led(Node):
+    ''' LED control node '''
+
     universe = 0
-    system = 'LED'
-    name = 'LED'
+
+    CONFIG = {
+        'universe': dict(default=0, help='DMX universe to use', type=int),
+    }
 
     # --- Interfaces
     def configure(self):
-        self.events = [ ]
+        self.events = [
+        ]
 
         self.commands = {
-            'led/state'   : lambda a : self.state,
-            'led'         : lambda a : self.command(a.args[0],a.args[1],a.args[2],a.args[3]),
+            'set'       : lambda a: self.command(*a.args),
         }
 
 
@@ -26,21 +32,22 @@ class Led(Endpoint):
     def __init__(self):
         self.state = 'init'
 
-    def setup(self, config):
-        (old, self.state) = (self.state, 'active')
-        log.msg("STATE change: '%s' --> '%s'" %(old,self.state), system=self.system)
+    def setup(self, main):
+        Node.setup(self, main)
+
+        self.universe = main.config.get('universe', name=self.name)
+        self.status.set_GREEN()
 
 
     # --- Commands
-    def command(self,r,g,b,w):
+    def command(self, *args):
         self.dmx = OlaClient()
         data = array.array('B')
-        data.append(int(r))
-        data.append(int(g))
-        data.append(int(b))
-        data.append(int(w))
+        data.append(int(args[0]))
+        data.append(int(args[1]))
+        data.append(int(args[2]))
+        data.append(int(args[3]))
         self.dmx.SendDmx(self.universe, data, None)
-
 
 
 # Main plugin object class
