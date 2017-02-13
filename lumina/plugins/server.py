@@ -136,8 +136,6 @@ class Server(Plugin):
     ''' Lumina node server.
     '''
 
-    name = 'SERVER'
-
     CONFIG = {
         'port': dict(default=5326, help='Hosting server port', type=int),
     }

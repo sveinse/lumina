@@ -17,13 +17,17 @@ class Plugin(object):
         return name
 
     def configure(self):
-        ''' Configure self.commands and self.events '''
+        ''' Configure the plugin. This method will be called before setup()
+            and expects to setup any internal attributes.
+        '''
 
     def setup(self, main):
-        ''' Setup the class and services. '''
+        ''' Setup and start the services this plugin provides.
+        '''
 
         self.log = Logger(namespace=self.name)
         self.status = ColorState(log=self.log)
 
     def close(self):
-        ''' Close any open files and connections '''
+        ''' Close any open files and connections
+        '''
