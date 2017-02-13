@@ -23,6 +23,10 @@ This project started as a one-off installation for controlling the equipment
 in the authors home cinema. As a consequence, the current plugins offered
 by Lumina mainly represents the author's own equipment.
 
+### Architecture
+
+More information about the technical architecture and implementation can
+be found here: [`Lumina design`](docs/lumina.md)
 
 
 ## Source layout
@@ -34,6 +38,7 @@ The sources comprise of the following files:
  * `conf/` - Lumina configuration example
  * `contrib/` - Supporing tools and utilities not part of Lumina
  * `debian/` - Debian package descriptions
+ * `docs/` - Documentation
  * `lumina/` - Main Lumina Python sources
    * `lumina/__init__.py` - The VERSION of Lumina
    * `lumina/plugins/` - Lumina plugins
