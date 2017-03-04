@@ -7,14 +7,6 @@ from lumina.event import Event
 from lumina.plugin import Plugin
 from lumina.exceptions import CommandParseException, ConfigException, CommandRunException
 
-# Import responder rules from separate file
-from lumina.plugins.rules import alias, responses
-
-
-# FIXME: Add this as config statements
-MAX_DEPTH = 10
-DEFAULT_TIMEOUT = 10
-
 
 
 class Responder(Plugin):
@@ -22,11 +14,29 @@ class Responder(Plugin):
         them with programmable rules.
     '''
 
+    CONFIG = {
+        'actions': dict(default={}, help='List of reponses to incoming events', type=dict),
+        'groups': dict(default={}, help='List of groups of commands', type=dict),
+        'max_depth': dict(default=10, help='Maxium nesting depth of recursive groups', type=int),
+    }
+
+
     def setup(self, main):
         Plugin.setup(self, main)
 
-        self.alias = alias.copy()
-        self.responses = responses.copy()
+        self.max_depth = main.config.get('max_depth', name=self.name)
+
+        self.groups = main.config.get('groups', name=self.name).copy()
+        self.actions = main.config.get('actions', name=self.name).copy()
+
+        # If any items in the actions list contains a list, make it into
+        # a group with name '__<name>'
+        for k, v in self.actions.items():
+            if not isinstance(v, list):
+                continue
+            n = '__' + k
+            self.groups[n] = v
+            self.actions[k] = n
 
         self.server = server = main.get_plugin_by_module('server')
         if not server:
@@ -35,9 +45,9 @@ class Responder(Plugin):
         # Patch the server's handle event to this handler
         server.handle_event = self.handle_event
 
-        # Register the aliases as commands. Note that get_commandfnlist() below
+        # Register the group items as commands. Note that get_commandfnlist() below
         # depends on that the handler for the commands are self.run_command
-        server.add_commands({a: self.run_command for a in self.alias})
+        server.add_commands({a: self.run_command for a in self.groups})
 
         # This plugin does not have active statuses
         self.status.set_GREEN()
@@ -47,7 +57,7 @@ class Responder(Plugin):
         ''' Respond to the received event '''
 
         # Find the job for the given event
-        job = self.responses.get(event.name, None)
+        job = self.actions.get(event.name, None)
         if job is None:
             self.log.info("Ignoring event '{e}'", e=event)
             #self.log.info("  --:  Ignored",)
@@ -73,7 +83,7 @@ class Responder(Plugin):
         fn = self.server.commands.get(command.name)
 
         # If the function is this run_command() function, it indicates that the function
-        # is an alias that needs to be expanded. Else this is a function that should be
+        # is an group that needs to be expanded. Else this is a function that should be
         # called normally.
         if fn != self.run_command:
             return [command]
@@ -81,35 +91,35 @@ class Responder(Plugin):
         # ...the returned object is a composite and needs to be flattened/expanded
 
         # Make sure this function isn't run too many times in case of loops in
-        # the aliases
-        if depth >= MAX_DEPTH:
-            raise CommandParseException('Too many command alias levels (%s). Loop?' %(depth,))
+        # the groups
+        if depth >= self.max_depth:
+            raise CommandParseException('Too many command group levels (%s). Loop?' %(depth,))
 
-        # Get the alias list for the command and flatten it
+        # Get the groups list for the command and flatten it
         commandlist = []
-        for cmd in self.alias[command.name]:
+        for cmd in self.groups[command.name]:
 
-            # Convert the string alias to Event() object
+            # Convert the string group-element to Event() object
             try:
                 event = Event().load_str(cmd, parse_event=command)
             except Exception as e:
                 raise CommandParseException("Command parsing failed: %s" %(e))
             #ev.system = command.system   # To override log system
 
-            # Iterate over the found commands to check if they too are aliases
+            # Iterate over the found commands to check if they too are groups
             commandlist += self.get_commandlist(event, depth=depth+1)
 
         return commandlist
 
 
-    def run_commandlist(self, command, commandlist): #, timeout=DEFAULT_TIMEOUT):
+    def run_commandlist(self, command, commandlist):
         ''' Run the commandlist (which should be an Event object) '''
 
         # Print the events
         self.log.info("  --:    {l}", l=commandlist)
 
         # If the command and the commandlist contains the same command (which happens
-        # if you call self.run_command() on a non-composite alias command), then
+        # if you call self.run_command() on a non-composite group command), then
         # simply call it as an ordinary command
         if len(commandlist) == 1 and id(command) == id(commandlist[0]):
             return self.server.run_command(command)

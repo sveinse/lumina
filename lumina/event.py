@@ -148,7 +148,7 @@ class Event(object):
                 return self
             self.name = args[0]
             self.args = args[1:]
-            self.kw = tuple()
+            self.kw = dict()
             return self
 
         m = self.RE_LOAD_STR.match(string)
@@ -161,7 +161,7 @@ class Event(object):
 
         self.name = m.group(1)
         self.args = tuple(args)
-        self.kw = tuple()  # Load from string does not support kw yet
+        self.kw = dict()  # Load from string does not support kw yet
 
         # If '$' agruments is encountered, replace with positional argument
         # from parse_event

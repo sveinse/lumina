@@ -12,7 +12,7 @@ class Utils(Endpoint):
     name = 'UTIL'
 
     # --- Interfaces
-    def configure(self):
+    def configure(self, main):
         self.events = [
             'starting',
             'stopping'

@@ -179,7 +179,7 @@ class Oppo(Endpoint):
     }
 
     # --- Interfaces
-    def configure(self):
+    def configure(self, main):
         self.events = {
             'oppo/starting'     : None,  # Created oppo object
             'oppo/stopping'     : None,  # close() have been called

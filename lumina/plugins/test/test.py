@@ -13,10 +13,20 @@ from lumina.callback import Callback
 class Test(Node):
     ''' Test node '''
 
+    CONFIG = {
+        'test': dict(default=0, help='Test help', type=int),
+    }
+
+
     # --- Interfaces
-    def configure(self):
+    def configure(self, main):
+        # Merge the node's options with this
+        self.CONFIG = Node.CONFIG.copy()
+        self.CONFIG.update(Test.CONFIG)
+
         self.events = [
-            'timer',
+            'timer1',
+            'timer2',
 
             # For testing echo
             'zero',
@@ -48,14 +58,22 @@ class Test(Node):
     def setup(self, main):
         Node.setup(self, main)
         self.status.set_GREEN()
-        self.loop = LoopingCall(self.loop_cb)
-        self.loop.start(10, False)
+
+        self.loop1 = LoopingCall(self.loop_cb1)
+        self.loop1.start(10, False)
+
+        self.loop2 = LoopingCall(self.loop_cb2)
+        self.loop2.start(12, False)
 
 
     # --- Worker
-    def loop_cb(self):
+    def loop_cb1(self):
         self.count += 1
-        self.emit('timer', self.count)
+        self.emit('timer1', self.count)
+
+    def loop_cb2(self):
+        self.count += 1
+        self.emit('timer2', self.count)
 
     def delay(self, time, data):
         defer = Deferred()

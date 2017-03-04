@@ -12,7 +12,7 @@
 /venv/
 
 # Misc development excludes
-/conf/test*.conf
+/conf/test*.json
 /tmp/
 /.vscode/
 /access-lumina.log*

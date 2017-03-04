@@ -1,0 +1,5 @@
+// Example Lumina configuration file
+{
+    // List of plugins to load
+    "plugins": [ "server", "responder", "web" ]
+}

@@ -66,7 +66,7 @@ remotetargets=push run start stop logs build install deploy
 define remotecmds
 #--------------------------------------
 # Common settings
-$(eval $(1)-RUN:=-c conf/test_$(1).conf)
+$(eval $(1)-RUN:=-c conf/test_$(1).json)
 $(eval $(1)-DEBS:=dist-$($(1)-TYPE)/*.deb)
 $(eval $(1)-DEPLOY:=contrib/deploy/deploy-$(1))
 

@@ -2,6 +2,8 @@
 from __future__ import absolute_import
 
 import os
+import re
+import json
 
 from lumina.log import Logger
 from lumina.exceptions import ConfigException
@@ -10,227 +12,132 @@ from lumina.exceptions import ConfigException
 log = Logger(namespace='config')
 
 
+
+def verify_type(key, object, otype):
+    ''' Verify that object is of type otype. Fail with ValueError()
+    '''
+
+    # None indicates that we don't check type
+    if otype is None:
+        return
+
+    tobj = type(object)
+
+    if tobj is not otype:
+        if ((tobj is unicode and otype is str)           # unicode and str is equivalent
+                or (tobj is str and otype is unicode)    # str and unicode is equivalent
+                or (tobj is tuple and otype is list)     # tuple and list is equivalent
+                or (tobj is list and otype is tuple)):   # list and tuple is equivalent
+            return
+        else:
+            raise ConfigException("Config '%s' is type '%s', expecting '%s'" %(
+                key, tobj.__name__, otype.__name__))
+
+
+
 class Config(object):
-
-    def __init__(self, settings=None):
-        self.c = {}
-        self.fileconf = {}
-        if settings is not None:
-            self.register(settings)
+    ''' Lumina configuration object '''
 
 
-    def register(self, settings, name=None):
-        ''' Register new configuration settings to the config class '''
-        for (k, v) in settings.items():
-            if name and not v.get('common', False):
+    def __init__(self):
+        self.config = {}
+
+
+    def update_v(self, k):
+        ''' Update the key value
+        '''
+        e = self.config[k]
+        if 'value' in e:
+            v = e['value']
+        elif 'config' in e:
+            v = e['config']
+        elif 'default' in e:
+            v = e['default']
+        else:
+            raise KeyError(k)
+        self.config[k]['v'] = v
+        return v
+
+
+    def add_templates(self, templates, name=None):
+        ''' Register new configuration templates to the config class
+        '''
+
+        log.info("Adding {n} config templates", n=len(templates))
+        for (k, template) in templates.items():
+            if name and not template.get('common', False):
                 k = name + '.' + k
-            e = self.c.get(k, {})
-            e.update(v)
-            self.c[k] = e
-        self.merge_fileconf()
+
+            e = self.config.get(k, {})
+            e.update(template)
+            self.config[k] = e
+
+            v = self.update_v(k)
+            verify_type(k, v, e.get('type'))
 
 
-    def merge_fileconf(self):
-        for (k, v) in self.fileconf.items():
-            if k in self.c:
-                self.c[k]['value'] = Config.parsevalue(v, self.c[k].get('type'))
-                del self.fileconf[k]
+    def readconfig(self, filename):
+        ''' Read configuration file entries from 'filename'
+        '''
+
+        with open(filename, 'r') as f:
+            data = f.read(1024000)
+
+        # Remove any comments
+        data = re.sub(r'(?m)//.*$', '', data)
+
+        try:
+            jso = json.loads(data, encoding='utf-8')
+        except (SyntaxError, ValueError) as e:
+            raise ConfigException("%s: Failed to load config file. %s" %(filename, str(e)))
+
+        if not isinstance(jso, dict):
+            raise ConfigException("%s: Config is not a dict." %(filename, ))
+
+        for (k, v) in jso.items():
+
+            e = self.config.get(k, {}).copy()
+            e['config'] = v
+
+            verify_type(k, v, e.get('type'))
+            self.config[k] = e
+            self.update_v(k)
+
+
+    def __setitem__(self, k, v):
+        ''' Set a config value '''
+
+        e = self.config.get(k, {}).copy()
+        e['value'] = v
+
+        verify_type(k, v, e.get('type'))
+        self.config[k] = e
+        self.update_v(k)
 
 
     def __getitem__(self, k):
-        if k in self.c:
-            e = self.c[k]
-            if 'value' in e:
-                return e['value']
-            if 'default' in e:
-                return e['default']
-        raise KeyError(k)
-
-
-    def set(self, k, v):
-        if k in self.c:
-            self.c[k]['value'] = v
-            return
-        raise KeyError(k)
+        ''' Return the config value of 'k' '''
+        return self.config[k]['v']
 
 
     def get(self, k, name=None):
+        ''' Return the config value of 'name.k' '''
+
         if name:
             return self[name + '.' + k]
         else:
             return self[k]
 
 
-    def getall(self):
-        c = {}
-        for (k, e) in self.c.items():
-            c[k] = e.copy()
-        return c
+    def keys(self):
+        ''' Return the config keys '''
+        return self.config.keys()
+
+
+    def getdict(self, k):
+        return self.config[k].copy()
 
 
     def __len__(self):
-        return len(self.c)
-
-
-    #def __repr__(self):
-    #    s=[]
-    #    for k,v in self.value.items():
-    #        a = []
-    #        a.append(str(k) + ':' + str(v))
-    #        if k in self.default:
-    #            a.append('D='+str(self.default[k]))
-    #        if k in self.help:
-    #            a.append(str(self.help[k]))
-    #        t = ",".join(a)
-    #        s.append('('+t+')')
-    #    return ",".join(s)
-
-
-
-    @staticmethod
-    def parsefile(filename, do_all=False, raw=False):
-        with open(filename, 'rU') as f:
-
-            n = 0
-            for l in f:
-                n += 1
-                line = l.strip()
-
-                # Skip empty lines and comments
-                if not len(line):
-                    if do_all:
-                        yield (n, l, None, None)
-                    continue
-                if line.startswith('#'):
-                    if do_all:
-                        yield (n, l, None, None)
-                    continue
-
-                # Split on =. Allow only one =
-                li = line.split('=')
-                if len(li) < 2:
-                    raise ConfigException("%s:%s: Missing '='. '%s'" %(filename, n, l))
-                if len(li) > 2:
-                    raise ConfigException("%s:%s: Too many '='. '%s'" %(filename, n, l))
-
-                # Remove leading and trailing whitespaces
-                key = li[0].strip()
-                data = li[1].strip()
-
-                # Do not accept empty key names
-                if not len(key):
-                    raise ConfigException("%s:%s: Empty key. '%s'" %(filename, n, l))
-                key = key.lower()
-
-                # Remove trailing AND leading ". Fail if " is in string
-                d2 = data
-                if len(d2) > 1 and d2.startswith('"') and d2.endswith('"'):
-                    d2 = d2[1:-1]
-                if '"' in d2:
-                    raise ConfigException("%s:%s: Invalid char in entry. '%s'" %(filename, n, l))
-
-                # Remove the " unless raw mode
-                if not raw:
-                    data = d2
-
-                # Send back lineno, line, key and data
-                yield (n, l, key, data)
-
-
-    @staticmethod
-    def confvalue(v):
-        if isinstance(v, list) or isinstance(v, tuple):
-            v = " ".join(v)
-        else:
-            v = str(v)
-
-        if '=' in v:
-            raise ConfigException("'=' not valid in config values")
-        if '"' in v:
-            raise ConfigException("'\"' not valid in config values")
-
-        if ' ' in v:
-            v = '"' + v + '"'
-
-        return v
-
-
-    @staticmethod
-    def parsevalue(v, typ=None):
-        if typ is None:
-            return v
-        elif typ is list:
-            return v.split()
-        elif typ is tuple:
-            return tuple(v.split())
-        else:
-            return typ(v)
-
-
-    def readconfig(self, conffile):
-        conf = {}
-
-        # Process each line in config file
-        for (n, l, k, v) in Config.parsefile(conffile):
-            if k in conf:
-                raise ConfigException("%s:%s: Config entry already used. '%s'" %(conffile, n, l))
-            conf[k] = v
-
-        n = len(conf)
-
-        # Update class info and merge with main config memory
-        self.fileconf.update(conf)
-        self.merge_fileconf()
-
-        log.info("Read %s configuration items from %s (%s unknown items)" %(
-            n, conffile, len(self.fileconf)))
-
-
-    def writeconfig(self, conffile):
-
-        auto_sep = "# Automatically added by Lumina"
-
-        outlines = []
-        conf = {}
-        for (k, e) in self.c.items():
-            if 'value' in e:
-                conf[k] = e['value']
-
-        # If the configuration file exists, parse it and merge its contents
-        if os.path.exists(conffile):
-
-            # Process each line in existing configuration file
-            for (n, l, k, v) in self.parsefile(conffile, do_all=True, raw=True):
-
-                # If we see the separator in the, we dont add it later to avoid
-                # overfilling the conffile with auto separators
-                if auto_sep in l:
-                    auto_sep = None
-
-                # If a present key is found on the current line, replace its value with
-                # the new configuration value
-                if k in conf:
-                    line = l
-                    line = line.replace(v, Config.confvalue(conf[k]))
-                    outlines.append(line)
-                    del conf[k]
-
-                # Else we leave the line as-is
-                else:
-                    outlines.append(l)
-
-        # Any remaining configuration entries must be appended to the file
-        if conf:
-
-            # Print the separator unless it is already present in the file
-            if auto_sep:
-                outlines.append("\n" + auto_sep + "\n")
-
-            # Append the next values
-            for (k, v) in conf.items():
-                outlines.append("%s = %s\n" %(k.upper(), Config.confvalue(v)))
-
-        # And then finally writeout the config
-        with open(conffile, 'w') as f:
-            for line in outlines:
-                f.write(line)
+        ''' Return the number of configuration items '''
+        return len(self.config)

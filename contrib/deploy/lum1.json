@@ -1,0 +1,9 @@
+{
+    "plugins": ["oppo", "yamaha"],
+
+    "server": "hus.local",
+    "port": "8081",
+
+    "oppo.port": "/dev/ttyUSB0",
+    "yamaha.port": "10.5.5.11"
+}

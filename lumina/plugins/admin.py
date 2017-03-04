@@ -11,7 +11,7 @@ class Admin(Node):
         ''' Name this node according to the hostid from the main class '''
         return main.hostid
 
-    def configure(self):
+    def configure(self, main):
         self.commands = {
             'config' : lambda a: self.config(),
             'info'   : lambda a: self.info(),
@@ -78,17 +78,16 @@ class Admin(Node):
     def config(self):
         ''' Return an array with the config options '''
         main = self.main
-        config = main.config.getall()
-        keys = config.keys()
+        keys = main.config.keys()
         keys.sort()
         response = []
         for k in keys:
-            c = config[k]
+            c = main.config.getdict(k)
             response.append({
                 'key'     : k,
-                'type'    : c.get('type', str).__name__,
-                'value'   : c.get('value'),
+                'value'   : c.get('v'),
                 'default' : c.get('default'),
+                'type'    : c.get('type', str).__name__,
                 'help'    : c.get('help'),
             })
         return response

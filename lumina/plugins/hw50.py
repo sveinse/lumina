@@ -410,7 +410,7 @@ class Hw50(Endpoint):
     }
 
     # --- Interfaces
-    def configure(self):
+    def configure(self, main):
         self.events = [
             'hw50/starting',
             'hw50/stopping',

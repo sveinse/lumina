@@ -1,0 +1,8 @@
+{
+    "plugins": ["hw50", "led"],
+
+    "server": "hus.local",
+    "port": "8081",
+
+    "hw50.port": "/dev/ttyUSB0"
+}

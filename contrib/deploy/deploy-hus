@@ -1,4 +1,4 @@
 #!/bin/sh -ex
 
-sudo cp deploy/lumina-hus.conf /etc/default/lumina
+sudo cp deploy/hus.json /etc/default/lumina
 sudo service lumina restart

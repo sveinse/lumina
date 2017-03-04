@@ -17,7 +17,7 @@ from lumina.exceptions import (NodeException, NoConnectionException,
 
 class A(Node):
 
-    def configure(self):
+    def configure(self, main):
         self.events = [
             'event'
         ]
@@ -98,13 +98,13 @@ class Selftest(Plugin):
 
         self.a.name = self.name + '/a'
         self.a.module = self.module + '/a'
-        self.a.configure()
+        self.a.configure(main=main)
         main.config.register(self.a.CONFIG, name=self.a.name)
         self.a.setup(main=main)
 
         self.b.name = self.name + '/b'
         self.b.module = self.module + '/b'
-        self.b.configure()
+        self.b.configure(main=main)
         main.config.register(self.b.CONFIG, name=self.b.name)
         self.b.setup(main=main)
 

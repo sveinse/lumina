@@ -12,6 +12,7 @@ from lumina.config import Config
 from lumina.log import Logger
 from lumina.state import ColorState
 from lumina.plugin import Plugin
+from lumina.exceptions import ConfigException
 
 
 
@@ -28,8 +29,8 @@ class Lumina(object):
 
     # Overall (default) config options
     CONFIG = {
-        'conffile'   : dict(default='lumina.conf', help='Configuration file'),
-        'plugins'    : dict(default=(), help='Plugins to load', type=tuple),
+        'conffile'   : dict(default='lumina.json', help='Configuration file'),
+        'plugins'    : dict(default=[], help='Plugins to load', type=list),
     }
 
 
@@ -47,12 +48,13 @@ class Lumina(object):
 
 
         #== CONFIGUATION
-        self.config = config = Config(settings=self.CONFIG)
+        self.config = config = Config()
+        config.add_templates(self.CONFIG)
 
         # Load new configuration
         if conffile:
             self.config.readconfig(conffile)
-            self.config.set('conffile', conffile)
+            self.config['conffile'] = conffile
 
         #== PLUGINS
         self.plugins = []
@@ -113,8 +115,8 @@ class Lumina(object):
                 #        global=True, or as a separate GLOBAL_CONFIG variable
 
                 # Setup plugin
-                plugin.configure()
-                config.register(plugin.CONFIG, name=name)
+                plugin.configure(main=self)
+                config.add_templates(plugin.CONFIG, name=name)
                 plugin.setup(main=self)
 
                 # Setup for closing the plugin on close
@@ -122,6 +124,9 @@ class Lumina(object):
 
 
             # -- Handle errors loading
+            except ConfigException:
+                raise
+
             except Exception as e:    # pylint: disable=broad-except
                 msg = "Failed to load plugin '{m}': {e}".format(m=module, e=e)
                 self.log.failure("{m}  --  IGNORING", m=msg)

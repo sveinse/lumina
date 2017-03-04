@@ -12,8 +12,6 @@ from lumina.log import Logger
 from lumina.exceptions import NoConnectionException, TimeoutException, ConfigException
 from lumina import utils
 
-# Import responder rules from separate file
-from lumina.plugins.rules import telldus_config
 
 
 # Can be tested with
@@ -437,7 +435,7 @@ class Telldus(Node):
                 for (ev, d) in self.events.items():
 
                     # Ignore everything not an in device
-                    if d['t'] not in ('in',):
+                    if d['type'] not in ('in',):
                         continue
 
                     # Compare the following attributes
@@ -454,7 +452,7 @@ class Telldus(Node):
                 for (ev, d) in self.events.items():
 
                     # Only consider temp devices
-                    if d['t'] not in ('temp', ):
+                    if d['type'] not in ('temp', ):
                         continue
 
                     # Compare the following attributes
@@ -477,7 +475,7 @@ class Telldus(Node):
 
 
     # --- Interfaces
-    def configure(self):
+    def configure(self, main):
 
         # Baseline commands and events
         self.commands = {}
@@ -496,7 +494,7 @@ class Telldus(Node):
             if '{op}' not in eq['name']:
                 raise ConfigException("telldus_config:%s: "
                                       "%s type requires usage of '{op}' in name"
-                                      %(eq['i'], eq['t']))
+                                      %(eq['i'], eq['type']))
 
             for op in oplist:
                 d = eq.copy()
@@ -526,7 +524,7 @@ class Telldus(Node):
             if '{method}' not in eq['name']:
                 raise ConfigException("telldus_config:%s: "
                                       "%s type requires usage of '{op}' in name"
-                                      %(eq['i'], eq['t']))
+                                      %(eq['i'], eq['type']))
 
             # Get the unit span and ensure either unit or num_units is set
             u_first = eq.get('unit')
@@ -545,11 +543,12 @@ class Telldus(Node):
                     add_event(eq, unit=str(unit), method=method)
 
         # -- Traverse list for equipment and add to either self.commands or self.events
+        telldus_config = main.config.get('config', name=self.name)
         for i, rconfig in enumerate(telldus_config):
             # Everything must be str
             eq = {k:str(v) for k, v in rconfig.items()}
             eq['i'] = i+1
-            t = eq.get('t')
+            t = eq.get('type')
             if t is None:
                 raise ConfigException("telldus_config:%s: "
                                       "Missing type"

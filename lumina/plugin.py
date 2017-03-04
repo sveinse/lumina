@@ -16,7 +16,7 @@ class Plugin(object):
         '''
         return name
 
-    def configure(self):
+    def configure(self, main):
         ''' Configure the plugin. This method will be called before setup()
             and expects to setup any internal attributes.
         '''

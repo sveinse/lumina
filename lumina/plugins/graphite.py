@@ -48,7 +48,7 @@ class Graphite(Endpoint):
 
 
     # --- Interfaces
-    def configure(self):
+    def configure(self, main):
         self.events = [
         ]
 
