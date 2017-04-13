@@ -25,7 +25,8 @@ dpkg -P \
     firmware-brcm80211 \
     firmware-libertas \
     firmware-ralink \
-    firmware-realtek
+    firmware-realtek \
+    pi-bluetooth 
 
 # Update installation
 apt-get update

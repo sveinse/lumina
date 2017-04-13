@@ -1,10 +1,8 @@
 {
-    "plugins": ["telldus", "graphite"],
+    "plugins": ["telldus"],
 
     "server": "hus.local",
-    "port": "8081",
-
-    "graphite.server": "hus.local",
+    "port": 5326,
 
     "telldus.config": [
 
@@ -23,14 +21,14 @@
         { "type": "in", "house": 14244686, "group": 1, "unit": 1,       "name": "remote/g/{method}" },
         { "type": "in", "house": 14244686, "group": 0, "num_units": 16, "name": "remote/{unit}/{method}" },
         { "type": "in", "house": 366702,   "group": 0, "unit": 1,       "name": "wallsw1/{method}"  },
-        { "type": "in", "house": 392498,   "group": 0, "unit": 1,       "name": "wallsw2/{method}"  },
+        { "type": "in", "house": 392498,   "group": 0, "unit": 1,       "name": "wallsw2/{method}"  }
 
         // Temperature devices
-        { "type": "temp", "id": 11,  "name": "temp/ute" },
-        { "type": "temp", "id": 12,  "name": "temp/kjeller"  },
-        { "type": "temp", "id": 247, "name": "temp/fryser"  },
-        { "type": "temp", "id": 135, "name": "temp/kino/ute"  },
-        { "type": "temp", "id": 151, "name": "temp/kino/inne"  }
+        //{ "type": "temp", "id": 11,  "name": "temp/ute" },
+        //{ "type": "temp", "id": 12,  "name": "temp/kjeller"  },
+        //{ "type": "temp", "id": 247, "name": "temp/fryser"  },
+        //{ "type": "temp", "id": 135, "name": "temp/kino/ute"  },
+        //{ "type": "temp", "id": 151, "name": "temp/kino/inne"  }
 
     ]
 }

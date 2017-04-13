@@ -1,6 +1,7 @@
 # Globbed excludes
 *.pyc
 *~
+__ditch/
 
 # Exclude project output dirs
 /build/

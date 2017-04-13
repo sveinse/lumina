@@ -3,3 +3,7 @@
 /telldus-upstream/
 /telldus-core*/
 /telldus-core_*/
+
+/telldus-core_*.orig.tar.gz
+/telldus-core_*.debian.tar.gz
+/telldus-core_*.dsc

@@ -11,7 +11,7 @@ base := $(abspath $(patsubst %/,%,$(dir $(this_file)))/../..)
 
 
 # --- REMOTE SETTINGS
-remotes := hus lum1 lum2 lum3 pir
+remotes := hus lum1 lum2 lum3
 
 hus-HOST := svein@hus.local
 hus-PATH := /home/svein/lumina-dev
@@ -46,6 +46,7 @@ help:
 	@echo "   Builders: $(builders)   ($(foreach b,$(buildtargets),*-$(b)))"
 	@echo "   Remotes:  $(remotes)   ($(foreach r,$(remotetargets),*-$(r)))"
 
+push-all:    $(foreach r,$(remotes),$(r)-push)
 build-all:   $(foreach r,$(remotes),$(r)-build)
 stop-all:    $(foreach r,$(remotes),$(r)-stop)
 start-all:   $(foreach r,$(remotes),$(r)-start)

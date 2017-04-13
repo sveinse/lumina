@@ -1,0 +1,10 @@
+[Unit]
+Description=Home Theater Controller
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/lumina --syslog --config /etc/default/lumina
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

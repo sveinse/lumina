@@ -55,7 +55,7 @@ class NodeProtocol(LuminaProtocol):
 
         # -- Flush any queue that might have been accumulated before
         #    connecting to the controller
-        self.parent.send_queue()
+        self.parent.sendQueue()
 
 
     def connectionLost(self, reason):
@@ -159,16 +159,16 @@ class Node(Plugin):
         self.emit_raw(Event('status', status, old, why))
 
     def emit_raw(self, event):
-        return self.send(event, lambda ev: self.protocol.emit_raw(ev))
+        return self.sendServer(event, lambda ev: self.protocol.emit_raw(ev))
 
     def request(self, name, *args, **kw):
         return self.request_raw(Event(name, *args, **kw))
 
     def request_raw(self, event):
-        return self.send(event, lambda ev: self.protocol.request_raw(ev))
+        return self.sendServer(event, lambda ev: self.protocol.request_raw(ev))
 
 
-    def send(self, event, protofn):
+    def sendServer(self, event, protofn):
         ''' Send a message to the protocol. If the node is not connected queue
             the message.
         '''
@@ -189,7 +189,7 @@ class Node(Plugin):
         return defer
 
 
-    def send_queue(self):
+    def sendQueue(self):
         ''' (Attempt to) send the accumulated queue to the protocol. '''
 
         if not self.protocol:

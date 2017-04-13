@@ -1,0 +1,17 @@
+# systemd service for the telldus-logger script
+#
+# Installation:
+#   - Copy this file to /lib/systemd/system/telldus-logger.service
+#   - ln -s /lib/systemd/system/telldus-logger.service /etc/systemd/system/multi-user.target.wants/telldus-logger.service
+#   - systemctl daemon-reload
+
+[Unit]
+Description=Telldus Graphite Logger
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/telldus-logger
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

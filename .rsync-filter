@@ -3,7 +3,9 @@
 - *~
 
 # Don't want the potentially large contrib dir
-- /contrib/
++ /contrib/
++ /contrib/deploy/
+- /contrib/*
 
 # Prevent recursive local syncing
 - /build/

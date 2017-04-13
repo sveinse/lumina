@@ -1,7 +1,7 @@
 #!/bin/sh -ex
 
-sudo cp deploy/tellstick.conf /etc/tellstick.conf
+sudo cp contrib/deploy/tellstick.conf /etc/tellstick.conf
 sudo service telldusd restart
 
-sudo cp deploy/lum3.json /etc/default/lumina
+sudo cp contrib/deploy/lum3.json /etc/default/lumina
 sudo service lumina restart

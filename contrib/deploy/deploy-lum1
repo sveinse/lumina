@@ -1,4 +1,4 @@
 #!/bin/sh -ex
 
-sudo cp deploy/lum1.json /etc/default/lumina
+sudo cp contrib/deploy/lum1.json /etc/default/lumina
 sudo service lumina restart

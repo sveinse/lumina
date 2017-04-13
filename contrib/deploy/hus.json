@@ -1,28 +1,31 @@
 {
     "plugins": ["server", "responder", "web" ],
 
-    "port": "8081",
+    "port": 5326,
 
-    "web.port": "80",
+    "web.port": 80,
     "web.root": "/usr/share/lumina/www",
 
     "responder.actions": {
+
+        // Nexa remote
+        //"telldus/remote/1/on"    : "elec/on",
+        //"telldus/remote/1/off"   : "elec/off",
+        //"telldus/remote/2/on"    : "elec/on",
+        //"telldus/remote/2/off"   : "elec/off",
         "telldus/remote/3/on"    : "telldus/light/dim{30}",
         "telldus/remote/3/off"   : "telldus/light/off",
         "telldus/remote/4/on"    : "led/white/dim{10}",
         "telldus/remote/4/off"   : "led/off",
 
-        "telldus/remote/g/on"    : "light/normal",
-        "telldus/remote/g/off"   : "light/off",
-
-        "telldus/remote/5/on"    : "led{0,0,0,255}",
-        "telldus/remote/5/off"   : "led{0,0,0,15}",
-        "telldus/remote/6/on"    : "led{0,0,100,0}",
-        "telldus/remote/6/off"   : "led{0,0,17,0}",
-        "telldus/remote/7/on"    : "led{143,0,0,0}",
-        "telldus/remote/7/off"   : "led{9,0,0,0}",
-        "telldus/remote/8/on"    : "led{122,0,29,0}",
-        "telldus/remote/8/off"   : "led{10,0,4,0}",
+        "telldus/remote/5/on"    : "led/set{0,0,0,255}",
+        "telldus/remote/5/off"   : "led/set{0,0,0,15}",
+        "telldus/remote/6/on"    : "led/set{0,0,100,0}",
+        "telldus/remote/6/off"   : "led/set{0,0,17,0}",
+        "telldus/remote/7/on"    : "led/set{143,0,0,0}",
+        "telldus/remote/7/off"   : "led/set{9,0,0,0}",
+        "telldus/remote/8/on"    : "led/set{122,0,29,0}",
+        "telldus/remote/8/off"   : "led/set{10,0,4,0}",
 
         "telldus/remote/9/on"    : "telldus/ledpwr/on",
         "telldus/remote/9/off"   : "telldus/ledpwr/off",
@@ -33,17 +36,21 @@
         "telldus/remote/12/on"   : "telldus/light/on",
         "telldus/remote/12/off"  : "telldus/light/off",
 
+        "telldus/remote/g/on"    : "light/normal",
+        "telldus/remote/g/off"   : "light/off",
+
         "telldus/wallsw1/on"     : "light/normal",
         "telldus/wallsw1/off"    : "light/off",
         "telldus/wallsw2/on"     : "telldus/light/wall/on",
         "telldus/wallsw2/off"    : "light/pwr/off"
 
-        // Oppo regler
+        // Oppo rules
+        //"oppo/connected"         : "oppo/verbose",
         //"oppo/pause"             : "light/pause",
         //"oppo/play"              : "light/off",
         //"oppo/stop"              : "light/weak",
 
-        // Graphite regler
+        // Graphite rules
         //"temp/ute"               : "graphite/send{huset.ute,$*}",
         //"temp/kjeller"           : "graphite/send{huset.kjeller,$*}",
         //"temp/fryseskap"         : "graphite/send{huset.fryseskap,$*}",
@@ -61,12 +68,12 @@
 
         "led/pwr/on"       : [ "telldus/ledpwr/on" ],
         "led/pwr/off"      : [ "telldus/ledpwr/off" ],
-        "led/white/on"     : [ "led{0,0,0,255}" ],
-        "led/white/normal" : [ "led{0,0,0,100}" ],
-        "led/white/dim"    : [ "led{0,0,0,$1}" ],
-        "led/blue/normal"  : [ "led{0,0,100,0}" ],
-        "led/blue/dim"     : [ "led{0,0,$1,0}" ],
-        "led/off"          : [ "led{0,0,0,0}" ]
+        "led/white/on"     : [ "led/set{0,0,0,255}" ],
+        "led/white/normal" : [ "led/set{0,0,0,100}" ],
+        "led/white/dim"    : [ "led/set{0,0,0,$1}" ],
+        "led/blue/normal"  : [ "led/set{0,0,100,0}" ],
+        "led/blue/dim"     : [ "led/set{0,0,$1,0}" ],
+        "led/off"          : [ "led/set{0,0,0,0}" ]
 
         //"elec/on"         : [ "oppo/on", "hw50/on", "avr/on" ],
         //"elec/off"        : [ "oppo/off", "hw50/off", "avr/off" ],
