@@ -1,0 +1,42 @@
+#!/bin/bash -ex
+# Target prepare-tools for XU
+
+addgroup --gid ${USER_GID} build
+adduser --uid ${USER_UID} --gid ${USER_GID} --shell /bin/bash --gecos "Build User" --disabled-password build
+
+cat >/etc/apt/apt.conf.d/99_norecommends <<EOF
+APT {
+	Install-Recommends "0";
+	Install-Suggests "0";
+	Get {
+		AllowUnauthenticated "1";
+	};
+};
+EOF
+
+cat >/etc/apt/sources.list <<EOF
+deb http://ports.ubuntu.com/ubuntu-ports xenial main universe multiverse restricted
+deb http://ports.ubuntu.com/ubuntu-ports xenial-updates main universe multiverse restricted
+deb http://ports.ubuntu.com/ubuntu-ports xenial-security main universe multiverse restricted
+deb http://ports.ubuntu.com/ubuntu-ports xenial-backports main universe multiverse restricted
+EOF
+
+# Update installation
+apt-get update
+apt-get dist-upgrade -y
+apt-get install -y \
+    build-essential \
+    debhelper \
+    fakeroot \
+    sudo \
+    wget \
+    \
+    python \
+    dh-python \
+    dh-systemd \
+    python-setuptools
+apt-get clean
+
+cat >>/etc/sudoers <<EOF
+build ALL=(ALL) NOPASSWD: ALL
+EOF

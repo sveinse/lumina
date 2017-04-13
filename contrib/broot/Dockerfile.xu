@@ -9,6 +9,6 @@ ENV \
     USER_GID=${GID} \
     BROOT=1
 
-RUN /tmp/setup-xu
+RUN /tmp/prepare-xu
 
 CMD ["/bin/bash"]

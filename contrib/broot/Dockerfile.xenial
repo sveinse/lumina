@@ -7,6 +7,6 @@ ENV \
     USER_GID=${GID} \
     BROOT=1
 
-COPY setup-xenial /tmp/setup-xenial
+COPY prepare-xenial /tmp/prepare-xenial
 
-RUN /tmp/setup-xenial
+RUN /tmp/prepare-xenial

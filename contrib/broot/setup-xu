@@ -1,41 +1,102 @@
-#!/bin/bash -ex
-# Target setup-tools for XU
+#!/bin/bash
 
-addgroup --gid ${USER_GID} build
-adduser --uid ${USER_UID} --gid ${USER_GID} --shell /bin/bash --gecos "Build User" --disabled-password build
+ME="$(basename "$0")"
+base="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 
-cat >/etc/apt/apt.conf.d/99_norecommends <<EOF
-APT {
-	Install-Recommends "0";
-	Install-Suggests "0";
-	Get {
-		AllowUnauthenticated "1";
-	};
-};
+# -- Print usage
+usage () {
+    cat <<EOF
+$ME -- Build XU (armhf Xenial) Image
+(C) 2016 Svein Seldal <sveinse@seldal.com>
+
+This tool builds a Ubuntu armhf Xenial (16.04) Docker image 'broot:xu' and sets
+up a debian build environment.
+
+This tools requests sudo access to be able to generate the armhf boostrap image.
+
+Usage: $ME [OPTIONS]
+
+Options:
+  -h, --help    Print this help
 EOF
+}
 
-cat >/etc/apt/sources.list <<EOF
-deb http://ports.ubuntu.com/ubuntu-ports xenial main universe multiverse restricted
-deb http://ports.ubuntu.com/ubuntu-ports xenial-updates main universe multiverse restricted
-deb http://ports.ubuntu.com/ubuntu-ports xenial-security main universe multiverse restricted
-deb http://ports.ubuntu.com/ubuntu-ports xenial-backports main universe multiverse restricted
-EOF
 
-# Update installation
-apt-get update
-apt-get dist-upgrade -y
-apt-get install -y \
-    build-essential \
-    debhelper \
-    fakeroot \
-    sudo \
-    wget \
-    \
-    python \
-    dh-python \
-    python-setuptools
-apt-get clean
+# -- Parse arguments
+args=()
+while [[ "$#" -gt 0 ]]
+do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 1
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "$ME: Invalid option '$1'"
+            exit 1
+            ;;
+        *)
+            args+=("$1")
+            ;;
+    esac
+    shift
+done
 
-cat >>/etc/sudoers <<EOF
-build ALL=(ALL) NOPASSWD: ALL
-EOF
+# Catch up any args after -- as well
+while [[ "$#" -gt 0 ]]; do
+    args+=("$1")
+    shift
+done
+
+# Check permissions
+#if [[ "$(id -u)" != "0" ]]; then
+#    echo "$ME: You don't have sufficient privileges to run this script."
+#    exit 1
+#fi
+
+cleanup()
+{
+    if [[ "$t" ]]; then
+        sudo rm -rf "$t"
+    fi
+}
+
+interrupt()
+{
+    cleanup
+    exit 1
+}
+
+unset t
+
+# Handle Ctrl+C & friends
+trap interrupt 1 2 3 6 15
+
+
+# -------------------------------------------------------------------------
+# Functional code
+
+set -x
+
+t="$(mktemp -d)"
+r="$t/rootfs"
+
+cat "$base/Dockerfile.xu" | sed \
+    -e "s/\${UID}/$(id -u)/" \
+    -e "s/\${GID}/$(id -g)/" \
+    >$t/Dockerfile
+
+sudo qemu-debootstrap --arch=armhf --variant=minbase --foreign xenial "$r"
+
+sudo cp /usr/bin/qemu-arm-static $r/usr/bin/qemu-arm-static
+
+sudo cp "$base/prepare-xu" $r/tmp/prepare-xu
+
+sudo docker build -t broot:xu $t
+
+cleanup
+exit 0

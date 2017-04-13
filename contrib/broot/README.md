@@ -39,16 +39,16 @@ Contributions are very welcome.
 
    ```
    # Raspberry Pi Build root (broot:rpi)
-   ./build-rpi <IMAGE.img>
+   ./setup-rpi <IMAGE.img>
 
    # Ubuntu armhf 16.04 Xenial build root (broot:xu)
-   ./build-xu
+   ./setup-xu
 
    # Ubuntu native 16.04 Xenial build root (broot:xenial)
-   ./build-xenial
+   ./setup-xenial
    ```
 
-   **Note:** The `build-rpi` script will require sudo root access to be able to
+   **Note:** The `setup-rpi` script will require sudo root access to be able to
    read the files from the SD-Card image. Please inspect the script if you want to 
    inspect the operations.
 
