@@ -7,14 +7,14 @@
     "telldus.config": [
 
         // Telldus output devices -- must be synced with tellstick.conf to work
-        // name must contain a {op} field
-        { "type": "dimmer", "id": 100, "house":  4785058, "unit": 1, "name": "light/{op}" },
-        { "type": "dimmer", "id": 101, "house": 83621799, "unit": 1, "name": "light/roof/{op}" },
-        { "type": "dimmer", "id": 102, "model": 86669189, "unit": 2, "name": "light/pj/{op}" },
-        { "type": "dimmer", "id": 103, "model": 11630920, "unit": 2, "name": "light/sceen/{op}" },
-        { "type": "dimmer", "id": 104, "model": 50026144, "unit": 2, "name": "light/wall/{op}" },
-        { "type": "dimmer", "id": 105, "model": 27361582, "unit": 1, "name": "light/table/{op}" },
-        { "type": "switch", "id": 106, "model": 12052346, "unit": 1, "name": "ledpwr/{op}" },
+        // name must contain a {op} field, which expands to 'on', 'off' and 'dim'
+        { "protocol": "dimmer", "id": 100, "house":  4785058, "unit": 1, "name": "light/{op}" },
+        { "protocol": "dimmer", "id": 101, "house": 83621799, "unit": 1, "name": "light/roof/{op}" },
+        { "protocol": "dimmer", "id": 102, "model": 86669189, "unit": 2, "name": "light/pj/{op}" },
+        { "protocol": "dimmer", "id": 103, "model": 11630920, "unit": 2, "name": "light/sceen/{op}" },
+        { "protocol": "dimmer", "id": 104, "model": 50026144, "unit": 2, "name": "light/wall/{op}" },
+        { "protocol": "dimmer", "id": 105, "model": 27361582, "unit": 1, "name": "light/table/{op}" },
+        { "protocol": "switch", "id": 106, "model": 12052346, "unit": 1, "name": "ledpwr/{op}" },
 
         // Telldus input switches. name may contain a {method} field, and must contain either
         // unit or num_units.
