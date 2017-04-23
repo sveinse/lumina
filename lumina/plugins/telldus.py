@@ -155,7 +155,7 @@ class TelldusIn(Protocol):
 
     noisy = False
     path = '/tmp/TelldusEvents'
-    idleTimeout = 20
+    idleTimeout = 60
 
 
     def __init__(self, parent):
@@ -367,9 +367,19 @@ class Telldus(Node):
     ''' Plugin to communicate with wireless lighting equipment and sensors.
     '''
 
+    CONFIG = {
+        'config': dict(default=[], help='Telldus configuration', type=list),
+        'double_protect': dict(default=1.0, help='Protection time to prevent double triggering', type=float),
+    }
+
+
     # --- Initialization
     def setup(self, main):
         Node.setup(self, main)
+
+        self.doubleprotect = main.config.get('double_protect', name=self.name)
+        self.emitted = {}
+
         self.inport = TelldusIn(self)
         self.outport = TelldusOut(self)
         self.inport.connect()
@@ -435,7 +445,7 @@ class Telldus(Node):
                 for (ev, d) in self.events.items():
 
                     # Ignore everything not an in device
-                    if d['type'] not in ('in',):
+                    if d['protocol'] not in ('arctech',):
                         continue
 
                     # Compare the following attributes
@@ -446,13 +456,32 @@ class Telldus(Node):
                     self.emit(ev)
                     return
 
-            elif args['protocol'] == 'mandolyn' or args['protocol'] == 'fineoffset':
+
+            elif args['protocol'] == 'sartano':
+
+                # Traverse events list
+                for (ev, d) in self.events.items():
+
+                    # Ignore everything not this type
+                    if d['protocol'] not in ('sartano',):
+                        continue
+
+                    # Compare the following attributes
+                    if not utils.cmp_dict(args, d, ('code', )):
+                        continue
+
+                    # Match found, process it as an event
+                    self.emit(ev)
+                    return
+
+
+            elif args['protocol'] in ('mandolyn', 'fineoffset', 'oregon'):
 
                 # Traverse events list
                 for (ev, d) in self.events.items():
 
                     # Only consider temp devices
-                    if d['type'] not in ('temp', ):
+                    if d['protocol'] not in ('temp', ):
                         continue
 
                     # Compare the following attributes
@@ -468,14 +497,35 @@ class Telldus(Node):
                     return
 
                 # Uncommant if not interested in logging temp events we don't subscribe to
-                #return
+                return
 
         # Ignore the other events
         self.inport.log.info("Ignoring '{c}' {e}", c=cmd, e=event[1:])
 
 
+    # --- Override default emit
+    def emit(self, event, *args, **kw):
+        self.inport.log.info("Event '{e}'", e=event)
+        if event in self.emitted:
+            self.inport.log.info("Event '{e}' double triggered", e=event)
+            return
+
+        # Prevent double-triggering of events by starting a timer. As long
+        # as the timer runs, any additional events of the same type will
+        # be filtered.
+        def del_protect(event):
+            del self.emitted[event]
+        self.emitted[event] = True
+        reactor.callLater(self.doubleprotect, del_protect, event)
+        Node.emit(self, event, *args, **kw)
+
+
     # --- Interfaces
     def configure(self, main):
+
+        # Merge the node's options with this class
+        self.CONFIG = Node.CONFIG.copy()
+        self.CONFIG.update(Telldus.CONFIG)
 
         # Baseline commands and events
         self.commands = {}
@@ -493,8 +543,8 @@ class Telldus(Node):
             ''' Add commands to an output device '''
             if '{op}' not in eq['name']:
                 raise ConfigException("telldus_config:%s: "
-                                      "%s type requires usage of '{op}' in name"
-                                      %(eq['i'], eq['type']))
+                                      "%s protocol requires usage of '{op}' in name"
+                                      %(eq['i'], eq['protocol']))
 
             for op in oplist:
                 d = eq.copy()
@@ -514,17 +564,13 @@ class Telldus(Node):
             d = eq.copy()
             d.update(**kw)
             d['name'] = name = d['name'].format(**d)
-            if name in self.events:
-                raise ConfigException("telldus_config:%s: "
-                                      "Event '%s' already in list"
-                                      %(d['i'], name))
+            #if name in self.events:
+            #    raise ConfigException("telldus_config:%s: "
+            #                          "Event '%s' already in list"
+            #                          %(d['i'], name))
             self.events[name] = d
 
-        def add_in(eq):
-            if '{method}' not in eq['name']:
-                raise ConfigException("telldus_config:%s: "
-                                      "%s type requires usage of '{op}' in name"
-                                      %(eq['i'], eq['type']))
+        def add_arctech(eq):
 
             # Get the unit span and ensure either unit or num_units is set
             u_first = eq.get('unit')
@@ -539,8 +585,12 @@ class Telldus(Node):
 
             # Loop through all units and methods
             for unit in range(int(u_first), int(u_first)+int(num_units)):
-                for method in ('on', 'off'):
-                    add_event(eq, unit=str(unit), method=method)
+                if '{method}' in eq['name']:
+                    for method in ('on', 'off'):
+                        add_event(eq, unit=str(unit), method=method)
+                else:
+                    add_event(eq, unit=str(unit))
+
 
         # -- Traverse list for equipment and add to either self.commands or self.events
         telldus_config = main.config.get('config', name=self.name)
@@ -548,10 +598,10 @@ class Telldus(Node):
             # Everything must be str
             eq = {k:str(v) for k, v in rconfig.items()}
             eq['i'] = i+1
-            t = eq.get('type')
+            t = eq.get('protocol')
             if t is None:
                 raise ConfigException("telldus_config:%s: "
-                                      "Missing type"
+                                      "Missing protocol"
                                       %(i+1))
             if 'name' not in eq:
                 raise ConfigException("telldus_config:%s: "
@@ -562,13 +612,15 @@ class Telldus(Node):
                 add_out(eq, ('on', 'off', 'dim'))
             elif t == 'switch':
                 add_out(eq, ('on', 'off'))
-            elif t == 'in':
-                add_in(eq)
+            elif t == 'arctech':
+                add_arctech(eq)
             elif t == 'temp':
+                add_event(eq)
+            elif t == 'sartano':
                 add_event(eq)
             else:
                 raise ConfigException("telldus_config:%s: "
-                                      "Unknown telldus equipment type %s"
+                                      "Unknown telldus equipment protocol %s"
                                       %(i+1, t))
 
 

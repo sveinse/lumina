@@ -20,7 +20,8 @@ class Test(Node):
 
     # --- Interfaces
     def configure(self, main):
-        # Merge the node's options with this
+
+        # Merge the node's options with this class
         self.CONFIG = Node.CONFIG.copy()
         self.CONFIG.update(Test.CONFIG)
 

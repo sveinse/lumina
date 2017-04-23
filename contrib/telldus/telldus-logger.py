@@ -225,7 +225,7 @@ class TelldusIn(Protocol):
     def parse_event(self, event):
         cmd = event[0]
 
-        log.info("TD {e}", e=event)
+        #log.info("TD {e}", e=event)
 
         #if cmd == 'TDSensorEvent':
         #    # Ignore sensor events as they are handles as raw device events
@@ -270,7 +270,7 @@ class TelldusIn(Protocol):
             #        self.emit(ev)
             #        return
 
-            if args['protocol'] == 'mandolyn' or args['protocol'] == 'fineoffset':
+            if args['protocol'] in ('mandolyn', 'fineoffset', 'oregon'):
 
                 # Traverse events list
                 for d in temp_devices:

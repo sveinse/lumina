@@ -16,19 +16,17 @@
         { "type": "dimmer", "id": 105, "model": 27361582, "unit": 1, "name": "light/table/{op}" },
         { "type": "switch", "id": 106, "model": 12052346, "unit": 1, "name": "ledpwr/{op}" },
 
-        // Telldus input switches. name must contain a {method} field, and either an unit
-        // attribute or num_units.
-        { "type": "in", "house": 14244686, "group": 1, "unit": 1,       "name": "remote/g/{method}" },
-        { "type": "in", "house": 14244686, "group": 0, "num_units": 16, "name": "remote/{unit}/{method}" },
-        { "type": "in", "house": 366702,   "group": 0, "unit": 1,       "name": "wallsw1/{method}"  },
-        { "type": "in", "house": 392498,   "group": 0, "unit": 1,       "name": "wallsw2/{method}"  }
+        // Telldus input switches. name may contain a {method} field, and must contain either
+        // unit or num_units.
+        { "protocol": "arctech", "house": 14244686, "group": 1, "unit": 1,       "name": "remote/g/{method}" },
+        { "protocol": "arctech", "house": 14244686, "group": 0, "num_units": 16, "name": "remote/{unit}/{method}" },
+        { "protocol": "arctech", "house": 366702, "group": 0, "unit": 1, "name": "wallsw1/{method}"  },
+        { "protocol": "arctech", "house": 392498, "group": 0, "unit": 1, "name": "wallsw2/{method}"  },
 
-        // Temperature devices
-        //{ "type": "temp", "id": 11,  "name": "temp/ute" },
-        //{ "type": "temp", "id": 12,  "name": "temp/kjeller"  },
-        //{ "type": "temp", "id": 247, "name": "temp/fryser"  },
-        //{ "type": "temp", "id": 135, "name": "temp/kino/ute"  },
-        //{ "type": "temp", "id": 151, "name": "temp/kino/inne"  }
-
+        // Alternative reception protocol for the wall switches
+        { "protocol": "sartano", "code": "1111011000", "name": "wallsw1/on" },
+        { "protocol": "sartano", "code": "1111111000", "name": "wallsw1/off" },
+        { "protocol": "sartano", "code": "1110110110", "name": "wallsw2/on" },
+        { "protocol": "sartano", "code": "1111110110", "name": "wallsw2/off" }
     ]
 }
