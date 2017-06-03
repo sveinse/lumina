@@ -1,15 +1,16 @@
 # -*-python-*-
-import os,sys
+from __future__ import absolute_import
+
+from Queue import Queue
 
 from twisted.internet import reactor
-from twisted.python import log
+from twisted.internet.defer import Deferred
 from twisted.internet.protocol import Protocol
 from twisted.internet.serialport import SerialPort, EIGHTBITS, PARITY_EVEN, STOPBITS_ONE
 from serial.serialutil import SerialException
 
-from ..endpoint import Endpoint
-from ..queue import Queue
-from ..exceptions import *
+from lumina.node import Node
+from lumina.exceptions import LuminaException, TimeoutException, CommandRunException
 
 
 class FrameException(LuminaException):
@@ -30,19 +31,20 @@ class FrameException(LuminaException):
 
 
 # FRAMING
-FRAMESIZE=8
-SOF=0xA9
-EOF=0x9A
+FRAMESIZE = 8
+SOF = 0xA9
+EOF = 0x9A
 
 # REQUEST/RESPONSE TYPES
-SET_RQ=0x00
-GET_RQ=0x01
+SET_RQ = 0x00
+GET_RQ = 0x01
 GET_RS = 0x02
 ACK_RS = 0x03
-TYPES = { SET_RQ: "SET.rq",
-          GET_RQ: "GET.rq",
-          GET_RS: "GET.rs",
-          ACK_RS: "ACK.rs" }
+TYPES = {SET_RQ: "SET.rq",
+         GET_RQ: "GET.rq",
+         GET_RS: "GET.rs",
+         ACK_RS: "ACK.rs",
+        }
 
 # RESPONSE TYPES
 ACK_OK = 0x0000
@@ -56,17 +58,18 @@ NAK_FRAMINGERR = 0xF020
 NAK_PARITYERR = 0xF030
 NAK_OVERRUN = 0xF040
 NAK_OTHERERR = 0xF050
-RESPONSES = { ACK_OK: "OK",
-              NAK_UNKNOWNCOMMAND: "Unknown command",
-              NAK_SIZEERR: "Frame size error",
-              NAK_SELECTERR: "Select error",
-              NAK_RANGEOVER: "Range over error",
-              NAK_NA: "Not applicable command",
-              NAK_CHECKSUM: "Checksum error",
-              NAK_FRAMINGERR: "Framing error",
-              NAK_PARITYERR: "Parity error",
-              NAK_OVERRUN: "Overrun error",
-              NAK_OTHERERR: "Other error" }
+RESPONSES = {ACK_OK: "OK",
+             NAK_UNKNOWNCOMMAND: "Unknown command",
+             NAK_SIZEERR: "Frame size error",
+             NAK_SELECTERR: "Select error",
+             NAK_RANGEOVER: "Range over error",
+             NAK_NA: "Not applicable command",
+             NAK_CHECKSUM: "Checksum error",
+             NAK_FRAMINGERR: "Framing error",
+             NAK_PARITYERR: "Parity error",
+             NAK_OVERRUN: "Overrun error",
+             NAK_OTHERERR: "Other error"
+            }
 
 # ITEMS for picture
 CALIB_PRESET = 0x0002
@@ -125,7 +128,7 @@ LAMP_TIMER = 0x0113
 STATUS_ERROR2 = 0x0125
 
 # ITEMS for IR
-IRCMD  = 0x1700
+IRCMD = 0x1700
 IRCMD2 = 0x1900
 IRCMD3 = 0x1B00
 IRCMD_MASK = 0xFF00
@@ -140,14 +143,14 @@ IR_STATUSOFF = IRCMD | 0x26
 
 
 # LIST OF ALL ITEMS
-ITEMS = { STATUS_ERROR: "Status Error",
-          STATUS_POWER: "Status Power",
-          LAMP_TIMER: "Lamp Timer",
-          STATUS_ERROR2: "Status Error2",
-          IR_PWROFF: "Power Off (IR)",
-          IR_PWRON: "Power On (IR)",
-          CALIB_PRESET: "Preset",
-    }
+ITEMS = {STATUS_ERROR: "Status Error",
+         STATUS_POWER: "Status Power",
+         LAMP_TIMER: "Lamp Timer",
+         STATUS_ERROR2: "Status Error2",
+         IR_PWROFF: "Power Off (IR)",
+         IR_PWRON: "Power On (IR)",
+         CALIB_PRESET: "Preset",
+        }
 
 
 # DATA FIELDS
@@ -186,20 +189,18 @@ STATUS_ERROR2_HIGHLAND = 0x0020
 
 
 
-
-def ison(result):
-    if result==STATUS_POWER_POWERON:
-        return True
-    else:
-        return False
+#def ison(result):
+#    if result == STATUS_POWER_POWERON:
+#        return True
+#    else:
+#        return False
 
 
 def dump(data):
     ''' Return a printout string of data '''
     msg = bytearray(data)
-    s=' '.join([ '%02x' %(x) for x in msg ])
-    return "(%s) %s" %(len(data),s)
-
+    s = ' '.join(['%02x' %(x) for x in msg])
+    return "(%s) %s" %(len(data), s)
 
 
 def dumptext(data):
@@ -210,60 +211,106 @@ def dumptext(data):
     cmd = b[3]
     data = b[4]<<8 | b[5]
 
-    s1=TYPES.get(cmd,'???')
-    s2=''
-    s3 = ITEMS.get(item,'???')
+    s1 = TYPES.get(cmd, '???')
+    s2 = ''
+    s3 = ITEMS.get(item, '???')
     if cmd == GET_RQ:
-        s2 = '%04x "%s"' %(item,s3)
+        s2 = '%04x "%s"' %(item, s3)
     elif cmd in (SET_RQ, GET_RS):
-        s2 = '%04x "%s" = %04x' %(item,s3,data)
+        s2 = '%04x "%s" = %04x' %(item, s3, data)
     elif cmd == ACK_RS:
-        s2 = RESPONSES.get(item,'???')
+        s2 = RESPONSES.get(item, '???')
     return s1 + ' ' + s2
 
 
+def decode_hw50frame(frame):
+    ''' Decode an input frame '''
+    b = bytearray(frame)
+
+    if len(frame) != FRAMESIZE:
+        raise FrameException("Incomplete frame")
+    if b[0] != SOF:
+        raise FrameException("Wrong SOF field")
+    if b[7] != EOF:
+        raise FrameException("Wrong EOF field")
+
+    c = 0
+    for x in range(1, 6):
+        c |= b[x]
+    if b[6] != c:
+        raise FrameException("Checksum failure")
+
+    item = b[1]<<8 | b[2]
+    cmd = b[3]
+    data = b[4]<<8 | b[5]
+
+    if cmd == ACK_RS:
+        if item not in RESPONSES:
+            raise FrameException("Unknown ACK/NAK response error")
+    elif cmd == GET_RS:
+        pass
+    else:
+        raise FrameException("Unknown response type")
+
+    return (item, cmd, data)
+
+
+def encode_hw50frame(item, cmd, data):
+    ''' Return an encoded frame '''
+    b = bytearray(b"\x00" * FRAMESIZE)
+
+    b[0] = SOF
+    b[1] = (item&0xFF00)>>8
+    b[2] = (item&0xFF)
+    b[3] = cmd
+    b[4] = (data&0xFF00)>>8
+    b[5] = (data&0xFF)
+
+    c = 0
+    for x in range(1, 6):
+        c |= b[x]
+    b[6] = c
+    b[7] = EOF
+
+    return b
 
 
 class HW50Protocol(Protocol):
     timeout = 3
-    system = 'HW50'
 
-    def __init__(self,parent):
-        self.state = 'init'
+    def __init__(self, parent):
+        self.log = parent.log
         self.parent = parent
+        self.status = parent.status
         self.rxbuffer = bytearray()
         self.queue = Queue()
-
-
-    def setstate(self,state):
-        (old, self.state) = (self.state, state)
-        if state != old:
-            log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
+        self.lastmsg = None
 
 
     def connectionMade(self):
-        self.setstate('connected')
-        self.parent.event('hw50/connected')
+        self.log.info("Connected to HW50")
+        self.status.set_YELLOW('Connected, waiting for data')
+        self.lastmsg = None
 
         # Send a dummy command to progress the state machine
-        d=self.command(STATUS_POWER)
-        d.addErrback(lambda a : None)
+        defer = self.command(STATUS_POWER)
+        defer.addBoth(lambda a: None)
 
 
-    def connectionLost(self,reason):
-        self.setstate('closed')
-        self.parent.event('hw50/disconnected',reason.getErrorMessage())
+    def connectionLost(self, reason):
+        self.log.info("Lost connection: {e}", e=reason.getErrorMessage())
+        self.state.set_RED("Lost connection")
 
 
     def dataReceived(self, data):
+        self.log.debug('', rawin=data)
         msg = bytearray(data)
-        #log.msg("RAW  >>>  %s" %(dump(data)), system=self.system)
         self.rxbuffer += msg
 
         # Search for data frames in the incoming data buffer. Search for SOF and EOF markers.
         # It will only iterate if the buffer is large enough for a complete frame
         buffer = self.rxbuffer
-        for x in range(0,len(buffer)-FRAMESIZE+1):
+        for x in range(0, len(buffer)-FRAMESIZE+1):
 
             # Search for SOF and EOF markers
             if buffer[x] == SOF and buffer[x+FRAMESIZE-1] == EOF:
@@ -271,171 +318,126 @@ class HW50Protocol(Protocol):
                 try:
                     # Decode the response-frame
                     frame = buffer[x:x+FRAMESIZE]
-                    log.msg("     >>>  %s - %s" %(dump(frame),dumptext(frame)), system=self.system)
-                    (item,cmd,data) = self.decode(frame)
+                    self.log.debug("     >>>  {f} - {t}", f=dump(frame), t=dumptext(frame))
+                    (item, cmd, data) = decode_hw50frame(frame)
 
                 except FrameException as e:
 
                     # Frame decode fails, do iteration
-                    log.msg("Decode failure: %s" %(e), system=self.system)
+                    self.log.info("Decode failure: {e}", e=e)
                     continue
 
                 # Consume all data up until the frame (including pre-junk) and save the data
                 # after the frame for later processing
                 self.rxbuffer = buffer[x+FRAMESIZE:]
                 if x > 0 or len(self.rxbuffer) > 0:
-                    log.msg("Discard junk in data, '%s' before, '%s' after" %(dump(buffer[:x]),dump(self.rxbuffer)),
-                            system=self.system)
+                    self.log.info("Discarded junk in data, '{b}' before, '{a}' after",
+                                  b=dump(buffer[:x]), a=dump(self.rxbuffer))
 
                 # From here on, consider this a valid frame
-                self.setstate('active')
+                self.status.set_GREEN()
 
-                # Process the frame here...
-                if self.queue.active:
+                # Process the reply frame
+                if self.lastmsg:
+
+                    # Clean up
+                    self.lastmsg = None
+                    self.timer.cancel()
+                    self.timer = None
+
                     # Treat either A) Unknown frame type commands or
                     #              B) ACK_RS types with non-ACK_OK responses
                     # as errors
-                    if cmd not in TYPES or ( cmd == ACK_RS and item != ACK_OK ):
-                        self.queue.errback(CommandFailedException(RESPONSES.get(item,item)))
+                    if cmd not in TYPES or (cmd == ACK_RS and item != ACK_OK):
+                        self.defer.errback(CommandRunException(RESPONSES.get(item, item)))
                     else:
-                        self.queue.callback(data)
-                    self.send_next()
-                    return
+                        self.defer.callback(data)
 
-                log.msg("-IGNORED-", system=self.system)
+                else:
+                    self.log.info("-IGNORED-")
+
+                # Proceed the next command
+                self.send_next()
                 return
-
-
-    def decode(self, frame):
-        ''' Decode an input frame '''
-        b = bytearray(frame)
-
-        if len(frame) != FRAMESIZE:
-            raise FrameException("Incomplete frame")
-        if b[0] != SOF:
-            raise FrameException("Wrong SOF field")
-        if b[7] != EOF:
-            raise FrameException("Wrong EOF field")
-
-        c = 0
-        for x in range(1,6):
-            c |= b[x]
-        if b[6] != c:
-            raise FrameException("Checksum failure")
-
-        item = b[1]<<8 | b[2]
-        cmd = b[3]
-        data = b[4]<<8 | b[5]
-
-        if cmd == ACK_RS:
-            if item not in RESPONSES:
-                raise FrameException("Unknown ACK/NAK response error")
-        elif cmd == GET_RS:
-            pass
-        else:
-            raise FrameException("Unknown response type")
-
-        return (item, cmd, data)
-
-
-    def encode(self, item, cmd, data):
-        ''' Return an encoded frame '''
-        b = bytearray(b"\x00" * FRAMESIZE)
-
-        b[0] = SOF
-        b[1] = (item&0xFF00)>>8
-        b[2] = (item&0xFF)
-        b[3] = cmd
-        b[4] = (data&0xFF00)>>8
-        b[5] = (data&0xFF)
-
-        c = 0
-        for x in range(1,6):
-            c |= b[x]
-        b[6] = c
-        b[7] = EOF
-
-        return b
 
 
     def command(self, item, cmd=GET_RQ, data=0x0):
-        if self.state in ('error', 'closed'):
-            raise NotConnectedException()
-        msg = self.encode(item,cmd,data)
-        d = self.queue.add(data=msg, item=item)
+        msg = encode_hw50frame(item, cmd, data)
+        defer = Deferred()
+        self.queue.put((defer, msg, item))
         self.send_next()
-        return d
+        return defer
 
 
     def send_next(self):
-        while True:
-            if self.state not in ('connected', 'active', 'inactive'):
-                return
+        # Don't send if communication is pending
+        if self.lastmsg:
+            return
 
-            # If queue empty, simply return
-            if self.queue.get_next() is None:
-                return
+        while self.queue.qsize():
+            (defer, msg, item) = self.queue.get(False)
 
-            active = self.queue.active
-            msg = active['data']
-            log.msg("     <<<  %s - %s" %(dump(msg),dumptext(msg)), system=self.system)
+            # Send the command
+            self.log.debug("     <<<  {m} - {t}", m=dump(msg), t=dumptext(msg))
             self.transport.write(str(msg))
 
-            ircmd = active['item'] & IRCMD_MASK
-            if ircmd not in (IRCMD, IRCMD2, IRCMD3):
-                # All command except ircommands expects responses from HW50, so set
-                # the timer and return
-                self.queue.set_timeout(self.timeout, self.timedout)
-                return
+            # Prepare for reply where applicable
+            ircmd = item & IRCMD_MASK
 
-            # Immediate response back to caller
-            self.queue.callback(None)
+            # IR-commands does not reply, so they can be handled immediately
+            # and can proceed to next command
+            if ircmd in (IRCMD, IRCMD2, IRCMD3):
+                defer.callback(None)
+                continue
+
+            # Expect reply, setup timer and return
+            self.lastmsg = msg
+            self.lastitem = item
+            self.defer = defer
+            self.timer = reactor.callLater(self.timeout, self.timedout)
+            return
 
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        log.msg("Command '%s' timed out" %(self.queue.active['item'],), system=self.system)
-        self.setstate('inactive')
-        self.queue.errback(TimeoutException())
+        self.log.info("Command '{c}' timed out", c=self.lastitem)
+        self.status.set_RED('Timeout')
+        self.defer.errback(TimeoutException())
         self.send_next()
 
 
 
-class Hw50(Endpoint):
-    name = 'HW50'
-    system = 'HW50'
+class Hw50(Node):
+    ''' Sony VPL-HW50 projector interface
+    '''
 
     CONFIG = {
-        'hw50_port': dict(default='/dev/ttyUSB0', help='HW50 serial port'),
+        'port': dict(default='/dev/ttyUSB0', help='HW50 serial port'),
     }
 
     # --- Interfaces
     def configure(self, main):
+
+        # Merge the node's options with this class
+        self.CONFIG = Node.CONFIG.copy()
+        self.CONFIG.update(Hw50.CONFIG)
+
         self.events = [
-            'hw50/starting',
-            'hw50/stopping',
-            'hw50/connected',
-            'hw50/disconnected',
-            'hw50/error',
         ]
 
         self.commands = {
-            'hw50/state'        : lambda a : self.protocol.state,
-
-            'hw50/raw'          : lambda a : self.c(
-                int(a.args[0],16),int(a.args[1],16),int(a.args[2],16)),
-
-            'hw50/ison'         : lambda a : self.c(STATUS_POWER).addCallback(ison),
-
-            'hw50/status_error' : lambda a : self.c(STATUS_ERROR),
-            'hw50/status_power' : lambda a : self.c(STATUS_POWER),
-            'hw50/lamp_timer'   : lambda a : self.c(LAMP_TIMER),
             'hw50/off'          : lambda a : self.c(IR_PWROFF,cmd=SET_RQ),
             'hw50/on'           : lambda a : self.c(IR_PWRON,cmd=SET_RQ),
-            'hw50/preset'       : lambda a : self.c(CALIB_PRESET),
-            'hw50/preset/film1' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA1),
-            'hw50/preset/film2' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA2),
-            'hw50/preset/tv'    : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_TV),
+
+            #'hw50/raw'          : lambda a : self.c(int(a.args[0],16),int(a.args[1],16),int(a.args[2],16)),
+            #'hw50/ison'         : lambda a : self.c(STATUS_POWER).addCallback(ison),
+            #'hw50/status_error' : lambda a : self.c(STATUS_ERROR),
+            #'hw50/status_power' : lambda a : self.c(STATUS_POWER),
+            #'hw50/lamp_timer'   : lambda a : self.c(LAMP_TIMER),
+            #'hw50/preset'       : lambda a : self.c(CALIB_PRESET),
+            #'hw50/preset/film1' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA1),
+            #'hw50/preset/film2' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA2),
+            #'hw50/preset/tv'    : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_TV),
         }
 
 
@@ -443,11 +445,15 @@ class Hw50(Endpoint):
     def __init__(self):
         self.sp = None
 
-    def setup(self, config):
-        self.port = config['hw50_port']
+
+    # --- Initialization
+    def setup(self, main):
+        Node.setup(self, main)
+
+        self.port = main.config.get('port', name=self.name)
         self.protocol = HW50Protocol(self)
+
         try:
-            self.protocol.setstate('starting')
             self.sp = SerialPort(self.protocol, self.port, reactor,
                                  baudrate=38400,
                                  bytesize=EIGHTBITS,
@@ -455,24 +461,19 @@ class Hw50(Endpoint):
                                  stopbits=STOPBITS_ONE,
                                  xonxoff=0,
                                  rtscts=0)
-            self.event('hw50/starting')
         except SerialException as e:
-            log.err(system=self.system)
-            self.protocol.setstate('error')
-            self.event('hw50/error',e.message)
+            msg = "Failed to open port: {e}".format(e=e)
+            self.log.error("{m}", m=msg)
+            self.status.set_RED(msg)
 
     def close(self):
-        self.event('hw50/stopping')
         if self.sp:
             self.sp.loseConnection()
 
 
     # --- Convenience
-    def c(self,*args,**kw):
-        return self.protocol.command(*args,**kw)
-
-
-    # --- Commands
+    def c(self, *args, **kw):
+        return self.protocol.command(*args, **kw)
 
 
 
