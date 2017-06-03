@@ -167,7 +167,8 @@ class Server(Plugin):
 
 
     def run_command(self, event, fail_on_unknown=True):
-        ''' Send a command to a node and return a deferred object for the reply '''
+        ''' Execute a (node) command and return a deferred object for the reply.
+        '''
 
         def unknown_command(event):
             exc = UnknownCommandException(event.name)

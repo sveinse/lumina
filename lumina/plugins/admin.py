@@ -21,8 +21,9 @@ class Admin(Node):
         }
 
     def setup(self, main):
-        self.main = main
         Node.setup(self, main)
+
+        self.main = main
         self.status.set_GREEN()
 
 

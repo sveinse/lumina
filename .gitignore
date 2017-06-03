@@ -12,6 +12,14 @@ __ditch/
 /lumina.egg-info/
 /venv/
 
+# Exclude contrib
+/contrib/*
+!/contrib/broot/
+!/contrib/deploy/
+!/contrib/ola/
+!/contrib/rpi/
+!/contrib/telldus/
+
 # Misc development excludes
 /conf/test*.json
 /tmp/

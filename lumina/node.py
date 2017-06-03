@@ -25,7 +25,7 @@ class NodeProtocol(LuminaProtocol):
         self.log.info("Connected to {ip}", ip=self.peer)
 
         # -- Give our handle to the parent node class
-        self.parent.protocol = self
+        self.parent.node_protocol = self
 
         # -- Keepalive pings
         self.keepalive = LoopingCall(self.transport.write, '\n')
@@ -63,7 +63,7 @@ class NodeProtocol(LuminaProtocol):
         LuminaProtocol.connectionLost(self, reason)
 
         # This will cause the parent to queue new commands
-        self.parent.protocol = None
+        self.parent.node_protocol = None
         self.keepalive.stop()
 
 
@@ -124,7 +124,7 @@ class Node(Plugin):
         self.hostid = main.hostid
         self.nodeid = hexlify(os.urandom(4))
 
-        self.protocol = None
+        self.node_protocol = None
         self.queue = Queue()
 
         self.factory = NodeFactory(parent=self)
@@ -159,21 +159,21 @@ class Node(Plugin):
         self.emit_raw(Event('status', status, old, why))
 
     def emit_raw(self, event):
-        return self.sendServer(event, lambda ev: self.protocol.emit_raw(ev))
+        return self.sendServer(event, lambda ev: self.node_protocol.emit_raw(ev))
 
     def request(self, name, *args, **kw):
         return self.request_raw(Event(name, *args, **kw))
 
     def request_raw(self, event):
-        return self.sendServer(event, lambda ev: self.protocol.request_raw(ev))
+        return self.sendServer(event, lambda ev: self.node_protocol.request_raw(ev))
 
 
     def sendServer(self, event, protofn):
-        ''' Send a message to the protocol. If the node is not connected queue
+        ''' Send a message to the node protocol. If the node is not connected queue
             the message.
         '''
 
-        if self.protocol:
+        if self.node_protocol:
             # If the protocol is avaible, simply call the function
             # It will return a deferred for us.
             return protofn(event)
@@ -192,7 +192,7 @@ class Node(Plugin):
     def sendQueue(self):
         ''' (Attempt to) send the accumulated queue to the protocol. '''
 
-        if not self.protocol:
+        if not self.node_protocol:
             return
 
         self.log.info("Flushing queue of {n} items...", n=self.queue.qsize())

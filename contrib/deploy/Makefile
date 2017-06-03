@@ -50,6 +50,8 @@ push-all:    $(foreach r,$(remotes),$(r)-push)
 build-all:   $(foreach r,$(remotes),$(r)-build)
 stop-all:    $(foreach r,$(remotes),$(r)-stop)
 start-all:   $(foreach r,$(remotes),$(r)-start)
+restart-all: $(foreach r,$(remotes),$(r)-restart)
+status-all:  $(foreach r,$(remotes),$(r)-status)
 install-all: $(foreach r,$(remotes),$(r)-install)
 deploy-all:  $(foreach r,$(remotes),$(r)-deploy)
 
@@ -79,6 +81,10 @@ $(1)-run: $(1)-push
 	$(call remotecmd,$(1),"cd $($(1)-PATH) && exec python bin/lumina.py $($(1)-RUN)")
 $(1)-start:
 	$(call remotecmd,$(1),"sudo service lumina start")
+$(1)-restart:
+	$(call remotecmd,$(1),"sudo service lumina restart")
+$(1)-status:
+	$(call remotecmd,$(1),"sudo service lumina status")
 $(1)-stop:
 	$(call remotecmd,$(1),"sudo service lumina stop")
 $(1)-logs:

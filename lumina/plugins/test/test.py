@@ -6,7 +6,6 @@ from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 
 from lumina.node import Node
-from lumina.callback import Callback
 
 
 
@@ -53,11 +52,11 @@ class Test(Node):
 
     # --- Initialization
     def __init__(self):
-        self.cbevent = Callback()
         self.count = 0
 
     def setup(self, main):
         Node.setup(self, main)
+
         self.status.set_GREEN()
 
         self.loop1 = LoopingCall(self.loop_cb1)
