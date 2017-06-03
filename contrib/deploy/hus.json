@@ -39,32 +39,25 @@
         "telldus/remote/g/on"    : "light/normal",
         "telldus/remote/g/off"   : "light/off",
 
-        "telldus/wallsw1/on"     : "light/normal",
+        "telldus/wallsw1/on"     : "scene/light",
         "telldus/wallsw1/off"    : "light/off",
-        "telldus/wallsw2/on"     : "telldus/light/wall/on",
-        "telldus/wallsw2/off"    : "light/pwr/off"
+        "telldus/wallsw2/on"     : "light/finder",
+        "telldus/wallsw2/off"    : "scene/off"
 
         // Oppo rules
         //"oppo/connected"         : "oppo/verbose",
         //"oppo/pause"             : "light/pause",
         //"oppo/play"              : "light/off",
         //"oppo/stop"              : "light/weak",
-
-        // Graphite rules
-        //"temp/ute"               : "graphite/send{huset.ute,$*}",
-        //"temp/kjeller"           : "graphite/send{huset.kjeller,$*}",
-        //"temp/fryseskap"         : "graphite/send{huset.fryseskap,$*}",
-        //"temp/kino/ute"          : "graphite/send{huset.kino_ute,$*}",
-        //"temp/kino/inne"         : "graphite/send{huset.kino_inne,$*}"
     },
 
     "responder.groups": {
-        "light/full"       : [ "telldus/light/on", "telldus/ledpwr/on", "led/white/on" ],
-        "light/normal"     : [ "telldus/light/on", "telldus/ledpwr/on", "led/blue/normal" ],
-        "light/weak"       : [ "telldus/light/dim{30}", "telldus/ledpwr/on", "led/blue/dim{15}" ],
-        "light/pause"      : [ "telldus/light/off", "telldus/ledpwr/on", "led/white/dim{10}" ],
-        "light/off"        : [ "telldus/light/off", "led/off" ],
-        "light/pwr/off"    : [ "telldus/light/off", "telldus/ledpwr/off" ],
+        "light/full"       : [ "telldus/ledpwr/on", "telldus/light/on",      "led/white/on" ],
+        "light/normal"     : [ "telldus/ledpwr/on", "telldus/light/on",      "led/blue/normal" ],
+        "light/weak"       : [ "telldus/ledpwr/on", "telldus/light/dim{30}", "led/blue/dim{15}" ],
+        "light/ambient"    : [ "telldus/ledpwr/on", "telldus/light/off",     "led/white/dim{10}" ],
+        "light/finder"     : [                      "telldus/light/wall/on" ],
+        "light/off"        : [                      "telldus/light/off",     "led/off" ],
 
         "led/pwr/on"       : [ "telldus/ledpwr/on" ],
         "led/pwr/off"      : [ "telldus/ledpwr/off" ],
@@ -73,9 +66,11 @@
         "led/white/dim"    : [ "led/set{0,0,0,$1}" ],
         "led/blue/normal"  : [ "led/set{0,0,100,0}" ],
         "led/blue/dim"     : [ "led/set{0,0,$1,0}" ],
-        "led/off"          : [ "led/set{0,0,0,0}" ]
+        "led/off"          : [ "led/set{0,0,0,0}" ],
 
-        //"elec/on"         : [ "oppo/on", "hw50/on", "avr/on" ],
-        //"elec/off"        : [ "oppo/off", "hw50/off", "avr/off" ],
+        // Scenes
+        "scene/off"        : [ "light/off", "led/pwr/off", "hw50/off" ],
+        "scene/light"      : [ "light/normal" ],
+        "scene/movie"      : [ "light/ambient", "hw50/on" ]
     }
 }

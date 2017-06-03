@@ -96,7 +96,7 @@ $(1)-build: $($(1)-TYPE)-build
 # Installation
 $(1)-install: $(1)-push
 	$(call remotecmd,$(1),"sudo dpkg -i $($(1)-PATH)/$($(1)-DEBS)")
-$(1)-deploy: $(1)-install
+$(1)-deploy: $(1)-push
 	$(call remotecmd,$(1)," \
 	    set -ex; \
 		cd $($(1)-PATH); \

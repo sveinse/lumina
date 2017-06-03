@@ -26,8 +26,9 @@ angular.module('LuminaApp')
                 icon: 'fa-picture-o',
 
                 buttons: [ [
-                    {  type: 'primary', icon: 'fa-circle-o', text: 'Alt AV', cmd: 'elec/off'  },
-                    {  type: 'success', icon: 'fa-power-off', text: 'Alt PÅ', cmd: 'elec/on'  },
+                    {  type: 'primary', icon: 'fa-circle-o', text: 'Alt AV', cmd: 'scene/off'  },
+                    {  type: 'default', icon: 'fa-lightbulb-o', text: 'Lys på', cmd: 'scene/light' },
+                    {  type: 'success', icon: 'fa-film', text: 'Se film', cmd: 'scene/movie'  },
                 ] ]
             },
             {
@@ -36,16 +37,18 @@ angular.module('LuminaApp')
 
                 buttons: [ [
                     {  type: 'default', icon: 'fa-circle-o', text: 'Av', cmd: 'light/off'  },
+                    {  type: 'default', icon: 'fa-circle-o', text: 'Ambient', cmd: 'light/ambient'  },
                     {  type: 'default', icon: 'fa-circle-o', text: 'Svakt', cmd: 'light/weak'  },
-                    {  type: 'default', icon: 'fa-circle-o', text: 'På', cmd: 'light/normal'  },
                     {  type: 'default', icon: 'fa-circle-o', text: 'Fullt', cmd: 'light/full'  },
+                    {  type: 'default', icon: 'fa-circle-o', text: 'Finne', cmd: 'light/finder'  },
+                    {  type: 'default', icon: 'fa-circle-o', text: 'På', cmd: 'light/normal'  },
                 ] ]
             },
-            {
+            /*{
                 title: 'Forsterker',
                 icon: 'fa-volume-off',
 
-                bar: [ 'Yes' ],
+                //bar: [ 'Yes' ],
 
                 buttons: [ [
                     {  type: 'default', icon: 'fa-circle-o', text: 'Av', cmd: 'avr/off'  },
@@ -54,8 +57,8 @@ angular.module('LuminaApp')
                     {  type: 'default', icon: 'fa-circle-o',  text: 'Ned', cmd: 'avr/volume/down'  },
                     {  type: 'default', con: 'fa-circle-o', text: 'Opp', cmd: 'avr/volume/up'  },
                 ] ]
-            },
-            {
+            },*/
+            /*{
                 title: 'Spiller',
                 icon: 'fa-play-circle',
 
@@ -68,7 +71,7 @@ angular.module('LuminaApp')
                     {  type: 'default', icon: 'fa-pause', text: '', cmd: 'oppo/pause'  },
                     {  type: 'default', icon: 'fa-eject', text: '', cmd: 'oppo/eject'  },
                 ] ]
-            },
+            },*/
             {
                 title: 'Prosjektor',
                 icon: 'fa-video-camera',
