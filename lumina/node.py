@@ -118,17 +118,17 @@ class Node(Plugin):
         # Subscribe to the change of state by sending status back to server
         self.status.add_callback(self.emit_status)
 
-        self.host = main.config.get('server')
-        self.port = main.config.get('port')
+        self.serverhost = main.config.get('server')
+        self.serverport = main.config.get('port')
         self.hostname = main.hostname
         self.hostid = main.hostid
         self.nodeid = hexlify(os.urandom(4))
 
         self.node_protocol = None
-        self.queue = Queue()
+        self.nodequeue = Queue()
 
-        self.factory = NodeFactory(parent=self)
-        reactor.connectTCP(self.host, self.port, self.factory)
+        self.nodefactory = NodeFactory(parent=self)
+        reactor.connectTCP(self.serverhost, self.serverport, self.nodefactory)
 
 
     def run_command(self, event, fail_on_unknown=True):
@@ -180,11 +180,11 @@ class Node(Plugin):
 
         # Create a defer object for the future reply
         defer = Deferred()
-        self.queue.put((defer, protofn, event))
+        self.nodequeue.put((defer, protofn, event))
 
         self.log.info("{e}  --  Not connected to server, "
                       "queueing. {n} items in queue",
-                      e=event, n=self.queue.qsize())
+                      e=event, n=self.nodequeue.qsize())
 
         return defer
 
@@ -195,11 +195,11 @@ class Node(Plugin):
         if not self.node_protocol:
             return
 
-        self.log.info("Flushing queue of {n} items...", n=self.queue.qsize())
+        self.log.info("Flushing queue of {n} items...", n=self.nodequeue.qsize())
 
         try:
             while True:
-                (defer, protofn, event) = self.queue.get(False)
+                (defer, protofn, event) = self.nodequeue.get(False)
                 self.log.info("Sending {e}", e=event)
                 result = protofn(event)
                 if isinstance(result, Deferred):

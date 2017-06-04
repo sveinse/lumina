@@ -1,16 +1,20 @@
 # -*-python-*-
-import os,sys,re
+from __future__ import absolute_import
+
+import re
+from Queue import Queue
+import xml.etree.ElementTree as ET
+import socket
 
 from twisted.internet import reactor
-from twisted.python import log
+from twisted.internet.defer import Deferred
 from twisted.internet.protocol import DatagramProtocol, ClientFactory, Protocol
 from twisted.web.client import Agent
 from twisted.web.http_headers import Headers
-import xml.etree.ElementTree as ET
 
-from ..endpoint import Endpoint
-from ..queue import Queue
-from ..exceptions import *
+from lumina.node import Node
+from lumina.log import Logger
+from lumina.exceptions import LuminaException, CommandRunException, TimeoutException
 
 
 class SSDPException(LuminaException):
@@ -31,16 +35,17 @@ XML_RC_ERRORS = {
     5: 'Internal error',
 }
 
-POWER = [ 'System', 'Power_Control', 'Power' ]
-VOLUME = [ 'Main_Zone', 'Volume', 'Lvl' ]
-INPUT = [ 'Main_Zone', 'Input', 'Input_Sel' ]
+POWER_ALL = ('System', 'Power_Control', 'Power')
+POWER_MAIN = ('Main_Zone', 'Power_Control', 'Power')
+VOLUME = ('Main_Zone', 'Volume', 'Lvl')
+INPUT = ('Main_Zone', 'Input', 'Input_Sel')
 
-LEVELS1 = [ 'System', 'Speaker_Preout', 'Pattern_1', 'Lvl' ]
-LEVELS2 = [ 'System', 'Speaker_Preout', 'Pattern_2', 'Lvl' ]
-DISTANCE1 = [ 'System', 'Speaker_Preout', 'Pattern_1', 'Distance' ]
-DISTANCE2 = [ 'System', 'Speaker_Preout', 'Pattern_2', 'Distance' ]
-PEQ1 = [ 'System', 'Speaker_Preout', 'Pattern_1', 'PEQ', 'Manual_Data' ]
-PEQ2 = [ 'System', 'Speaker_Preout', 'Pattern_2', 'PEQ', 'Manual_Data' ]
+LEVELS1 = ('System', 'Speaker_Preout', 'Pattern_1', 'Lvl')
+LEVELS2 = ('System', 'Speaker_Preout', 'Pattern_2', 'Lvl')
+DISTANCE1 = ('System', 'Speaker_Preout', 'Pattern_1', 'Distance')
+DISTANCE2 = ('System', 'Speaker_Preout', 'Pattern_2', 'Distance')
+PEQ1 = ('System', 'Speaker_Preout', 'Pattern_1', 'PEQ', 'Manual_Data')
+PEQ2 = ('System', 'Speaker_Preout', 'Pattern_2', 'PEQ', 'Manual_Data')
 
 
 def dB(value):
@@ -107,8 +112,10 @@ class YamahaSSDP(DatagramProtocol):
     system = 'AVR'
 
     def __init__(self, parent, host, group):
+        self.log = Logger(namespace=parent.name+'/ssdp')
         self.parent = parent
-        self.host = host
+        self.status = parent.status
+        self.host = socket.gethostbyname(host)
         self.group = group
 
 
@@ -125,24 +132,24 @@ class YamahaSSDP(DatagramProtocol):
         if address[0] != self.host:
             return
 
-        #log.msg("Datagram %s received from %s" % (repr(datagram), repr(address)), system=self.system)
+        #self.log.debug("Datagram {d} received from {a}", d=repr(datagram), a=repr(address))
 
         # Skip the header (which is HTTP like), and extract the body
-        header=True
-        body=''
+        header = True
+        body = ''
         for line in datagram.split('\r\n'):
             if header:
                 if len(line) == 0:
-                    header=False
+                    header = False
             else:
                 body += line
 
         # Ignore empty notifications
-        if len(body)==0:
-            #log.msg("Ignoring empty notifications", system=self.system)
+        if len(body) == 0:
+            #self.log.info("Ignoring empty notifications")
             return
 
-        #log.msg("Received '%s' from %s" % (body, repr(address)), system=self.system)
+        #self.log.info("Received '{b}' from {a}", b=body, a=repr(address))
 
         # Convert to XML
         try:
@@ -152,12 +159,12 @@ class YamahaSSDP(DatagramProtocol):
 
             mz = xml.find('Main_Zone')
             if mz is not None:
-                notifications = [ prop.text for prop in mz.iter('Property') ]
-                log.msg("AVR notification: %s" %(notifications,), system=self.system)
+                notifications = [prop.text for prop in mz.iter('Property')]
+                #self.log.info("Notification: {n}", n=notifications)
                 self.parent.notification(notifications)
 
         except (ET.ParseError, SSDPException) as e:
-            log.msg("Malformed XML, %s. XML='%s'" %(e.message,body), system=self.system)
+            self.log.info("Malformed notification XML, {m}. XML='{b}'", m=e.message, b=body)
             return
 
 
@@ -166,6 +173,7 @@ class YamahaFactory(ClientFactory):
     noisy = False
 
     def __init__(self, protocol, parent):
+        self.log = protocol.log
         self.protocol = protocol
         self.parent = parent
 
@@ -173,36 +181,32 @@ class YamahaFactory(ClientFactory):
         return self.protocol
 
     def clientConnectionFailed(self, connector, reason):
-        self.protocol.setstate('error',self.protocol.path,reason.getErrorMessage())
+        self.protocol.clientConnectionFailed(reason)
 
 
 
 class YamahaProtocol(Protocol):
     noisy = False
     timeout = 5
-    system = 'AVR'
 
-    def __init__(self,parent,host,port):
-        self.state = 'init'
+    def __init__(self, parent, host, port):
+        self.log = Logger(namespace=parent.name+'/main')
         self.parent = parent
+        self.status = parent.status
         self.host = host
         self.port = port
         self.queue = Queue()
         self.factory = YamahaFactory(self, self.parent)
 
-        self.re_http = re.compile('HTTP/\S+ (\d+) (.*)')
-        self.re_header = re.compile('\s*(\S+)\s*:\s*(.*)\s*')
+        self.re_http = re.compile(r'HTTP/\S+ (\d+) (.*)')
+        self.re_header = re.compile(r'\s*(\S+)\s*:\s*(.*)\s*')
 
-
-    def setstate(self,state,*args):
-        (old, self.state) = (self.state, state)
-        #if state != old:
-        #    log.msg("STATE change: '%s' --> '%s'" %(old,state), system=self.system)
+        self.defer = None
 
 
     def connectionMade(self):
-        self.setstate('connected')
-        body = self.queue.active['body']
+        self.log.info("Connection made")
+        body = self.lastbody
         myip = self.transport.getHost().host
         data = '''POST /YamahaRemoteControl/ctrl HTTP/1.1\r
 Host: %s\r
@@ -210,9 +214,9 @@ Content-Type: text/xml; charset="utf-8"\r
 Content-Length: %s\r
 Connection: keep-alive\r
 \r
-%s''' %(myip,len(body),body)
+%s''' %(myip, len(body), body)
         #log.msg( "     <<<  %s" %(self.queue.active['chain']), system=self.system)
-        log.msg( "     <<<  '%s'" %(body,), system=self.system)
+        self.log.debug("     <<<  '{b}'", b=body)
         #log.msg("RAW  <<<  (%s)'%s'" %(len(data),data), system=self.system)
         self.data = ''
         self.dstate = 'http'
@@ -222,21 +226,26 @@ Connection: keep-alive\r
 
 
     def connectionLost(self, reason):
-        self.setstate('closed', reason.getErrorMessage())
+        self.log.info("Connection lost: {e}", e=reason.getErrorMessage())
+        #self.setstate('closed', reason.getErrorMessage())
         # This will catch up server-side close and 0 length body packages
         if self.dstate != 'done':
             self.slurp_body()
 
 
+    def clientConnectionFailed(self, reason):
+        self.log.info("Connection failed: {e}", e=reason.getErrorMessage())
+
+
     def disconnect(self):
-        if self.state in ('connected','active'):
-            self.transport.loseConnection()
+        #if self.state in ('connected','active'):
+        self.transport.loseConnection()
 
 
     def dataReceived(self, data):
-        self.setstate('active')
+        #self.setstate('active')
         self.data += data
-        #log.msg("RAW  >>>  (%s)'%s'" %(len(data),data), system=self.system)
+        self.log.debug("RAW  >>>  ({l})'{d}'", l=len(data), d=data)
 
         # Body part of the frame
         if self.dstate == 'body':
@@ -247,7 +256,7 @@ Connection: keep-alive\r
             # Get the next line and exit the loop if no more lines found
             pat = '\r\n'
             sub = self.data.find(pat)
-            if sub<0:
+            if sub < 0:
                 return
             line = self.data[0:sub]
             self.data = self.data[sub+len(pat)::]
@@ -271,7 +280,7 @@ Connection: keep-alive\r
                     m = self.re_header.search(line)
                     if not m:
                         raise Exception("Malformed HTML header")
-                    self.header[m.group(1)]=m.group(2)
+                    self.header[m.group(1)] = m.group(2)
 
 
     def slurp_body(self):
@@ -288,171 +297,189 @@ Connection: keep-alive\r
         try:
             # Check http error code
             if self.httperr == 400:
-                raise CommandFailedException('HTML err %s, Bad request, XML Parse error' %(self.httperr,))
+                raise CommandRunException('HTML err %s, Bad request, XML Parse error' %(self.httperr,))
 
-            log.msg("     >>>  '%s'" %(body,), system=self.system)
+            self.log.debug("     >>>  '{b}'", b=body)
             xml = ET.fromstring(body)
             if xml.tag != ROOT:
-                raise CommandFailedException("'%s' is XML root, not '%s'" %(xml.tag,ROOT))
+                raise CommandRunException("'%s' is XML root, not '%s'" %(xml.tag, ROOT))
 
             # Response to our object?
             rsp = xml.attrib['rsp']
-            cmd = self.queue.active['cmd']
-            if rsp != cmd:
-                raise CommandFailedException("Response is '%s', command was '%s'" %(rsp, cmd))
+            command = self.lastcommand
+            if rsp != command:
+                raise CommandRunException("Response is '%s', command was '%s'" %(rsp, command))
 
             # Check the return code in the top xml object
             rc = int(xml.attrib['RC'])
             err = XML_RC_ERRORS.get(rc, None)
             if err is None:
-                raise CommandFailedException("Unknown response, %s, from Yamaha" %(rc,))
+                raise CommandRunException("Unknown response, %s, from Yamaha" %(rc,))
             if err != 'OK':
-                raise CommandFailedException(err)
+                raise CommandRunException(err)
 
             # Unwind the chain
-            chain = self.queue.active['chain']
-            xe = xml
+            chain = self.lastchain
+            xmle = xml
             for c in chain:
-                sub = xe.find(c)
+                sub = xmle.find(c)
                 if sub is None:
-                    raise CommandFailedException("Response XML does not match request on level '%s'" %(c,))
-                xe = sub
+                    raise CommandRunException("Response XML does not match request on level '%s'" %(c,))
+                xmle = sub
 
-            #log.msg("     >>>  '%s'" %(ET.tostring(xe),), system=self.system)
+            #log.msg("     >>>  '%s'" %(ET.tostring(xmle),), system=self.system)
 
-            if cmd == PUT:
-                self.queue.callback(xe.text)
+            if command == PUT:
+                self.defer.callback(xmle.text)
             else:
-                self.queue.callback(xe)
+                self.defer.callback(xmle)
 
-        except (ET.ParseError, CommandFailedException) as e:
-            log.msg("Command failed. %s." %(e.message,), system=self.system)
-            self.queue.errback(e)
+        except (ET.ParseError, CommandRunException) as e:
+            self.log.info("Command failed. {m}.", m=e.message)
+            self.defer.errback(e)
 
         # Process next command
+        self.timer.cancel()
+        self.defer = None
         self.send_next()
 
 
-    def command(self, cmd, chain, data=None):
+    def command(self, command, chain, data=None):
         # Compile an XML request
-        xml = ET.Element(ROOT, attrib={ 'cmd': cmd})
-        xe = xml
+        xml = ET.Element(ROOT, attrib={'cmd': command})
+        xmle = xml
         for c in chain:
-            xe = ET.SubElement(xe, c)
-        if cmd == GET:
-            xe.text = 'GetParam'
-        elif cmd == PUT:
+            xmle = ET.SubElement(xmle, c)
+        if command == GET:
+            xmle.text = 'GetParam'
+        elif command == PUT:
             if isinstance(data, dict):
-                for (k,v) in data.items():
-                    ET.SubElement(xe,k).text = str(v)
+                for (k, v) in data.items():
+                    ET.SubElement(xmle, k).text = str(v)
             else:
-                xe.text = str(data)
+                xmle.text = str(data)
 
-        body = ET.tostring(xml,encoding='utf-8')
-        d = self.queue.add(cmd=cmd, chain=chain, body=body)
+        body = ET.tostring(xml, encoding='utf-8')
+
+        defer = Deferred()
+        self.queue.put((defer, command, chain, body))
         self.send_next()
-        return d
+        return defer
 
 
     def send_next(self):
-        #if self.state not in (''):
-        #    return
 
-        if self.queue.get_next() is not None:
+        # Don't send new if communication is pending
+        if self.defer:
+            return
+
+        while self.queue.qsize():
+            (defer, command, chain, body) = self.queue.get(False)
+
+            # Send the command
             reactor.connectTCP(self.host, self.port, self.factory)
-            self.queue.set_timeout(self.timeout, self.timedout)
+
+            # Expect reply
+            self.lastcommand = command
+            self.lastchain = chain
+            self.lastbody = body
+            self.defer = defer
+            self.timer = reactor.callLater(self.timeout, self.timedout)
+            return
 
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        log.msg("Communication timed out.", system=self.system)
-        self.setstate('inactive')
-        self.queue.errback(TimeoutException())
+        self.log.info("Communication timed out.")
+        self.status.set_RED('Timeout')
+        self.defer.errback(TimeoutException())
         self.send_next()
 
 
 
-class Yamaha(Endpoint):
-    system = 'AVR'
-    name = 'YAMAHA'
+class Yamaha(Node):
+    ''' Yamaha Aventage AVR interface
+    '''
 
     CONFIG = {
-        'yamaha_host': dict(default='localhost', help='Yamaha host' ),
-        'yamaha_port': dict(default=80, help='Yamaha port', type=int ),
-        'yamaha_ssdp': dict(default='239.255.255.250', help='Yamaha SSDP protocol address' ),
-        'yamaha_ssdp_port': dict(default=1900, help='Yamaha SSDP port', type=int ),
+        'host'     : dict(default='localhost', help='Yamaha host'),
+        'port'     : dict(default=80, help='Yamaha port', type=int),
+        'ssdp'     : dict(default='239.255.255.250', help='Yamaha SSDP protocol address'),
+        'ssdp_port': dict(default=1900, help='Yamaha SSDP port', type=int),
     }
 
     # --- Interfaces
     def configure(self, main):
-        self.events = [
-            'avr/starting',      # Created avr object
-            'avr/stopping',      # close() have been called
-            'avr/error',         # Connection failed
 
-            'avr/volume',        # Volume event
-            'avr/input',         # Input change event
-            'avr/power',         # Change in power
+        # Merge the node's options with this class
+        self.CONFIG = Node.CONFIG.copy()
+        self.CONFIG.update(Yamaha.CONFIG)
+
+        self.events = [
+            #'avr/starting',      # Created avr object
+            #'avr/stopping',      # close() have been called
+            #'avr/error',         # Connection failed
+
+            #'avr/volume',        # Volume event
+            #'avr/input',         # Input change event
+            #'avr/power',         # Change in power
         ]
 
         self.commands = {
-            'avr/state'       : lambda a : self.protocol.state,
-
-            #'avr/raw'       : lambda a : self.protocol.command(*a.args),
-
-            'avr/ison'        : lambda a : self.c(GET, POWER).addCallback(ison),
-            'avr/off'         : lambda a : self.c(PUT, POWER, 'Standby'),
-            'avr/on'          : lambda a : self.c(PUT, POWER, 'On'),
-
-            'avr/volume'      : lambda a : self.c(GET, VOLUME).addCallback(parse_dB),
-            'avr/volume/up'   : lambda a : self.c(PUT, VOLUME, dB_t('Up')),
-            'avr/volume/down' : lambda a : self.c(PUT, VOLUME, dB_t('Down')),
-            'avr/setvolume'   : lambda a : self.c(PUT, VOLUME, dB(a.args[0])),
-            'avr/input'       : lambda a : self.c(GET, INPUT).addCallback(t),
-            'avr/setinput'    : lambda a : self.c(PUT, INPUT, a.args[0]),
-
-            'avr/levels/1'    : lambda a : self.c(GET, LEVELS1).addCallback(parse_levels),
-            'avr/levels/2'    : lambda a : self.c(GET, LEVELS2).addCallback(parse_levels),
-            'avr/distance/1'  : lambda a : self.c(GET, DISTANCE1).addCallback(parse_distance),
-            'avr/distance/2'  : lambda a : self.c(GET, DISTANCE2).addCallback(parse_distance),
-            'avr/peq/1'       : lambda a : self.c(GET, PEQ1 + [ a.args[0] ]).addCallback(parse_peq),
-            'avr/peq/2'       : lambda a : self.c(GET, PEQ2 + [ a.args[0] ]).addCallback(parse_peq),
-
-            'avr/fail' : lambda a : self.c(PUT, VOLUME, 'Down'),
+            'on'          : lambda a : self.c(PUT, POWER_MAIN, 'On'),
+            'off'         : lambda a : self.c(PUT, POWER_ALL, 'Standby'),
+            #'avr/raw'         : lambda a : self.protocol.command(*a.args),
+            #'avr/ison'        : lambda a : self.c(GET, POWER).addCallback(ison),
+            #'avr/volume'      : lambda a : self.c(GET, VOLUME).addCallback(parse_dB),
+            #'avr/volume/up'   : lambda a : self.c(PUT, VOLUME, dB_t('Up')),
+            #'avr/volume/down' : lambda a : self.c(PUT, VOLUME, dB_t('Down')),
+            #'avr/setvolume'   : lambda a : self.c(PUT, VOLUME, dB(a.args[0])),
+            #'avr/input'       : lambda a : self.c(GET, INPUT).addCallback(t),
+            #'avr/setinput'    : lambda a : self.c(PUT, INPUT, a.args[0]),
+            #'avr/levels/1'    : lambda a : self.c(GET, LEVELS1).addCallback(parse_levels),
+            #'avr/levels/2'    : lambda a : self.c(GET, LEVELS2).addCallback(parse_levels),
+            #'avr/distance/1'  : lambda a : self.c(GET, DISTANCE1).addCallback(parse_distance),
+            #'avr/distance/2'  : lambda a : self.c(GET, DISTANCE2).addCallback(parse_distance),
+            #'avr/peq/1'       : lambda a : self.c(GET, PEQ1 + [ a.args[0] ]).addCallback(parse_peq),
+            #'avr/peq/2'       : lambda a : self.c(GET, PEQ2 + [ a.args[0] ]).addCallback(parse_peq),
+            #'avr/fail' : lambda a : self.c(PUT, VOLUME, 'Down'),
        }
 
 
     # --- Initialization
-    def setup(self, config):
-        self.host = config['yamaha_host']
-        self.protocol = YamahaProtocol(self,self.host,config['yamaha_port'])
-        self.ssdp = YamahaSSDP(self,self.host,config['yamaha_ssdp'])
+    def setup(self, main):
+        Node.setup(self, main)
 
-        self.event('avr/starting')
-        reactor.listenMulticast(config['yamaha_ssdp_port'], self.ssdp, listenMultiple=True)
+        self.host = main.config.get('host', name=self.name)
+        self.port = main.config.get('port', name=self.name)
+        self.ssdp_host = main.config.get('ssdp', name=self.name)
+        self.ssdp_port = main.config.get('ssdp_port', name=self.name)
+
+        self.protocol = YamahaProtocol(self, self.host, self.port)
+        self.ssdp = YamahaSSDP(self, self.host, self.ssdp_host)
+
+        reactor.listenMulticast(self.ssdp_port, self.ssdp, listenMultiple=True)
+
 
     def close(self):
-        self.event('avr/stopping')
-        self.protocol.disconnect()
+        #self.protocol.disconnect()
         self.ssdp.disconnect()
 
 
     # --- Convenience
-    def c(self,*args,**kw):
-        return self.protocol.command(*args,**kw)
+    def c(self, *args, **kw):
+        return self.protocol.command(*args, **kw)
 
 
     # --- Callbacks
-    def notification(self,notifications):
-        if 'Volume' in notifications:
-            self.get_command('avr/volume')(None).addCallback(self.event_as_arg,'avr/volume')
-        if 'Input' in notifications:
-            self.get_command('avr/input')(None).addCallback(self.event_as_arg,'avr/input')
-        if 'Power' in notifications:
-            self.get_command('avr/ison')(None).addCallback(self.event_as_arg,'avr/ison')
-
-
-    # --- Commands
+    def notification(self, notifications):
+        self.log.info("Got notifications: {n}", n=notifications)
+        #if 'Volume' in notifications:
+        #    self.get_command('avr/volume')(None).addCallback(self.event_as_arg, 'avr/volume')
+        #if 'Input' in notifications:
+        #    self.get_command('avr/input')(None).addCallback(self.event_as_arg, 'avr/input')
+        #if 'Power' in notifications:
+        #    self.get_command('avr/ison')(None).addCallback(self.event_as_arg, 'avr/ison')
 
 
 

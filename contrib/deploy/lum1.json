@@ -1,9 +1,11 @@
 {
-    "plugins": [ "oppo" ], //"yamaha"],
+    "plugins": [ "oppo", "yamaha(avr)", "yamaha(amp1)" ],
 
     "server": "hus.local",
     "port": 5326,
 
     "oppo.port": "/dev/ttyUSB0",
-    "yamaha.host": "10.5.5.11"
+
+    "avr.host": "avr.sol",
+    "amp1.host": "amp.sol"
 }

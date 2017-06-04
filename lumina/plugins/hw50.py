@@ -366,7 +366,10 @@ class HW50Protocol(Protocol):
 
 
     def command(self, item, cmd=GET_RQ, data=0x0):
+
+        # Compile next request
         msg = encode_hw50frame(item, cmd, data)
+
         defer = Deferred()
         self.queue.put((defer, msg, item))
         self.send_next()

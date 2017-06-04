@@ -69,8 +69,10 @@
         "led/off"          : [ "led/set{0,0,0,0}" ],
 
         // Scenes
-        "scene/off"        : [ "light/off", "led/pwr/off", "hw50/off", "oppo/off" ],
+        "scene/off"        : [ "light/off", "led/pwr/off", "hw50/off", "oppo/off", "avr/off", "amp1/off" ],
+        "scene/elec-off"   : [ "hw50/off", "oppo/off", "avr/off", "amp1/off" ],
         "scene/light"      : [ "light/normal" ],
-        "scene/movie"      : [ "light/ambient", "hw50/on", "oppo/on" ]
+        "scene/music"      : [ "light/normal", "oppo/on", "avr/on", "amp1/on" ],
+        "scene/movie"      : [ "light/ambient", "hw50/on", "oppo/on", "avr/on", "amp1/on" ]
     }
 }

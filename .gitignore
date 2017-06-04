@@ -21,7 +21,6 @@ __ditch/
 !/contrib/telldus/
 
 # Misc development excludes
-/conf/test*.json
 /tmp/
 /.vscode/
 /access-lumina.log*

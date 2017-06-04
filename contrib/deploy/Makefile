@@ -131,3 +131,10 @@ endef
 
 # Include the build rules into the makefile
 $(foreach b,$(builders),$(eval $(call buildcmds,$(b))))
+
+
+#
+# LOCAL TARGETS
+# =============
+local-run:
+	cd ../../ && python bin/lumina.py -c contrib/deploy/test_local.json

@@ -140,10 +140,13 @@ class OppoProtocol(LineReceiver):
 
 
     def command(self, command, *args):
+
+        # Compile next request
         a = ' '.join(args)
         if a:
             a = ' ' + a
         msg = '#%s%s' %(command, a)
+
         defer = Deferred()
         self.queue.put((defer, msg, command))
         self.send_next()

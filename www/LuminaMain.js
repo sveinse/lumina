@@ -27,8 +27,10 @@ angular.module('LuminaApp')
 
                 buttons: [ [
                     {  type: 'primary', icon: 'fa-circle-o', text: 'Alt AV', cmd: 'scene/off'  },
+                    {  type: 'default', icon: 'fa-bell-slash-o', text: 'Anlegg av', cmd: 'scene/elec-off' },
                     {  type: 'default', icon: 'fa-lightbulb-o', text: 'Lys på', cmd: 'scene/light' },
-                    {  type: 'success', icon: 'fa-film', text: 'Se film', cmd: 'scene/movie'  },
+                    {  type: 'default', icon: 'fa-music', text: 'Musikk', cmd: 'scene/music' },
+                    {  type: 'success', icon: 'fa-film', text: 'Film', cmd: 'scene/movie'  },
                 ] ]
             },
             {
@@ -44,7 +46,7 @@ angular.module('LuminaApp')
                     {  type: 'default', icon: 'fa-circle-o', text: 'På', cmd: 'light/normal'  },
                 ] ]
             },
-            /*{
+            {
                 title: 'Forsterker',
                 icon: 'fa-volume-off',
 
@@ -53,11 +55,14 @@ angular.module('LuminaApp')
                 buttons: [ [
                     {  type: 'default', icon: 'fa-circle-o', text: 'Av', cmd: 'avr/off'  },
                     {  type: 'default', icon: 'fa-power-off', text: 'På', cmd: 'avr/on'  },
-                ],[
+                ], [
+                    {  type: 'default', icon: 'fa-circle-o',  text: 'Av', cmd: 'amp1/off'  },
+                    {  type: 'default', icon: 'fa-power-off', text: 'På', cmd: 'amp1/on'  },
+                ] ]/*,[
                     {  type: 'default', icon: 'fa-circle-o',  text: 'Ned', cmd: 'avr/volume/down'  },
                     {  type: 'default', con: 'fa-circle-o', text: 'Opp', cmd: 'avr/volume/up'  },
-                ] ]
-            },*/
+                ] ]*/
+            },
             {
                 title: 'Spiller',
                 icon: 'fa-play-circle',
