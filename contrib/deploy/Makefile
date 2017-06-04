@@ -55,6 +55,8 @@ status-all:  $(foreach r,$(remotes),$(r)-status)
 install-all: $(foreach r,$(remotes),$(r)-install)
 deploy-all:  $(foreach r,$(remotes),$(r)-deploy)
 
+all: build-all install-all deploy-all
+
 
 #
 # REMOTE TARGETS

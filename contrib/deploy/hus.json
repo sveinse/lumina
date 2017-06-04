@@ -69,8 +69,8 @@
         "led/off"          : [ "led/set{0,0,0,0}" ],
 
         // Scenes
-        "scene/off"        : [ "light/off", "led/pwr/off", "hw50/off" ],
+        "scene/off"        : [ "light/off", "led/pwr/off", "hw50/off", "oppo/off" ],
         "scene/light"      : [ "light/normal" ],
-        "scene/movie"      : [ "light/ambient", "hw50/on" ]
+        "scene/movie"      : [ "light/ambient", "hw50/on", "oppo/on" ]
     }
 }

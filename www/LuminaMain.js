@@ -58,20 +58,20 @@ angular.module('LuminaApp')
                     {  type: 'default', con: 'fa-circle-o', text: 'Opp', cmd: 'avr/volume/up'  },
                 ] ]
             },*/
-            /*{
+            {
                 title: 'Spiller',
                 icon: 'fa-play-circle',
 
                 buttons: [ [
                     {  type: 'default', icon: 'fa-circle-o', text: 'Av', cmd: 'oppo/off'  },
                     {  type: 'default', icon: 'fa-power-off', text: 'På', cmd: 'oppo/on'  },
-                ],[
+                ] ] /*,[
                     {  type: 'default', icon: 'fa-stop', text: '', cmd: 'oppo/stop'  },
                     {  type: 'default', icon: 'fa-play', text: '', cmd: 'oppo/play'  },
                     {  type: 'default', icon: 'fa-pause', text: '', cmd: 'oppo/pause'  },
                     {  type: 'default', icon: 'fa-eject', text: '', cmd: 'oppo/eject'  },
-                ] ]
-            },*/
+                ] ]*/
+            },
             {
                 title: 'Prosjektor',
                 icon: 'fa-video-camera',

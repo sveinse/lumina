@@ -8,6 +8,7 @@ from twisted.internet.defer import Deferred
 from twisted.internet.protocol import Protocol
 from twisted.internet.serialport import SerialPort, EIGHTBITS, PARITY_EVEN, STOPBITS_ONE
 from serial.serialutil import SerialException
+from twisted.internet.task import LoopingCall
 
 from lumina.node import Node
 from lumina.exceptions import LuminaException, TimeoutException, CommandRunException
@@ -277,6 +278,7 @@ def encode_hw50frame(item, cmd, data):
 
 class HW50Protocol(Protocol):
     timeout = 3
+    keepalive_interval = 60
 
     def __init__(self, parent):
         self.log = parent.log
@@ -292,14 +294,15 @@ class HW50Protocol(Protocol):
         self.status.set_YELLOW('Connected, waiting for data')
         self.lastmsg = None
 
-        # Send a dummy command to progress the state machine
-        defer = self.command(STATUS_POWER)
-        defer.addBoth(lambda a: None)
+        # Setup a regular keepalive heartbeat (this operation will also
+        # set the state green when the response is given)
+        self.heartbeat = LoopingCall(self.keepalive)
+        self.heartbeat.start(self.keepalive_interval, True)
 
 
     def connectionLost(self, reason):
         self.log.info("Lost connection: {e}", e=reason.getErrorMessage())
-        self.state.set_RED("Lost connection")
+        self.status.set_RED("Lost connection")
 
 
     def dataReceived(self, data):
@@ -353,12 +356,13 @@ class HW50Protocol(Protocol):
                     else:
                         self.defer.callback(data)
 
-                else:
-                    self.log.info("-IGNORED-")
+                    # Proceed to the next command
+                    self.send_next()
+                    return
 
-                # Proceed the next command
-                self.send_next()
-                return
+                # Not interested in the received message
+                self.log.info("-IGNORED-")
+
 
 
     def command(self, item, cmd=GET_RQ, data=0x0):
@@ -384,7 +388,7 @@ class HW50Protocol(Protocol):
             # Prepare for reply where applicable
             ircmd = item & IRCMD_MASK
 
-            # IR-commands does not reply, so they can be handled immediately
+            # IR-commands does not reply, so they can be replied to immediately
             # and can proceed to next command
             if ircmd in (IRCMD, IRCMD2, IRCMD3):
                 defer.callback(None)
@@ -392,7 +396,6 @@ class HW50Protocol(Protocol):
 
             # Expect reply, setup timer and return
             self.lastmsg = msg
-            self.lastitem = item
             self.defer = defer
             self.timer = reactor.callLater(self.timeout, self.timedout)
             return
@@ -400,11 +403,15 @@ class HW50Protocol(Protocol):
 
     def timedout(self):
         # The timeout response is to fail the request and proceed with the next command
-        self.log.info("Command '{c}' timed out", c=self.lastitem)
+        self.log.info("Command {c} timed out", c=dumptext(self.lastmsg))
         self.status.set_RED('Timeout')
         self.defer.errback(TimeoutException())
         self.send_next()
 
+
+    def keepalive(self):
+        defer = self.command(STATUS_POWER)
+        defer.addBoth(lambda a: None)
 
 
 class Hw50(Node):
@@ -426,8 +433,8 @@ class Hw50(Node):
         ]
 
         self.commands = {
-            'hw50/off'          : lambda a : self.c(IR_PWROFF,cmd=SET_RQ),
-            'hw50/on'           : lambda a : self.c(IR_PWRON,cmd=SET_RQ),
+            'off'          : lambda a : self.c(IR_PWROFF,cmd=SET_RQ),
+            'on'           : lambda a : self.c(IR_PWRON,cmd=SET_RQ),
 
             #'hw50/raw'          : lambda a : self.c(int(a.args[0],16),int(a.args[1],16),int(a.args[2],16)),
             #'hw50/ison'         : lambda a : self.c(STATUS_POWER).addCallback(ison),
@@ -465,6 +472,7 @@ class Hw50(Node):
             msg = "Failed to open port: {e}".format(e=e)
             self.log.error("{m}", m=msg)
             self.status.set_RED(msg)
+
 
     def close(self):
         if self.sp:

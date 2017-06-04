@@ -10,7 +10,7 @@ from lumina.node import Node
 
 
 class Led(Node):
-    ''' LED control node '''
+    ''' LED dimmer control interface '''
 
     universe = 0
 
