@@ -52,12 +52,16 @@
     },
 
     "responder.groups": {
-        "light/full"       : [ "telldus/ledpwr/on", "telldus/light/on",      "led/white/on" ],
-        "light/normal"     : [ "telldus/ledpwr/on", "telldus/light/on",      "led/blue/normal" ],
-        "light/weak"       : [ "telldus/ledpwr/on", "telldus/light/dim{30}", "led/blue/dim{15}" ],
-        "light/ambient"    : [ "telldus/ledpwr/on", "telldus/light/off",     "led/white/dim{10}" ],
-        "light/finder"     : [                      "telldus/light/wall/on" ],
-        "light/off"        : [                      "telldus/light/off",     "led/off" ],
+        "light/full"       : [ "telldus/light/on",      "telldus/ledpwr/on",  "led/white/on" ],
+        "light/normal"     : [ "telldus/light/on",      "telldus/ledpwr/on",  "led/blue/normal" ],
+        "light/weak"       : [ "telldus/light/dim{60}", "telldus/ledpwr/on",  "led/white/dim{25}" ],
+        "light/ambient1"   : [ "telldus/light/off",     "telldus/ledpwr/on",  "led/white/dim{10}" ],
+        "light/ambient2"   : [ "telldus/light/dim{30}", "telldus/ledpwr/on",  "led/off" ],
+        "light/finder"     : [ "telldus/light/wall/on"                                  ],
+        "light/off"        : [ "telldus/light/off",                           "led/off" ],
+        "light/led-off"    : [                                                "led/off" ],
+        "light/spot-off"   : [ "telldus/light/off"                                      ],
+        "light/all-off"    : [ "telldus/light/off",     "telldus/ledpwr/off", "led/off" ],
 
         "led/pwr/on"       : [ "telldus/ledpwr/on" ],
         "led/pwr/off"      : [ "telldus/ledpwr/off" ],
@@ -68,11 +72,16 @@
         "led/blue/dim"     : [ "led/set{0,0,$1,0}" ],
         "led/off"          : [ "led/set{0,0,0,0}" ],
 
-        // Scenes
-        "scene/off"        : [ "light/off", "led/pwr/off", "hw50/off", "oppo/off", "avr/off", "amp1/off" ],
-        "scene/elec-off"   : [ "hw50/off", "oppo/off", "avr/off", "amp1/off" ],
-        "scene/light"      : [ "light/normal" ],
-        "scene/music"      : [ "light/normal", "oppo/on", "avr/on", "amp1/on" ],
-        "scene/movie"      : [ "light/ambient", "hw50/on", "oppo/on", "avr/on", "amp1/on" ]
+        "amps/on"          : [ "avr/on", "amp1/on", "amp2/on", "amp1/pure_direct", "amp2/pure_direct" ],
+        "amps/off"         : [ "avr/off", "amp1/off", "amp2/off" ],
+
+        // Shows (on multimedia)
+        "show/elec-off"    : [ "hw50/off", "oppo/off", "amps/off" ],
+        "show/music"       : [ "oppo/on", "amps/on" ],
+        "show/netflix"     : [ "hw50/on", "oppo/on", "amps/on" ],
+        "show/youtube"     : [ "hw50/on", "oppo/on", "amps/on" ],
+        "show/chrome"      : [ "hw50/on", "oppo/on", "amps/on" ],
+        "show/tv"          : [ "hw50/on", "oppo/on", "amps/on" ],
+        "show/movie"       : [ "hw50/on", "oppo/on", "amps/on" ]
     }
 }

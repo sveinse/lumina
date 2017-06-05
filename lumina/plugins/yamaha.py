@@ -39,6 +39,7 @@ POWER_ALL = ('System', 'Power_Control', 'Power')
 POWER_MAIN = ('Main_Zone', 'Power_Control', 'Power')
 VOLUME = ('Main_Zone', 'Volume', 'Lvl')
 INPUT = ('Main_Zone', 'Input', 'Input_Sel')
+PURE_DIRECT = ('Main_Zone', 'Sound_Video', 'Pure_Direct', 'Mode')
 
 LEVELS1 = ('System', 'Speaker_Preout', 'Pattern_1', 'Lvl')
 LEVELS2 = ('System', 'Speaker_Preout', 'Pattern_2', 'Lvl')
@@ -428,6 +429,7 @@ class Yamaha(Node):
         self.commands = {
             'on'          : lambda a : self.c(PUT, POWER_MAIN, 'On'),
             'off'         : lambda a : self.c(PUT, POWER_ALL, 'Standby'),
+            'pure_direct' : lambda a : self.c(PUT, PURE_DIRECT, 'On'),
             #'avr/raw'         : lambda a : self.protocol.command(*a.args),
             #'avr/ison'        : lambda a : self.c(GET, POWER).addCallback(ison),
             #'avr/volume'      : lambda a : self.c(GET, VOLUME).addCallback(parse_dB),

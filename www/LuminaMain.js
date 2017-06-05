@@ -26,11 +26,13 @@ angular.module('LuminaApp')
                 icon: 'fa-picture-o',
 
                 buttons: [ [
-                    {  type: 'primary', icon: 'fa-circle-o', text: 'Alt AV', cmd: 'scene/off'  },
-                    {  type: 'default', icon: 'fa-bell-slash-o', text: 'Anlegg av', cmd: 'scene/elec-off' },
-                    {  type: 'default', icon: 'fa-lightbulb-o', text: 'Lys på', cmd: 'scene/light' },
-                    {  type: 'default', icon: 'fa-music', text: 'Musikk', cmd: 'scene/music' },
-                    {  type: 'success', icon: 'fa-film', text: 'Film', cmd: 'scene/movie'  },
+                    {  type: 'danger', icon: 'fa-bell-slash-o', text: 'Anlegg av', cmd: 'show/elec-off' },
+                    {  type: 'default', icon: 'fa-music', text: 'Musikk', cmd: 'show/music' },
+                    {  type: 'default', icon: 'fa-play-circle-o', text: 'Netflix', cmd: 'show/netflix' },
+                    {  type: 'default', icon: 'fa-youtube', text: 'Youtube', cmd: 'show/youtube' },
+                    {  type: 'default', icon: 'fa-chrome', text: 'Chrome', cmd: 'show/chrome' },
+                    {  type: 'info', icon: 'fa-television', text: 'TV', cmd: 'show/tv'  },
+                    {  type: 'success', icon: 'fa-film', text: 'Film', cmd: 'show/movie'  },
                 ] ]
             },
             {
@@ -38,12 +40,17 @@ angular.module('LuminaApp')
                 icon: 'fa-lightbulb-o',
 
                 buttons: [ [
-                    {  type: 'default', icon: 'fa-circle-o', text: 'Av', cmd: 'light/off'  },
-                    {  type: 'default', icon: 'fa-circle-o', text: 'Ambient', cmd: 'light/ambient'  },
+                    {  type: 'danger', icon: 'fa-moon-o', text: 'Helt av', cmd: 'light/all-off'  },
+                    {  type: 'primary', icon: 'fa-circle-o', text: 'Av', cmd: 'light/off'  },
+                    {  type: 'default', icon: 'fa-circle-o', text: 'Ambi1', cmd: 'light/ambient1'  },
+                    {  type: 'default', icon: 'fa-circle-o', text: 'Ambi2', cmd: 'light/ambient2'  },
                     {  type: 'default', icon: 'fa-circle-o', text: 'Svakt', cmd: 'light/weak'  },
                     {  type: 'default', icon: 'fa-circle-o', text: 'Fullt', cmd: 'light/full'  },
+                    {  type: 'success', icon: 'fa-power-off', text: 'På', cmd: 'light/normal'  },
+                ],[
                     {  type: 'default', icon: 'fa-circle-o', text: 'Finne', cmd: 'light/finder'  },
-                    {  type: 'default', icon: 'fa-circle-o', text: 'På', cmd: 'light/normal'  },
+                    {  type: 'default', icon: 'fa-circle-o', text: 'LED av', cmd: 'light/led-off'  },
+                    {  type: 'default', icon: 'fa-circle-o', text: 'Spot av', cmd: 'light/spot-off'  },
                 ] ]
             },
             {
@@ -58,6 +65,9 @@ angular.module('LuminaApp')
                 ], [
                     {  type: 'default', icon: 'fa-circle-o',  text: 'Av', cmd: 'amp1/off'  },
                     {  type: 'default', icon: 'fa-power-off', text: 'På', cmd: 'amp1/on'  },
+                ], [
+                    {  type: 'default', icon: 'fa-circle-o',  text: 'Av', cmd: 'amp2/off'  },
+                    {  type: 'default', icon: 'fa-power-off', text: 'På', cmd: 'amp2/on'  },
                 ] ]/*,[
                     {  type: 'default', icon: 'fa-circle-o',  text: 'Ned', cmd: 'avr/volume/down'  },
                     {  type: 'default', con: 'fa-circle-o', text: 'Opp', cmd: 'avr/volume/up'  },
