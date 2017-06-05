@@ -18,13 +18,13 @@ angular.module('LuminaApp')
         }
 
         var command = function(command,args) {
-            //log('<<< ' + command);
+            log('<<< ' + command);
             return $http.post('/rest/command/' + command, args)
                 .then(function(response) {
-                    //log('>>> ' + JSON.stringify(response.data));
+                    log('>>> ' + JSON.stringify(response.data));
                     return response.data.result;
                 },function(failure) {
-                    log('<<< ' + command);
+                    //log('<<< ' + command);
                     log('>>> FAIL: ' + failure.status + ' ' + failure.statusText);
                     return failure;
                 });

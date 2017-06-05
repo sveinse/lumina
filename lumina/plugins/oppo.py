@@ -225,11 +225,17 @@ class Oppo(Node):
             'on'      : lambda a: self.c('PON'),
             'off'     : lambda a: self.c('POF'),
 
+            'play'    : lambda a: self.c('PLA'),
+            'pause'   : lambda a: self.c('PAU'),
+            'stop'    : lambda a: self.c('STP'),
+            'eject'   : lambda a: self.c('EJT'),
+
+            'home'    : lambda a: self.c('HOM'),
+            'netflix' : lambda a: self.c('APP', 'NFX'),
+            'youtube' : lambda a: self.c('APP', 'YOU'),
+
             #'oppo/raw'     : lambda a : self.c(*a.args),
             #'oppo/ison'    : lambda a : self.c('QPW').addCallback(ison),
-            #'oppo/play'    : lambda a : self.c('PLA'),
-            #'oppo/pause'   : lambda a : self.c('PAU'),
-            #'oppo/stop'    : lambda a : self.c('STP'),
             #'oppo/verbose' : lambda a : self.c('SVM','2'),
             #'oppo/status'  : lambda a : self.c('QPL'),
             #'oppo/time'    : lambda a : self.c('QEL'),

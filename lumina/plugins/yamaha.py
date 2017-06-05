@@ -41,12 +41,12 @@ VOLUME = ('Main_Zone', 'Volume', 'Lvl')
 INPUT = ('Main_Zone', 'Input', 'Input_Sel')
 PURE_DIRECT = ('Main_Zone', 'Sound_Video', 'Pure_Direct', 'Mode')
 
-LEVELS1 = ('System', 'Speaker_Preout', 'Pattern_1', 'Lvl')
-LEVELS2 = ('System', 'Speaker_Preout', 'Pattern_2', 'Lvl')
-DISTANCE1 = ('System', 'Speaker_Preout', 'Pattern_1', 'Distance')
-DISTANCE2 = ('System', 'Speaker_Preout', 'Pattern_2', 'Distance')
-PEQ1 = ('System', 'Speaker_Preout', 'Pattern_1', 'PEQ', 'Manual_Data')
-PEQ2 = ('System', 'Speaker_Preout', 'Pattern_2', 'PEQ', 'Manual_Data')
+SPEAKER_LEVELS1 = ('System', 'Speaker_Preout', 'Pattern_1', 'Lvl')
+SPEAKER_LEVELS2 = ('System', 'Speaker_Preout', 'Pattern_2', 'Lvl')
+SPEAKER_DISTANCE1 = ('System', 'Speaker_Preout', 'Pattern_1', 'Distance')
+SPEAKER_DISTANCE2 = ('System', 'Speaker_Preout', 'Pattern_2', 'Distance')
+SPEAKER_PEQ1 = ('System', 'Speaker_Preout', 'Pattern_1', 'PEQ', 'Manual_Data')
+SPEAKER_PEQ2 = ('System', 'Speaker_Preout', 'Pattern_2', 'PEQ', 'Manual_Data')
 
 
 def dB(value):
@@ -427,24 +427,28 @@ class Yamaha(Node):
         ]
 
         self.commands = {
-            'on'          : lambda a : self.c(PUT, POWER_MAIN, 'On'),
-            'off'         : lambda a : self.c(PUT, POWER_ALL, 'Standby'),
-            'pure_direct' : lambda a : self.c(PUT, PURE_DIRECT, 'On'),
+            'on'          : lambda a: self.c(PUT, POWER_MAIN, 'On'),
+            'off'         : lambda a: self.c(PUT, POWER_ALL, 'Standby'),
+            'pure_direct' : lambda a: self.c(PUT, PURE_DIRECT, 'On'),
+            'input'       : lambda a: self.c(PUT, INPUT, a.args[0]),
+            'volume'      : lambda a: self.c(PUT, VOLUME, dB(a.args[0])),
+
             #'avr/raw'         : lambda a : self.protocol.command(*a.args),
             #'avr/ison'        : lambda a : self.c(GET, POWER).addCallback(ison),
             #'avr/volume'      : lambda a : self.c(GET, VOLUME).addCallback(parse_dB),
             #'avr/volume/up'   : lambda a : self.c(PUT, VOLUME, dB_t('Up')),
             #'avr/volume/down' : lambda a : self.c(PUT, VOLUME, dB_t('Down')),
-            #'avr/setvolume'   : lambda a : self.c(PUT, VOLUME, dB(a.args[0])),
             #'avr/input'       : lambda a : self.c(GET, INPUT).addCallback(t),
-            #'avr/setinput'    : lambda a : self.c(PUT, INPUT, a.args[0]),
-            #'avr/levels/1'    : lambda a : self.c(GET, LEVELS1).addCallback(parse_levels),
-            #'avr/levels/2'    : lambda a : self.c(GET, LEVELS2).addCallback(parse_levels),
-            #'avr/distance/1'  : lambda a : self.c(GET, DISTANCE1).addCallback(parse_distance),
-            #'avr/distance/2'  : lambda a : self.c(GET, DISTANCE2).addCallback(parse_distance),
-            #'avr/peq/1'       : lambda a : self.c(GET, PEQ1 + [ a.args[0] ]).addCallback(parse_peq),
-            #'avr/peq/2'       : lambda a : self.c(GET, PEQ2 + [ a.args[0] ]).addCallback(parse_peq),
-            #'avr/fail' : lambda a : self.c(PUT, VOLUME, 'Down'),
+
+            # YPAO settings
+            'speaker/levels/1'   : lambda a: self.c(GET, SPEAKER_LEVELS1).addCallback(parse_levels),
+            'speaker/levels/2'   : lambda a: self.c(GET, SPEAKER_LEVELS2).addCallback(parse_levels),
+            'speaker/distance/1' : lambda a: self.c(GET, SPEAKER_DISTANCE1).addCallback(parse_distance),
+            'speaker/distance/2' : lambda a: self.c(GET, SPEAKER_DISTANCE2).addCallback(parse_distance),
+
+            # FIXME: These don't work as SPEAKER_PEQ is tuple
+            #'speaker/peq/1'      : lambda a: self.c(GET, SPEAKER_PEQ1 + [ a.args[0] ]).addCallback(parse_peq),
+            #'speaker/peq/2'      : lambda a: self.c(GET, SPEAKER_PEQ2 + [ a.args[0] ]).addCallback(parse_peq),
        }
 
 
@@ -464,7 +468,7 @@ class Yamaha(Node):
 
 
     def close(self):
-        #self.protocol.disconnect()
+        self.protocol.disconnect()
         self.ssdp.disconnect()
 
 

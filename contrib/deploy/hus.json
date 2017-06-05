@@ -55,8 +55,7 @@
         "light/full"       : [ "telldus/light/on",      "telldus/ledpwr/on",  "led/white/on" ],
         "light/normal"     : [ "telldus/light/on",      "telldus/ledpwr/on",  "led/blue/normal" ],
         "light/weak"       : [ "telldus/light/dim{60}", "telldus/ledpwr/on",  "led/white/dim{25}" ],
-        "light/ambient1"   : [ "telldus/light/off",     "telldus/ledpwr/on",  "led/white/dim{10}" ],
-        "light/ambient2"   : [ "telldus/light/dim{30}", "telldus/ledpwr/on",  "led/off" ],
+        "light/ambient"    : [ "telldus/light/dim{30}", "telldus/ledpwr/on",  "led/white/dim{10}" ],
         "light/finder"     : [ "telldus/light/wall/on"                                  ],
         "light/off"        : [ "telldus/light/off",                           "led/off" ],
         "light/led-off"    : [                                                "led/off" ],
@@ -78,10 +77,10 @@
         // Shows (on multimedia)
         "show/elec-off"    : [ "hw50/off", "oppo/off", "amps/off" ],
         "show/music"       : [ "oppo/on", "amps/on" ],
-        "show/netflix"     : [ "hw50/on", "oppo/on", "amps/on" ],
-        "show/youtube"     : [ "hw50/on", "oppo/on", "amps/on" ],
-        "show/chrome"      : [ "hw50/on", "oppo/on", "amps/on" ],
-        "show/tv"          : [ "hw50/on", "oppo/on", "amps/on" ],
-        "show/movie"       : [ "hw50/on", "oppo/on", "amps/on" ]
+        "show/netflix"     : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/netflix" ],
+        "show/youtube"     : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/youtube" ],
+        "show/chrome"      : [ "hw50/on",            "amps/on", "avr/input{AV2}" ],
+        "show/tv"          : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home" ],
+        "show/movie"       : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home" ]
     }
 }
