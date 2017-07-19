@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import re
 import os
 import socket
-from binascii import hexlify
+#from binascii import hexlify
 from importlib import import_module
 from twisted.internet import reactor
 
@@ -31,21 +31,13 @@ class Lumina(object):
     CONFIG = {
         'conffile'   : dict(default='lumina.json', help='Configuration file'),
         'plugins'    : dict(default=[], help='Plugins to load', type=list),
+        'hostid'     : dict(default=socket.gethostname(), help='Unique id for this host'),
     }
 
 
     def setup(self, conffile=None):
         self.log = Logger(namespace='-')
         self.status = ColorState(log=self.log)
-
-        #== GENERAL INFORMATION
-        self.hostname = socket.gethostname()
-        self.hostid = hexlify(os.urandom(4))
-        self.pid = os.getpid()
-
-        self.log.info("Host {host} [{hostid}], PID {pid}",
-                      host=self.hostname, hostid=self.hostid, pid=self.pid)
-
 
         #== CONFIGUATION
         self.config = config = Config()
@@ -55,6 +47,17 @@ class Lumina(object):
         if conffile:
             self.config.readconfig(conffile)
             self.config['conffile'] = conffile
+
+        #== GENERAL INFORMATION
+        self.hostname = socket.gethostname()
+        # Use hostname as host ID rather than making a random ID. Random ID
+        # does is not static across reboots
+        #self.hostid = hexlify(os.urandom(4))
+        self.hostid = config['hostid']
+        self.pid = os.getpid()
+
+        self.log.info("Host {host} [{hostid}], PID {pid}",
+                      host=self.hostname, hostid=self.hostid, pid=self.pid)
 
         #== PLUGINS
         self.plugins = []
@@ -101,7 +104,7 @@ class Lumina(object):
 
                 # Require unique names
                 if self.get_plugin_by_name(name):
-                    raise Exception("Plugin already exist" %(name))
+                    raise Exception("Plugin already exist: '%s'" %(name))
 
                 # Store plugin related information
                 plugin.name = name
@@ -110,9 +113,6 @@ class Lumina(object):
 
                 self.log.info("===  Registering #{c} plugin {m} as {n}", c=count, m=module, n=name)
                 self.plugins.append(plugin)
-
-                # FIXME: Add global config options coming from the plugins. Either via
-                #        global=True, or as a separate GLOBAL_CONFIG variable
 
                 # Setup plugin
                 plugin.configure(main=self)

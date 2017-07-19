@@ -10,6 +10,7 @@ import twisted.web.http as http
 from twisted.internet import reactor
 from twisted.web.static import File
 from twisted.web.util import Redirect
+from twisted.internet.defer import maybeDeferred
 
 #from lumina.event import Event
 from lumina.plugin import Plugin
@@ -71,7 +72,10 @@ class RestCommand(LuminaResource):
             request.finish()
 
         self.log.info('', cmdout=command)
-        defer = server.run_command(command)
+
+        # Requires maybeDeferred() as the server.run_command might not return a deferred object
+        #defer = server.run_command(command)
+        defer = maybeDeferred(server.run_command, command)
         defer.addCallback(reply_ok, request, command)
         defer.addErrback(reply_error, request, command)
         return NOT_DONE_YET

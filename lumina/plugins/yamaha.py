@@ -126,7 +126,8 @@ class YamahaSSDP(DatagramProtocol):
 
 
     def disconnect(self):
-        self.transport.loseConnection()
+        if self.transport:
+            self.transport.loseConnection()
 
 
     def datagramReceived(self, datagram, address):
@@ -240,7 +241,8 @@ Connection: keep-alive\r
 
     def disconnect(self):
         #if self.state in ('connected','active'):
-        self.transport.loseConnection()
+        if self.transport:
+            self.transport.loseConnection()
 
 
     def dataReceived(self, data):

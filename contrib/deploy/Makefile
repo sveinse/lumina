@@ -138,3 +138,7 @@ $(foreach b,$(builders),$(eval $(call buildcmds,$(b))))
 # =============
 local-run:
 	cd ../../ && python bin/lumina.py -c contrib/deploy/test_local.json
+local-run2:
+	cd ../../ && python bin/lumina.py -c contrib/deploy/test_local2.json
+local-run3:
+	cd ../../ && python bin/lumina.py -c contrib/deploy/test_local3.json

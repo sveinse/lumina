@@ -1,0 +1,162 @@
+This memo shows the program flow for a node client.
+
+
+STARTUP
+=======
+hw50.setup()
+    Node.setup()
+        Plugin.setup()
+            self.log = Logger()
+            self.status = ColorState()
+
+        self.serverhost =
+        self.serverport =
+        self.hostname = 
+        self.hostid = 
+        self.nodeid =
+
+        self.node_protocol = None
+        self.node_connected = False
+        self.node_queue = Queue()
+
+        Setup emit('status') from self.status.callback() changes
+
+        self.node_factory = NodeFactory()
+        connectTCP()
+
+
+CONNECTION
+==========
+NodeFactory.buildProtocol()
+   return NodeProtocol()
+
+NodeProtocol.__init__()
+    =LuminaProtocol.__init__()
+        self.parent =
+        self.log =
+
+...
+
+NodeProtocol.connectionMade()
+    LuminaProtocol.connectionMade()
+        self.peer =
+        self.name =
+        self.lastactivity =
+        self.requests =
+
+    self.parent.node_protocol = self
+    self.parent.node_connected = False
+    self.keepalive = LoopingCall()   not started
+
+    NodeProtocol.request('register')
+        =LuminaProtocol.request()
+        =LuminaProtocol.request_raw()
+        =LuminaProtocol.send(..., request_response=True)
+            <-- Deferred()
+            set_timeout()  TimeoutException()
+            add request to self.requests
+            transport.write(data)
+    defer.err = Node.registerErr()
+    defer.ok = Node.registered()
+
+
+RESPONSE
+========
+LuminaProtocol.lineReceived()
+    parse protocol
+    self.lastactivity = ...
+
+    if request_reply:
+        pop request from self.requests
+        set reply data into request
+        call request.defer.callback() / request.defer.errback()
+
+
+OK RESPONSE:  (request.defer.callback)
+NodeProtocol.registered()
+    self.keepalive.start()
+
+    NodeProtocol.emit('status')   # Local protocol emit
+        =LuminaProtocol.emit()
+        =LuminaProtocol.emit_raw()
+        =LuminaProtocol.send(..., request_response=False)
+            <-- None
+            transport.write(data)
+
+    self.parent.node_connected = True
+
+    Node.sendQueue()
+        if self.node_connected:
+            foreach(self.node_queue)  LuminaProtocol.send()
+
+
+ERROR RESPONSE:
+NodeProtocol.registerErr()
+    self.transport.loseConnection()
+    ...
+    NodeProtocol.connectionLost()  see below
+
+
+CONNECTION LOST
+===============
+NodeProtocol.connectionLost()
+    LuminaProtocol.connectionLost()
+        foreach(self.requests) defer.errback()
+    self.parent.node_protocol = None
+    self.parent.node_connected = False
+    self.keepalive.stop()
+
+
+EVENT / COMMAND SENDING
+=======================
+Node.emit() / Node.request()
+    =Node.emit_raw() / Node.request_raw()
+    =Node.sendServer()
+        if self.node_connected:
+            LuminaProtocol.emit_raw()
+                =LuminaProtocol.send(..., request_response=False)
+                    <-- None / Deferred()
+                    if request: set_timeout()  TimeoutException()
+                                add request to self.requests
+                    transport.write(data)
+        
+        else:
+            <-- Deferred()
+                add to self.node_queue
+
+...
+See RESPONSE for any Node.request() response handling
+
+
+COMMAND RECEIVE
+===============
+LineProtocol.lineReceived()
+    parse protocol
+    self.lastactivity = ...
+
+    defer = maybeDeferred( NodeProtocol.eventReceived )
+    defer.err = cmd_error  <- Reply exception
+    defer.ok = cmd_error   <- Setup reply
+    if want_reply:   (event.seq is not None)
+        defer.addBoth   LuminaProtocol.send(reply)
+    
+    NodeProtocol.eventReceived()
+        Node.run_command()
+            Node.commands[name]()
+                ...execute function...
+
+    defer.callback() / defer.errback()
+
+OK RESULT:
+cmd_ok()
+    event.set_success()
+self.send()   if want_reply   (event.seq is not None)
+    =LuminaProtocol.send()
+        transport.write(reply)
+
+ERROR RESULT:
+cmd_err()
+    event.set_fail()
+self.send()   if want_reply   (event.seq is not None)
+    =LuminaProtocol.send()
+        transport.write(reply)

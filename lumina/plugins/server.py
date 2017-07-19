@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory
-from twisted.internet.defer import maybeDeferred
+#from twisted.internet.defer import maybeDeferred
 
 from lumina.plugin import Plugin
 from lumina.exceptions import (NodeConfigException, UnknownCommandException)
@@ -67,6 +67,8 @@ class ServerProtocol(LuminaProtocol):
         # -- Register node name
         if event.name == 'register':
 
+            # FIXME: Refactor is needed here
+
             # Extract the data
             kw = event.kw
             self.name = kw.get('node', self.name)
@@ -78,15 +80,20 @@ class ServerProtocol(LuminaProtocol):
             self.commands = kw.get('commands', [])
 
             # Register with the server (which might change our name)
-            self.parent.register_node(self)
+            result = self.parent.register_node(self)
+            if not result[0]:
+                self.log.error('Node registration failed: {e}', e=result[1])
+                return result
 
             # Set logging name
             self.log.namespace = self.servername + ':' + self.name
 
-            return
+            # Respond to the node if the node registration was successful
+            return result
 
         # -- Handle status update
         elif event.name == 'status':
+            # Not really interested in the old state in event.args[1]?
             self.status = event.args[0]
             self.status_why = event.args[2]
             return
@@ -137,7 +144,7 @@ class Server(Plugin):
     '''
 
     CONFIG = {
-        'port': dict(default=5326, help='Hosting server port', type=int),
+        'port': dict(common=True, default=5326, help='Lumina server port', type=int),
     }
 
 
@@ -145,7 +152,7 @@ class Server(Plugin):
         Plugin.setup(self, main)
 
         # Config options
-        self.port = main.config.get('port', name=self.name)
+        self.port = main.config.get('port')
 
         # Store name for main instance. Used by web and admin to retrieve
         #self.hostname = main.hostname
@@ -167,8 +174,7 @@ class Server(Plugin):
 
 
     def run_command(self, event, fail_on_unknown=True):
-        ''' Execute a (node) command and return a deferred object for the reply.
-        '''
+        ''' Run a command and return reply or a deferred object for later reply '''
 
         def unknown_command(event):
             exc = UnknownCommandException(event.name)
@@ -178,7 +184,11 @@ class Server(Plugin):
                 raise exc
             self.log.warn("Ignoring unknown command: '{n}'", n=event.name)
 
-        return maybeDeferred(self.commands.get(event.name, unknown_command), event)
+        # -- Run the named fn from the self.commands dict
+
+        # FIXME: The maybeDeferred() is possibly not needed here
+        #return maybeDeferred(self.commands.get(event.name, unknown_command), event)
+        return self.commands.get(event.name, unknown_command)(event)
 
 
     # --- INTERNAL COMMANDS
@@ -220,15 +230,23 @@ class Server(Plugin):
                       n_e=len(node.events),
                       n_c=len(node.commands))
 
-        # -- Check the node id from the other nodes connected
-        nodeid = node.nodeid
-        nodelist = [n.nodeid == nodeid for n in self.nodes if n != node]
-        if any(nodelist):
-            self.log.warn("Node {n} [{id}] is already connected. "
-                          "Possible reconnect", n=node.name, id=nodeid)
+        # FIXME: Refactor is needed here
 
-            # FIXME: disconnect the double node, because the name, event and
-            #        commands probably fail to register.
+        # -- Check for hostid uniqueness
+        #hosts = set([n.hostid for n in self.nodes if id(n) != id(node)])
+        #self.log.warn("HOSTS: {h}",h=hosts)
+        #if node.hostid in hosts:
+        #    return (False, "Server id '%s' is already in use" %(node.hostid,))
+
+        # -- Check the node id from the other nodes connected
+        #nodeid = node.nodeid
+        #nodelist = [n.nodeid == nodeid for n in self.nodes if n != node]
+        #if any(nodelist):
+        #    self.log.warn("Node {n} [{id}] is already connected. "
+        #                  "Possible reconnect", n=node.name, id=nodeid)
+
+        #    # FIXME: disconnect the double node, because the name, event and
+        #    #        commands probably fail to register.
 
         # -- Set the node name
         name = self.check_node_name(node, node.name)
@@ -246,7 +264,15 @@ class Server(Plugin):
         evlist = [node.name + '/' + e for e in node.commands]
         if evlist:
             node.commands = tuple(evlist)
+
+            # Here is the magic for connecting the remote node commands to the
+            # server's command dict. Each node command will get an entry which
+            # will use LuminaProtocol.request_raw(). This function will simply
+            # send the request to the node and return a deferred for the reply
             self.add_commands({e: node.request_raw for e in evlist})
+
+        # Return success
+        return (True,)
 
 
     def check_node_name(self, node, name):

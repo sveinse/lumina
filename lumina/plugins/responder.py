@@ -1,7 +1,7 @@
 # -*- python -*-
 from __future__ import absolute_import
 
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, maybeDeferred
 
 from lumina.event import Event
 from lumina.plugin import Plugin
@@ -146,8 +146,12 @@ class Responder(Plugin):
                     # Execute all of the commands in the commandlist
                     for cmd in self.commandlist:
 
-                        # Attach callbacks to handle progress
-                        defer = server.run_command(cmd)
+                        # -- Attach callbacks to handle progress
+
+                        # Requires maybeDeferred() as the server.run_command
+                        # might not return a deferred object
+                        #defer = server.run_command(cmd)
+                        defer = maybeDeferred(server.run_command, cmd)
                         defer.addCallback(self.cmd_ok, cmd)
                         defer.addErrback(self.cmd_err, cmd)
                         defer.addBoth(self.cmd_done)

@@ -1,0 +1,121 @@
+This memo shows the program flow for a node server.
+
+
+STARTUP
+=======
+server.setup()
+    Plugin.setup()
+        self.log = Logger()
+        self.status = ColorState()
+
+    self.port = 
+    self.hostid = 
+    self.events = []
+    self.commands = {}
+    self.nodes =
+    self.sequence = 0
+
+    self.handle_event = lambda "Ignoring event"
+
+    self.factory = ServerFactory()
+    listenTCP()
+
+
+CONNECTION
+==========
+ServerFactory.buildProtocol()
+    return ServerProtocol()
+
+ServerProtocol.__init__()
+    LuminaProtocol.__init__()
+        self.parent =
+        self.log =
+
+    self.servername =
+    self.log = Logger()
+
+ServerProtocol.connectionMade()
+    LuminaProtocol.connectionMade()
+        self.peer =
+        self.name =
+        self.lastactivity =
+        self.requests =
+
+    # Default values
+    self.nodeid
+    self.hostname
+    self.hostid
+    self.module
+    self.status
+    self.status_why
+    self.n_commands
+    self.n_event
+    self.events
+    self.commands
+
+    Server.add_node()
+        self.sequence += 1
+        node.seqence = sequence
+        self.nodes.append(node)
+        self.status.set_GREEN
+
+
+CONNECTION LOST
+===============
+ServerProtocol.connectionLost()
+    LuminaProtocol.connectionLost()
+        foreach(self.requests) defer.errback()
+    Server.remove_node()
+        remove node
+        remove events
+        remote commands
+
+
+COMMAND RECEIVE
+===============
+LuminaProtocol.lineReceived()
+    parse protocol
+    self.lastactivity = ...
+
+    defer = maybeDeferred( ServerProtocol.eventReceived )
+    defer.err = cmd_error  <- Reply exception
+    defer.ok = cmd_error   <- Setup reply
+    if want_reply:   (event.seq is not None)
+        defer.addBoth    LuminaProtocol.send(reply)
+
+    ServerProtocol.eventReceived()
+        =='register':
+            Server.register_node()
+            ...
+        =='status':
+        =='serverid':
+
+        if in self.parent.events:
+            Server.handle_event()
+                default: lambda "ignoring event"
+
+        else:
+            Server.run_command()
+                Server.commands[name]()
+                    ...execute function...
+
+    defer.callback() / defer.errback()
+
+OK RESULT:
+cmd_ok()
+    event.set_success()
+self.send()   if want_reply   (event.seq is not None)
+    =LuminaProtocol.send()
+        transport.write(reply)
+
+ERROR RESULT:
+cmd_err()
+    event.set_fail()
+self.send()   if want_reply   (event.seq is not None)
+    =LuminaProtocol.send()
+        transport.write(reply)
+
+
+COMMAND SEND
+============
+<FIXME>

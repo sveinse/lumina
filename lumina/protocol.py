@@ -103,14 +103,15 @@ class LuminaProtocol(LineReceiver):
         # -- Handle reply to a former request
         if event.success is not None:
 
-            # Copy received data into request
+            # Get orginial request and delete it from the queue.
             request = self.requests.pop(event.seq)
             self.log.debug("       ^^ is a reply to {re}", re=request)
 
+            # Copy received data into request
             request.success = event.success
             request.result = event.result
 
-            # Take the defer handler and remove it from the request to prevent
+            # Get the defer handler and remove it from the request to prevent
             # calling it twice
             (defer, request.defer) = (request.defer, None)
 
@@ -136,7 +137,7 @@ class LuminaProtocol(LineReceiver):
                 self.log.error('', cmderr=request)
                 defer.errback(exc)
 
-        # -- Handle new a request
+        # -- New incoming request
         else:
 
             # -- Process the request
@@ -185,13 +186,13 @@ class LuminaProtocol(LineReceiver):
 
     def send(self, event, request_response=True):
 
-        # There are three cases calling this function:
+        # There are three ways calling this function:
         #   a) Send response to command (where event.seq is not None)
         #   b) Send command (from request_raw())
         #   c) Send event (from emit_raw())
 
-        # -- Generate a deferred object only if response is requested and this
-        #    event is not a reply to a former request
+        # -- Generate deferred and setup timeout if this is a new command
+        #    to send (case b)
         defer = None
         if event.seq is None and request_response:
 
@@ -208,8 +209,7 @@ class LuminaProtocol(LineReceiver):
             #    event data failure is properly set
             utils.add_defer_timeout(defer, self.timeout, timeout, event)
 
-            # -- Generate new seq for request, save it in request list and setup for
-            #    it to be deleted when the deferred object fires
+            # -- Generate new seq for request, save it in request list
             self.requests[event.gen_seq()] = event
 
         # -- Encode and send the command
