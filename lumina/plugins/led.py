@@ -21,10 +21,6 @@ class Led(Node):
     # --- Interfaces
     def configure(self, main):
 
-        # Merge the node's options with this class
-        self.CONFIG = Node.CONFIG.copy()
-        self.CONFIG.update(Led.CONFIG)
-
         self.events = [
         ]
 

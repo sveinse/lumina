@@ -143,8 +143,8 @@ class Server(Plugin):
     ''' Lumina node server.
     '''
 
-    CONFIG = {
-        'port': dict(common=True, default=5326, help='Lumina server port', type=int),
+    GLOBAL_CONFIG = {
+        'port': dict(default=5326, help='Lumina server port', type=int),
     }
 
 

@@ -27,8 +27,8 @@ class Lumina(object):
     # The plugin= syntax in the configuration file
     RE_PLUGIN_SYNTAX = re.compile(r'^([\w.]+)(\(([\w]+)\))?$')
 
-    # Overall (default) config options
-    CONFIG = {
+    # Overall (default) global config options
+    GLOBAL_CONFIG = {
         'conffile'   : dict(default='lumina.json', help='Configuration file'),
         'plugins'    : dict(default=[], help='Plugins to load', type=list),
         'hostid'     : dict(default=socket.gethostname(), help='Unique id for this host'),
@@ -41,7 +41,7 @@ class Lumina(object):
 
         #== CONFIGUATION
         self.config = config = Config()
-        config.add_templates(self.CONFIG)
+        config.add_templates(self.GLOBAL_CONFIG)
 
         # Load new configuration
         if conffile:
@@ -116,6 +116,7 @@ class Lumina(object):
 
                 # Setup plugin
                 plugin.configure(main=self)
+                config.add_templates(plugin.GLOBAL_CONFIG)
                 config.add_templates(plugin.CONFIG, name=name)
                 plugin.setup(main=self)
 

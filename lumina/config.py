@@ -65,7 +65,7 @@ class Config(object):
 
         log.info("Adding {n} config templates", n=len(templates))
         for (k, template) in templates.items():
-            if name and not template.get('common', False):
+            if name:
                 k = name + '.' + k
 
             e = self.config.get(k, {})

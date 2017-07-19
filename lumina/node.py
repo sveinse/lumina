@@ -143,9 +143,9 @@ class Node(Plugin):
     commands = {}
 
     # Endpoint configuration options
-    CONFIG = {
-        'port'  : dict(common=True, default=5326, help='Lumina port to connect to', type=int),
-        'server': dict(common=True, default='localhost', help='Lumina server to connect to'),
+    GLOBAL_CONFIG = {
+        'port'  : dict(default=5326, help='Lumina port to connect to', type=int),
+        'server': dict(default='localhost', help='Lumina server to connect to'),
     }
 
 

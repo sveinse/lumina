@@ -198,10 +198,6 @@ class Oppo(Node):
     # --- Interfaces
     def configure(self, main):
 
-        # Merge the node's options with this class
-        self.CONFIG = Node.CONFIG.copy()
-        self.CONFIG.update(Oppo.CONFIG)
-
         self.events = [
             #'oppo/starting'     : None,  # Created oppo object
             #'oppo/stopping'     : None,  # close() have been called

@@ -8,6 +8,7 @@ from lumina.state import ColorState
 class Plugin(object):
 
     CONFIG = {}
+    GLOBAL_CONFIG = {}
 
     def override_name(self, name, main):
         ''' Override the configured name when instanciating this class.
