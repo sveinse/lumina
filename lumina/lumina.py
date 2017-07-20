@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import re
 import os
 import socket
-#from binascii import hexlify
+from binascii import hexlify
 from importlib import import_module
 from twisted.internet import reactor
 
@@ -52,8 +52,8 @@ class Lumina(object):
         self.hostname = socket.gethostname()
         # Use hostname as host ID rather than making a random ID. Random ID
         # does is not static across reboots
-        #self.hostid = hexlify(os.urandom(4))
-        self.hostid = config['hostid']
+        self.hostid = hexlify(os.urandom(3))
+        #self.hostid = config['hostid']
         self.pid = os.getpid()
 
         self.log.info("Host {host} [{hostid}], PID {pid}",
@@ -66,8 +66,6 @@ class Lumina(object):
 
         # Ensure the admin plugin is always loaded
         plugins = list(config['plugins'])
-        if 'admin' not in plugins:
-            plugins.insert(0, 'admin')
 
         # Iterate over the plugins from config
         for module in plugins:
@@ -167,3 +165,22 @@ class Lumina(object):
         for inst in self.plugins:
             if inst.name == name:
                 return inst
+
+    def get_info(self):
+        ''' Return a dict of info about this server '''
+        return {
+            'hostname'   : self.hostname,
+            'hostid'     : self.hostid,
+            'plugins'    : [
+                {
+                    'name'      : plugin.name,
+                    'module'    : plugin.module,
+                    'sequence'  : plugin.sequence,
+                    'doc'       : plugin.__doc__,
+                    'status'    : str(plugin.status),
+                    'status_why': plugin.status.why,
+                } for plugin in self.plugins],
+            'n_config'   : len(self.config),
+            'status'     : str(self.status),
+            'status_why' : self.status.why,
+        }

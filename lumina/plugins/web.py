@@ -12,7 +12,6 @@ from twisted.web.static import File
 from twisted.web.util import Redirect
 from twisted.internet.defer import maybeDeferred
 
-#from lumina.event import Event
 from lumina.plugin import Plugin
 from lumina.event import Event
 
@@ -82,16 +81,20 @@ class RestCommand(LuminaResource):
 
 
 
-class RestMasterInfo(LuminaResource):
-
+class RestMainInfo(LuminaResource):
     def render_GET(self, request):
         request.setHeader(b'Content-Type', b'application/json')
         main = self.main
-        return json.dumps({
-            'hostname': main.hostname,
-            'hostid': main.hostid,
-        })
+        return json.dumps(main.get_info())
 
+
+class RestServerInfo(LuminaResource):
+    def render_GET(self, request):
+        request.setHeader(b'Content-Type', b'application/json')
+        server = self.main_server
+        if not server:
+            return json.dumps({})
+        return json.dumps(server.get_info())
 
 
 class Web(Plugin):
@@ -118,7 +121,8 @@ class Web(Plugin):
 
         # List of resources that we want added
         resources = {'rest/command': RestCommand(main, self.log),
-                     'rest/master/info': RestMasterInfo(main, self.log),
+                     'rest/main/info': RestMainInfo(main, self.log),
+                     'rest/server/info': RestServerInfo(main, self.log),
                     }
 
         # Traverse all resources and add them to the tree. Add empty

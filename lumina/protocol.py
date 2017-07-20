@@ -29,29 +29,37 @@ from lumina.exceptions import (NodeException, NoConnectionException,
 #    4. Special Node() -> Server() operations
 #        * register - Register node (client) capability
 #        * status - Report node status to server
-#        * serverid - Return the server ID (requires response)
 #
 
 # FIXME: Add this as a config statement
-DEFAULT_TIMEOUT = 10
+
+# Maxiumum processing time by peer when issuing a remote command
+REMOTE_TIMEOUT = 10
+COMMAND_TIMEOUT = 10
 
 
 # Exception types that will not result in a local traceback
 validNodeExceptions = (
     NodeException,
     NoConnectionException,
+    TimeoutException
 )
 
 
 class LuminaProtocol(LineReceiver):
     noisy = False
     delimiter = '\n'
-    timeout = DEFAULT_TIMEOUT
+    remote_timeout = REMOTE_TIMEOUT
+    command_timeout = COMMAND_TIMEOUT
 
 
     def __init__(self, parent):
         self.parent = parent
         self.log = parent.log
+
+        # Setup support for a keepalive timer, but dont create it. This must
+        # be done in inheriting classes
+        self.keepalive = None
 
 
     def connectionMade(self):
@@ -64,14 +72,26 @@ class LuminaProtocol(LineReceiver):
 
 
     def connectionLost(self, reason):
-        # Cancel any pending requests
+        # -- Cancel timer
+        if self.keepalive and self.keepalive.running:
+            self.keepalive.stop()
+
+        # -- Cancel any pending requests
         for (seq, request) in self.requests.items():
             exc = NoConnectionException()
             request.set_fail(exc)
-            request.defer.errback(exc)
+
+            # A send() timeout exception will call the errback on that
+            # event, so prevent failing on already called deferreds
+            if not request.defer.called:
+                request.defer.errback(exc)
 
 
     def lineReceived(self, data):
+
+        # -- Reset the timer
+        if self.keepalive and self.keepalive.running:
+            self.keepalive.reset()
 
         # -- Empty lines are simply ignored
         if not len(data):
@@ -141,7 +161,7 @@ class LuminaProtocol(LineReceiver):
         else:
 
             # -- Process the request
-            defer = maybeDeferred(self.eventReceived, event)
+            defer = maybeDeferred(self.commandReceived, event)
 
             # -- Setup filling in the event data from the result
             def cmd_ok(result, event):
@@ -163,9 +183,16 @@ class LuminaProtocol(LineReceiver):
                 # Eat the error message
                 return None
 
-            # FIXME: Implement a timeout mechanism? - No, don't think so, this
-            #        operation is inwards, and should be handled by design
-            #        elsewhere.
+            def cmd_timeout(event):
+                ''' Response if command suffers a timeout '''
+                exc = TimeoutException()
+                event.set_fail(exc)
+                self.log.error('REQUEST TIMED OUT')
+                defer.errback(exc)
+
+            # -- Setup a timeout, and add a timeout err handler making sure the
+            #    event data failure is properly set
+            utils.add_defer_timeout(defer, self.command_timeout, cmd_timeout, event)
 
             defer.addCallback(cmd_ok, event)
             defer.addErrback(cmd_error, event)
@@ -177,9 +204,9 @@ class LuminaProtocol(LineReceiver):
                 defer.addBoth(lambda r, c: self.send(c), event)
 
 
-    def eventReceived(self, event):
+    def commandReceived(self, event):
         ''' Process an incoming event or command. This method should return
-            a Deferred() if results are not yet available
+            a Deferred() if results are not immediately available
         '''
         raise UnknownCommandException(event.name)
 
@@ -187,9 +214,15 @@ class LuminaProtocol(LineReceiver):
     def send(self, event, request_response=True):
 
         # There are three ways calling this function:
-        #   a) Send response to command (where event.seq is not None)
-        #   b) Send command (from request_raw())
-        #   c) Send event (from emit_raw())
+        #   a) Send response to former command (from lineReceived())
+        #         request_response = True (by default)
+        #         event.seq = <value>
+        #   b) Send new command (from request_raw())
+        #         request_response = True
+        #         event.seq = None
+        #   c) Send new event (from emit_raw())
+        #         request_response = False
+        #         event.seq = None
 
         # -- Generate deferred and setup timeout if this is a new command
         #    to send (case b)
@@ -207,7 +240,7 @@ class LuminaProtocol(LineReceiver):
 
             # -- Setup a timeout, and add a timeout err handler making sure the
             #    event data failure is properly set
-            utils.add_defer_timeout(defer, self.timeout, timeout, event)
+            utils.add_defer_timeout(defer, self.remote_timeout, timeout, event)
 
             # -- Generate new seq for request, save it in request list
             self.requests[event.gen_seq()] = event

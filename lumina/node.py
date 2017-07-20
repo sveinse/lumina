@@ -15,9 +15,14 @@ from lumina.event import Event
 from lumina.exceptions import UnknownCommandException
 from lumina.protocol import LuminaProtocol
 
+# FIXME: Add this as a config statement
+
+# The interval to send empty messages to server to keep the link alive
+KEEPALIVE_INTERVAL = 60
 
 
 class NodeProtocol(LuminaProtocol):
+    keepalive_interval = KEEPALIVE_INTERVAL
 
 
     def connectionMade(self):
@@ -29,7 +34,13 @@ class NodeProtocol(LuminaProtocol):
         self.parent.node_connected = False
 
         # -- Setup a keepalive timer (not yet activated)
+        #    LuminaProtocol will handle resetting and stopping it on data
+        #    reception and disconnect.
         self.keepalive = LoopingCall(self.transport.write, '\n')
+
+        # -- List of commands plus additional internal commands
+        commands = self.parent.commands.keys()
+        commands += ['_info']
 
         # -- Register device
         data = dict(node=self.parent.name,
@@ -38,7 +49,7 @@ class NodeProtocol(LuminaProtocol):
                     hostid=self.parent.hostid,
                     module=self.parent.module,
                     events=self.parent.events,
-                    commands=self.parent.commands.keys())
+                    commands=commands)
         self.log.info("Registering node {node} [{nodeid}], "
                       "type {module}, host {hostname} [{hostid}], "
                       "{n_e} events, {n_c} commands",
@@ -65,17 +76,17 @@ class NodeProtocol(LuminaProtocol):
         ''' Handle registration response '''
 
         # FIXME: Perhaps args.result must be washed? It should be a list
-        # [ True ] or [ False, reason ].
+        # None or reason.
 
         # Give up the connection if the response is rejected
-        if not arg.result[0]:
-            self.registerError(arg.result[1])
+        if arg.result:
+            self.registerError(arg.result)
             return
 
         self.log.info("Node registration SUCCESS")
 
         # -- Start the keepalive pings
-        self.keepalive.start(60, False)
+        self.keepalive.start(self.keepalive_interval, False)
 
         # -- Send status
         # The parent class will send update on changes, but in case of
@@ -100,15 +111,22 @@ class NodeProtocol(LuminaProtocol):
         # This will cause the parent to queue new commands
         self.parent.node_connected = False
         self.parent.node_protocol = None
-        if self.keepalive.running:
-            self.keepalive.stop()
 
 
-    def eventReceived(self, event):
-        ''' Process an incoming event or command '''
+    def commandReceived(self, event):
+        ''' Handle commands from server '''
 
-        # -- All new requests to nodes are commands
-        return self.parent.run_command(event)
+        # Remove the plugin prefix from the name
+        prefix = self.parent.name + '/'
+        cmd = event.name.replace(prefix, '')
+
+        # -- Handle the internal commands
+        if cmd == '_info':
+            return self.parent.main.get_info()
+
+        # -- All other requests to nodes are commands
+        else:
+            return self.parent.run_command(event)
 
 
 
@@ -152,11 +170,12 @@ class Node(Plugin):
     def setup(self, main):
         Plugin.setup(self, main)
 
+        self.main = main    # The _info command requires access to main
         self.serverhost = main.config.get('server')
         self.serverport = main.config.get('port')
         self.hostname = main.hostname
         self.hostid = main.hostid
-        self.nodeid = hexlify(os.urandom(4))
+        self.nodeid = hexlify(os.urandom(3))
 
         self.node_protocol = None
         self.node_connected = False
@@ -198,7 +217,8 @@ class Node(Plugin):
 
     # -- Commands to communicate with server
     def emit(self, name, *args, **kw):
-        ''' Emit an event and send to server '''
+        ''' Emit an event and send to server. Append the prefix for this
+            node '''
         return self.emit_raw(Event(self.name + '/' + name, *args, **kw))
 
     def emit_raw(self, event):

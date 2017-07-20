@@ -1,14 +1,25 @@
 # -*- python -*-
 from __future__ import absolute_import
 
+from datetime import datetime
+
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 #from twisted.internet.defer import maybeDeferred
+from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
 from lumina.exceptions import (NodeConfigException, UnknownCommandException)
 from lumina.log import Logger
 from lumina.protocol import LuminaProtocol
+from lumina.state import ColorState
+
+
+# FIXME: Add this as a config statement
+
+# Timeout before a node is considered dead and will be disconnected. Should be
+# a longer interval than the nodes keepalive interval.
+NODE_TIMEOUT = 180
 
 
 # To connect interactively to the server use:
@@ -16,6 +27,8 @@ from lumina.protocol import LuminaProtocol
 
 
 class ServerProtocol(LuminaProtocol):
+    node_timeout = NODE_TIMEOUT
+
 
     def __init__(self, parent):
         LuminaProtocol.__init__(self, parent)
@@ -25,6 +38,19 @@ class ServerProtocol(LuminaProtocol):
         # clients register a node name
         self.log = Logger(namespace=self.servername)
 
+        # Default node data
+        self.sequence = None
+        self.nodeid = None
+        self.hostname = None
+        self.hostid = None
+        self.module = None
+        self.link = ColorState(log=self.log, state='OFF', why='Not connected')
+        self.status = ColorState(log=self.log)
+        self.commands = []
+        self.events = []
+        self.lastactivity = datetime.utcnow()
+        self.connected = False
+
 
     def connectionMade(self):
         LuminaProtocol.connectionMade(self)
@@ -32,82 +58,72 @@ class ServerProtocol(LuminaProtocol):
         self.log.namespace = self.servername + ':' + self.peer
         self.log.info("Connect from {ip}", ip=self.peer, system=self.servername)
 
-        # Node data
-        self.nodeid = None
         self.hostname = self.peer
-        self.hostid = None
-        self.module = None
-        self.status = 'OFF'
-        self.status_why = 'No data received yet'
-        self.n_commands = 0
-        self.n_events = 0
+        self.connected = True
+        self.link.set_YELLOW('Connecting')
 
-        self.events = []
-        self.commands = []
+        # -- Setup a keepalive timer ensuring we have connection with the node
+        #    LuminaProtocol will handle resetting and stopping it on data
+        #    reception and disconnect.
+        self.keepalive = LoopingCall(self.connectionTimeout)
+        self.keepalive.start(self.node_timeout, False)
 
-        # Inform parent class
-        self.parent.add_node(self)
+        # Register with parent class
+        self.parent.add_connection(self)
 
 
     def connectionLost(self, reason):
         self.log.info("Lost connection from '{n}' ({ip})", n=self.name, ip=self.peer)
         LuminaProtocol.connectionLost(self, reason)
 
-        # Inform parent class
-        self.parent.remove_node(self)
+        self.connected = False
+        self.link.set_RED('Connection lost')
+        self.status.set_OFF()
+
+        # Unregister parent class
+        self.parent.remove_connection(self)
 
 
-    def eventReceived(self, event):
+    def connectionTimeout(self):
+        self.log.info("Communication timeout from '{n}' ({ip})", n=self.name, ip=self.peer)
+        self.transport.loseConnection()
+
+
+    def commandReceived(self, event):
         ''' Handle messages from nodes '''
 
-        # Currently this treats everything as events coming from a client,
-        # however if event.seq is not None, then this is a command requesting
-        # a reply
+        # -- Link is up
+        self.link.set_GREEN('Up')
+
+        cmd = event.name
 
         # -- Register node name
-        if event.name == 'register':
+        if cmd == 'register':
 
-            # FIXME: Refactor is needed here
-
-            # Extract the data
-            kw = event.kw
-            self.name = kw.get('node', self.name)
-            self.nodeid = kw.get('nodeid', self.nodeid)
-            self.hostname = kw.get('hostname', self.hostname)
-            self.hostid = kw.get('hostid', self.hostid)
-            self.module = kw.get('module', self.module)
-            self.events = kw.get('events', [])
-            self.commands = kw.get('commands', [])
-
-            # Register with the server (which might change our name)
-            result = self.parent.register_node(self)
-            if not result[0]:
-                self.log.error('Node registration failed: {e}', e=result[1])
+            # Register with the server
+            result = self.parent.register_node(self, event.kw)
+            if result:
+                self.log.error('Node registration failed: {e}', e=result)
                 return result
 
             # Set logging name
             self.log.namespace = self.servername + ':' + self.name
 
             # Respond to the node if the node registration was successful
-            return result
+            return None
 
         # -- Handle status update
-        elif event.name == 'status':
+        elif cmd == 'status':
             # Not really interested in the old state in event.args[1]?
-            self.status = event.args[0]
-            self.status_why = event.args[2]
+            self.status.set(event.args[0], why=event.args[2])
             return
 
-        # -- Handle event
-        elif event.name == 'serverid':
-            return (self.parent.hostid,)
-
         # -- A new incoming event.
-        elif event.name in self.parent.events:
+        elif cmd in self.parent.events:
             return self.parent.handle_event(event)
 
         # -- A new command
-        elif event.name in self.parent.commands:
+        elif cmd in self.parent.commands:
             # Must make a new event for the command and pass that
             # defer back to the calling command
             newevent = event.copy()
@@ -146,27 +162,32 @@ class Server(Plugin):
     GLOBAL_CONFIG = {
         'port': dict(default=5326, help='Lumina server port', type=int),
     }
+    CONFIG = {
+        'nodes': dict(default=[], help='List of nodes', type=list),
+    }
 
 
     def setup(self, main):
         Plugin.setup(self, main)
 
-        # Config options
+        # -- Config options
         self.port = main.config.get('port')
+        self.nodelist = main.config.get('nodes', name=self.name)
 
-        # Store name for main instance. Used by web and admin to retrieve
-        #self.hostname = main.hostname
-        self.hostid = main.hostid
-
-        # List of commands and events
+        # -- List of server commands and events
         self.events = []
         self.commands = {}
 
-        # List of connected nodes
-        self.nodes = []
+        # -- List of connections
+        self.connections = []
         self.sequence = 0
 
-        # Setup default do-nothing handler for the incoming events
+        # -- Create list of expected unconnected nodes
+        self.nodes = {n: ServerProtocol(self) for n in self.nodelist}
+        for n in self.nodes:
+            self.nodes[n].name = n
+
+        # -- Setup default do-nothing handler for the incoming events
         self.handle_event = lambda a: self.log.info("Ignoring event '{a}'", a=a)
 
         self.factory = ServerFactory(parent=self)
@@ -192,97 +213,83 @@ class Server(Plugin):
 
 
     # --- INTERNAL COMMANDS
-    def add_node(self, node):
+    def add_connection(self, node):
         ''' Register the connected node '''
+        self.connections.append(node)
         self.sequence += 1
         node.sequence = self.sequence
-        self.nodes.append(node)
-        self.status.set_GREEN('%s nodes connected' %(len(self.nodes)))
+        #self.status.set_GREEN('%s nodes connected' %(len(self.nodes)))
 
 
-    def remove_node(self, node):
+    def remove_connection(self, node):
         ''' Remove the disconnected node '''
-        self.nodes.remove(node)
-        if not self.nodes:
-            self.status.set_YELLOW('No nodes connected')
-        else:
-            self.status.set_GREEN('%s nodes connected' %(len(self.nodes)))
+        self.connections.remove(node)
+        #if not self.nodes:
+        #    self.status.set_YELLOW('No nodes connected')
+        #else:
+        #    self.status.set_GREEN('%s nodes connected' %(len(self.nodes)))
 
         if node.events:
             self.remove_events(node.events)
+            node.events = []
 
         if node.commands:
             self.remove_commands(node.commands)
+            node.commands = []
 
 
-    def register_node(self, node):
+    def register_node(self, node, params):
         ''' Check and register a node. '''
 
-        self.log.info("Registering node {node} [{nodeid}], "
+        # -- Transfer parameters to node
+        name = params.get('node')
+        node.name = name
+        node.nodeid = params.get('nodeid')
+        node.hostname = params.get('hostname')
+        node.hostid = params.get('hostid')
+        node.module = params.get('module')
+
+        self.log.info("PARAMS: {p}", p=params)
+        self.log.info("Registering node {name} [{nodeid}], "
                       "type {module}, host {hostname} [{hostid}], "
                       "{n_e} events, {n_c} commands from {ip}",
-                      node=node.name,
+                      name=name,
                       nodeid=node.nodeid,
                       hostname=node.hostname,
                       hostid=node.hostid,
                       module=node.module,
                       ip=node.peer,
-                      n_e=len(node.events),
-                      n_c=len(node.commands))
+                      n_e=len(params.get('events')),
+                      n_c=len(params.get('commands')))
 
-        # FIXME: Refactor is needed here
+        # -- Known node?
+        if name in self.nodes:
 
-        # -- Check for hostid uniqueness
-        #hosts = set([n.hostid for n in self.nodes if id(n) != id(node)])
-        #self.log.warn("HOSTS: {h}",h=hosts)
-        #if node.hostid in hosts:
-        #    return (False, "Server id '%s' is already in use" %(node.hostid,))
+            # The other node is still active, so refuse registration
+            other = self.nodes[name]
+            if other.connected:
+                return 'Node already taken by host %s [%s]' %(other.hostname, other.hostid)
 
-        # -- Check the node id from the other nodes connected
-        #nodeid = node.nodeid
-        #nodelist = [n.nodeid == nodeid for n in self.nodes if n != node]
-        #if any(nodelist):
-        #    self.log.warn("Node {n} [{id}] is already connected. "
-        #                  "Possible reconnect", n=node.name, id=nodeid)
+        # -- Register the new node
+        self.nodes[name] = node
 
-        #    # FIXME: disconnect the double node, because the name, event and
-        #    #        commands probably fail to register.
-
-        # -- Set the node name
-        name = self.check_node_name(node, node.name)
-        if name != node.name:
-            self.log.warn("Node '{o}' is taken, renaming to '{n}'", o=node.name, n=name)
-        node.name = name
-
-        # -- Register node event
-        evlist = [node.name + '/' + e for e in node.events]
-        if evlist:
-            node.events = tuple(evlist)
-            self.add_events(evlist)
+        # -- Register node events
+        evlist = [node.name + '/' + e for e in params.get('events', [])]
+        node.events = tuple(evlist)
+        self.add_events(evlist)
 
         # -- Register node commands
-        evlist = [node.name + '/' + e for e in node.commands]
-        if evlist:
-            node.commands = tuple(evlist)
+        evlist = [node.name + '/' + e for e in params.get('commands', [])]
+        node.commands = tuple(evlist)
 
-            # Here is the magic for connecting the remote node commands to the
-            # server's command dict. Each node command will get an entry which
-            # will use LuminaProtocol.request_raw(). This function will simply
-            # send the request to the node and return a deferred for the reply
-            self.add_commands({e: node.request_raw for e in evlist})
+        # Here is the magic for connecting the remote node commands to the
+        # server's command dict. Each node command will get an entry which
+        # will use LuminaProtocol.request_raw(). This function will simply
+        # send the request to the node and return a deferred for the reply
+        self.add_commands({e: node.request_raw for e in evlist})
 
         # Return success
-        return (True,)
-
-
-    def check_node_name(self, node, name):
-        newname = name
-        for count in range(1, 10):
-            names = [n.name == newname for n in self.nodes if n != node]
-            if not any(names):
-                return newname
-            newname = name + '_' + str(count)
-        raise NodeConfigException("Unable to find appropriate name for '{o}'".format(o=name))
+        return None
 
 
     def add_commands(self, commands):
@@ -320,5 +327,31 @@ class Server(Plugin):
             self.log.debug("  - {n}", n=name)
             self.events.remove(name)
 
+
+    def get_info(self):
+        ''' Return a dict of info about this server '''
+        return {
+            'nodes'      : [{
+                'name'         : node.name,
+                'nodeid'       : node.nodeid,
+                'hostname'     : node.hostname,
+                'hostid'       : node.hostid,
+                'module'       : node.module,
+                'seqence'      : node.sequence,
+                'status'       : node.status.state,
+                'status_why'   : node.status.why,
+                'link'         : node.link.state,
+                'link_why'     : node.link.why,
+                'commands'     : node.commands,
+                'events'       : node.events,
+                'connected'    : node.connected,
+                'lastactivity' : node.lastactivity.isoformat()+'Z',
+            } for node in self.nodes.itervalues()],
+            #'hosts'      : server.hosts.keys(),
+            'n_commands' : len(self.commands),
+            'n_events'   : len(self.events),
+            'status'     : str(self.status),
+            'status_why' : str(self.status.why),
+        }
 
 PLUGIN = Server
