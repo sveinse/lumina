@@ -16,7 +16,7 @@
       </tr>
     <tr>
       <th class="text-right">Status</th>
-      <td>{{main.status}} / {{main.status_why}}</td>
+      <td ng-bind-html="status_html(main.status, main.status_why)"></td>
     </tr>
   </table>
 
@@ -37,8 +37,8 @@
       <td>{{e.name}} ({{e.module}})</td>
       <td>{{e.hostname}} ({{e.hostid}})</td>
       <td>{{e.commands.length}} / {{e.events.length}}</td>
-      <td>{{e.status}} / {{e.status_why}}</td>
-      <td>{{e.link}} / {{e.link_why}}</td>
+      <td ng-bind-html="status_html(e.status, e.status_why)"></td>
+      <td ng-bind-html="status_html(e.link, e.link_why)"></td>
       <td>{{e.lastactivity | date:'medium'}}</td>
     </tr>
   </table>
@@ -56,7 +56,7 @@
       <td>{{e.hostname}} ({{e.hostid}})</td>
       <td>{{e.plugins.length}}</td>
       <td>{{e.configs}}</td>
-      <td>{{e.status}} / {{e.status_why}}</td>
+      <td ng-bind-html="status_html(e.status, e.status_why)"></td>
     </tr>
   </table>
 
@@ -73,7 +73,7 @@
     <tr ng-repeat="e in plugins">
       <td>{{e.sequence}}</td>
       <td>{{e.name}} ({{e.module}})</td>
-      <td>{{e.status}} / {{e.status_why}}</td>
+      <td ng-bind-html="status_html(e.status, e.status_why)"></td>
       <td>{{e.doc}}</td>
     </tr>
   </table>

@@ -5,8 +5,12 @@
 */
 angular.module('LuminaApp')
 
-    .controller('LuminaAdmin', ['$scope', '$routeParams', 'LuminaComm', function(
-        $scope, $routeParams, LuminaComm) {
+    .controller('LuminaAdmin', ['$scope', '$routeParams', '$sce', 'LuminaComm', function(
+        $scope, $routeParams, $sce, LuminaComm) {
+
+        $scope.renderHtml = function(html_code) {
+            return $sce.trustAsHtml(html_code);
+        };
 
         $scope.hosts = {};
         $scope.plugins = [];
@@ -52,7 +56,7 @@ angular.module('LuminaApp')
                             LuminaComm.get_host_info(node.name)
                                 .then(function(data) {
                                     $scope.hosts[data.hostid] = data;
-                                });
+                                }).catch(function(failure){});
                         };
                     };
                 });
@@ -65,6 +69,29 @@ angular.module('LuminaApp')
             $scope.configs = $scope.selected_host.config;
 
         };
+
+        $scope.status_html = function(status, why) {
+            let color = 'off';
+            let icon = 'fa-circle';
+            switch(status) {
+                case 'RED':
+                    color='red';
+                    break;
+                case 'YELLOW':
+                    color='yellow';
+                    break;
+                case 'GREEN':
+                    color='green';
+                    break;
+                default:
+                    icon='fa-circle-o';
+            };
+            let whyt = '';
+            if (why) {
+                whyt = '&emsp;' + why;
+            }
+            return $sce.trustAsHtml('<i class="fa ' + icon + ' fa-lg ' + color +'"></i>' + whyt);
+        }
 
         on_page_load();
 

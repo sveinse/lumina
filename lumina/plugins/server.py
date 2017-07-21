@@ -44,10 +44,9 @@ class ServerProtocol(LuminaProtocol):
         self.hostname = None
         self.hostid = None
         self.module = None
-        self.link = ColorState(log=self.log, state='OFF', why='Not connected')
-        self.link.add_callback(self.parent.update_status, run_now=True)
         self.status = ColorState(log=self.log)
         self.status.add_callback(self.parent.update_status, run_now=True)
+        self.link.add_callback(self.parent.update_status, run_now=True)
         self.commands = []
         self.events = []
         self.lastactivity = datetime.utcnow()
@@ -62,7 +61,6 @@ class ServerProtocol(LuminaProtocol):
 
         self.hostname = self.peer
         self.connected = True
-        self.link.set_YELLOW('Connecting')
 
         # -- Setup a keepalive timer ensuring we have connection with the node
         #    LuminaProtocol will handle resetting and stopping it on data
@@ -79,7 +77,6 @@ class ServerProtocol(LuminaProtocol):
         LuminaProtocol.connectionLost(self, reason)
 
         self.connected = False
-        self.link.set_RED('Connection lost')
         self.status.set_OFF()
 
         # Unregister parent class
@@ -93,9 +90,6 @@ class ServerProtocol(LuminaProtocol):
 
     def commandReceived(self, event):
         ''' Handle messages from nodes '''
-
-        # -- Link is up
-        self.link.set_GREEN('Up')
 
         cmd = event.name
 

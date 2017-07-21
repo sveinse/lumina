@@ -10,6 +10,7 @@ from lumina.event import Event
 from lumina import utils
 from lumina.exceptions import (NodeException, NoConnectionException,
                                TimeoutException, UnknownCommandException)
+from lumina.state import ColorState
 
 #
 # LuminaProtocol
@@ -61,6 +62,9 @@ class LuminaProtocol(LineReceiver):
         # be done in inheriting classes
         self.keepalive = None
 
+        # Setup status for the link
+        self.link = ColorState(log=self.log, state='OFF', why='Not connected')
+
 
     def connectionMade(self):
         self.peer = "%s:%s" %(self.transport.getPeer().host, self.transport.getPeer().port)
@@ -70,8 +74,12 @@ class LuminaProtocol(LineReceiver):
 
         self.requests = {}
 
+        self.link.set_YELLOW('Connecting')
+
 
     def connectionLost(self, reason):
+        self.link.set_RED('Connection lost')
+
         # -- Cancel timer
         if self.keepalive and self.keepalive.running:
             self.keepalive.stop()
@@ -115,6 +123,9 @@ class LuminaProtocol(LineReceiver):
         # -- Update the activity timer
         self.lastactivity = datetime.utcnow()
 
+        # -- Link is up
+        self.link.set_GREEN('Up')
+
         # -- Handle 'exit' event
         if event.name == 'exit':
             self.transport.loseConnection()
@@ -122,6 +133,12 @@ class LuminaProtocol(LineReceiver):
 
         # -- Handle reply to a former request
         if event.success is not None:
+
+            # Not much to do if we are not expecting a reply. I.e. the deferred
+            # has already fired.
+            if event.seq not in self.requests:
+                self.log.error("Dropping unexpeced response. Late reply from a previous timed out request?")
+                return
 
             # Get orginial request and delete it from the queue.
             request = self.requests.pop(event.seq)
@@ -234,6 +251,8 @@ class LuminaProtocol(LineReceiver):
 
             def timeout(event):
                 ''' Response if command suffers a timeout '''
+                self.link.set_YELLOW('Communication timeout')
+                self.requests.pop(event.seq)
                 exc = TimeoutException()
                 event.set_fail(exc)
                 event.defer.errback(exc)

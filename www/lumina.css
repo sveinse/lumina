@@ -7,3 +7,15 @@ html body .table-borderless th {
 .table-no-width {
     width: 0%;
 }
+.green {
+    color: green;
+}
+.red {
+    color: red;
+}
+.yellow {
+    color: gold;
+}
+.off {
+    color: grey;
+}
