@@ -9,79 +9,63 @@ angular.module('LuminaApp')
         $scope, $routeParams, LuminaComm) {
 
         $scope.hosts = {};
+        $scope.plugins = [];
+        $scope.configs = [];
 
-        // 1) Gets the master ID ($scope.master.hostid)
-        var get_master_id = function() {
-            LuminaComm.get_master_info()
+        var on_page_load = function() {
+
+            // Get the main master info
+            LuminaComm.get_main_info()
                 .then(function(data) {
-                    $scope.master = data;
-                    get_master_info($scope.master.hostid);
-                });
-        };
 
-        // 2) Get the info about the master, the server and its nodes
-        var get_master_info = function(hostid) {
-
-            // Get the host info
-            LuminaComm.get_host_info(hostid)
-                .then(function(data) {
+                    // Set the main info and set the host info for this host
                     $scope.main = data;
+                    $scope.hosts[data.hostid] = data;
                 });
 
             // Get the server info
-            LuminaComm.get_server_info(hostid)
+            LuminaComm.get_server_info()
                 .then(function(data) {
+
+                    // Set the server info and list of nodes
                     $scope.server = data;
-                    get_hosts_info($scope.server.hosts)
-                });
+                    $scope.nodes = data.nodes;
 
-            // Get the nodes
-            LuminaComm.get_nodes(hostid)
-                .then(function(data) {
-                    $scope.nodes = data;
-            });
+                    // FIXME: Sort the nodes array into a presentable order
+
+                    for (let i=0; i < data.nodes.length; i++) {
+
+                        var node = data.nodes[i];
+                        var hostid = node.hostid;
+
+                        // Request host information for those hosts that
+                        // is missing from our records (which are remote
+                        // hosts)
+                        if (hostid !== null && !(hostid in $scope.hosts)) {
+
+                            // Setup preliminary host info
+                            $scope.hosts[hostid] = { hostid:hostid,
+                                                     hostname:node.hostname,
+                                                     node:node.name };
+
+                            // Get host information
+                            LuminaComm.get_host_info(node.name)
+                                .then(function(data) {
+                                    $scope.hosts[data.hostid] = data;
+                                });
+                        };
+                    };
+                });
         };
 
-        // Get info for each of the connected hosts
-        var get_hosts_info = function(hosts) {
-            $scope.hosts = {};
-            for (var i=0; i < hosts.length; i++) {
+        $scope.on_select_host = function(hostid) {
+            $scope.selected_host = $scope.hosts[hostid];
 
-                var hostid = hosts[i];
-                $scope.hosts[hostid] = { hostid:hostid };
-
-                LuminaComm.get_host_info(hostid)
-                    .then(function(data) {
-                        $scope.hosts[data.hostid] = data;
-                });
-            };
-        };
-
-        // Event handler for clicking on a host
-        $scope.select_host = function(hostid) {
-            $scope.sel_host = $scope.hosts[hostid];
-
-            // Update server info
-            LuminaComm.get_host_info(hostid)
-                .then(function(data) {
-                   $scope.hosts[data.hostid] = data;
-                }
-            );
-
-            // Get plugina
-            LuminaComm.get_plugins(hostid)
-                .then(function(data) {
-                    $scope.sel_plugins = data;
-            });
-
-            // Get configs
-            LuminaComm.get_config(hostid)
-                .then(function(data) {
-                    $scope.sel_config = data;
-                });
+            $scope.plugins = $scope.selected_host.plugins;
+            $scope.configs = $scope.selected_host.config;
 
         };
 
-        // On page load
-        get_master_id();
+        on_page_load();
+
     }]);

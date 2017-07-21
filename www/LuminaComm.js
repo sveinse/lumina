@@ -9,75 +9,60 @@ angular.module('LuminaApp')
         $http) {
 
         var debug = {
-            log: ''
+            log: '',
+            stage: ''
         };
 
         var log = function(what) {
-            debug.log += what + '\n';
+            debug.stage += what + '\n';
             console.log(what);
         }
 
+        
+        // Lumina functional commands
         var command = function(command,args) {
+            debug.stage = '';
             log('<<< ' + command);
             return $http.post('/rest/command/' + command, args)
                 .then(function(response) {
                     log('>>> ' + JSON.stringify(response.data));
                     return response.data.result;
-                },function(failure) {
+                }).catch(function(failure) {
                     //log('<<< ' + command);
-                    log('>>> FAIL: ' + failure.status + ' ' + failure.statusText);
-                    return failure;
+                    console.log(failure);
+                    log('>>> FAIL ' + failure.status + ' ' + failure.statusText + ':  ' + failure.data.result);
+                    debug.log += debug.stage;
+                    throw failure;
                 });
         };
 
-
         // Admin functions
-        var get_master_info = function() {
-            return $http.get('/rest/master/info')
+        var get_main_info = function() {
+            return $http.get('/rest/main/info')
                 .then(function(response) {
                     return response.data;
                 });
         }
 
-        var get_host_info = function(hostid) {
-            return command(hostid + '/' + 'info');
-        }
-
-        var get_server_info = function(hostid) {
-            return command(hostid + '/' + 'server');
-        }
-
-        var get_plugins = function(hostid) {
-            return command(hostid + '/' + 'plugins');
-        }
-
-        var get_config = function(hostid) {
-            return command(hostid + '/' + 'config');
-        }
-
-        var get_nodes = function(hostid) {
-            return command(hostid + '/' + 'nodes')
-                .then(function(data) {
-                    for(var i=0; i < data.length; i++) {
-                        data[i].lastactivity = new Date(data[i].lastactivity);
-                    }
-                    return data;
+        var get_server_info = function() {
+            return $http.get('/rest/server/info')
+                .then(function(response) {
+                    return response.data;
                 });
         }
 
+        var get_host_info = function(node) {
+            return command(node + '/' + '_info');
+        }
 
         // Functions
         return {
             debug: debug,
             command: command,
 
-            get_master_info: get_master_info,
-            get_host_info: get_host_info,
+            get_main_info: get_main_info,
             get_server_info: get_server_info,
-
-            get_nodes: get_nodes,
-            get_plugins: get_plugins,
-            get_config: get_config,
+            get_host_info: get_host_info,
         };
 
     }]);

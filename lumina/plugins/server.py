@@ -45,7 +45,9 @@ class ServerProtocol(LuminaProtocol):
         self.hostid = None
         self.module = None
         self.link = ColorState(log=self.log, state='OFF', why='Not connected')
+        self.link.add_callback(self.parent.update_status, run_now=True)
         self.status = ColorState(log=self.log)
+        self.status.add_callback(self.parent.update_status, run_now=True)
         self.commands = []
         self.events = []
         self.lastactivity = datetime.utcnow()
@@ -213,21 +215,24 @@ class Server(Plugin):
 
 
     # --- INTERNAL COMMANDS
+    def update_status(self, status):
+        l = [node.status for node in self.connections]
+        l += [node.link for node in self.connections]
+        self.status.combine(*l)
+
+
     def add_connection(self, node):
         ''' Register the connected node '''
         self.connections.append(node)
         self.sequence += 1
         node.sequence = self.sequence
-        #self.status.set_GREEN('%s nodes connected' %(len(self.nodes)))
 
 
     def remove_connection(self, node):
         ''' Remove the disconnected node '''
         self.connections.remove(node)
-        #if not self.nodes:
+        #if not self.connections:
         #    self.status.set_YELLOW('No nodes connected')
-        #else:
-        #    self.status.set_GREEN('%s nodes connected' %(len(self.nodes)))
 
         if node.events:
             self.remove_events(node.events)
@@ -347,7 +352,6 @@ class Server(Plugin):
                 'connected'    : node.connected,
                 'lastactivity' : node.lastactivity.isoformat()+'Z',
             } for node in self.nodes.itervalues()],
-            #'hosts'      : server.hosts.keys(),
             'n_commands' : len(self.commands),
             'n_events'   : len(self.events),
             'status'     : str(self.status),

@@ -8,7 +8,7 @@
     </tr>
     <tr>
       <th class="text-right">Connections</th>
-      <td>{{server.nodes.length}} nodes from {{hosts.keys().length}} hosts</td>
+      <td>{{server.nodes.length}} nodes from {{Object.keys(hosts).length}} hosts</td>
     </tr>
     <tr>
       <th class="text-right"># Commands / Events / Configs</th>
@@ -52,7 +52,7 @@
       <th># Config</th>
       <th>Status</th>
     </tr>
-    <tr ng-repeat="e in hosts" ng-click="select_host(e.hostid)">
+    <tr ng-repeat="e in hosts" ng-click="on_select_host(e.hostid)">
       <td>{{e.hostname}} ({{e.hostid}})</td>
       <td>{{e.plugins.length}}</td>
       <td>{{e.configs}}</td>
@@ -70,7 +70,7 @@
       <th>Status</th>
       <th>Documentation</th>
     </tr>
-    <tr ng-repeat="e in sel_plugins">
+    <tr ng-repeat="e in plugins">
       <td>{{e.sequence}}</td>
       <td>{{e.name}} ({{e.module}})</td>
       <td>{{e.status}} / {{e.status_why}}</td>
@@ -90,7 +90,7 @@
       <th>Type</th>
       <th>Help</th>
     </tr>
-    <tr ng-repeat="e in sel_config">
+    <tr ng-repeat="e in configs">
       <td>{{e.key}}</td>
       <td>{{e.value}}</td>
       <td>{{e.default}}</td>

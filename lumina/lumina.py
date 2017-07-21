@@ -117,6 +117,7 @@ class Lumina(object):
                 config.add_templates(plugin.GLOBAL_CONFIG)
                 config.add_templates(plugin.CONFIG, name=name)
                 plugin.setup(main=self)
+                plugin.status.add_callback(self.update_status, run_now=True)
 
                 # Setup for closing the plugin on close
                 reactor.addSystemEventTrigger('before', 'shutdown', plugin.close)
@@ -136,6 +137,7 @@ class Lumina(object):
                 plugin.module = FailedPlugin.name
                 plugin.sequence = count
                 plugin.status = ColorState('RED', log=self.log, why=msg)
+                plugin.status.add_callback(self.update_status, run_now=True)
 
                 # FIXME: self.plugins might already have added the failed plugin
                 self.plugins.append(plugin)
@@ -151,6 +153,10 @@ class Lumina(object):
 
     def close(self):
         pass
+
+    #== INTERNAL FUNCTIONS
+    def update_status(self, status):
+        self.status.combine(*[plugin.status for plugin in self.plugins])
 
 
     #== SERVICE FUNCTIONS
@@ -183,4 +189,12 @@ class Lumina(object):
             'n_config'   : len(self.config),
             'status'     : str(self.status),
             'status_why' : self.status.why,
+            'config'     : [
+                {
+                    'key'     : k,
+                    'value'   : v.get('v'),
+                    'default' : v.get('default'),
+                    'type'    : v.get('type', str).__name__,
+                    'help'    : v.get('help'),
+                } for k, v in self.config.items()],
         }

@@ -182,10 +182,10 @@ class Node(Plugin):
         self.node_queue = Queue()
 
         # Subscribe to the change of state by sending status back to server
-        def emit_status(status, old, why):
+        def emit_status(status):
             ''' Status update callback. Only send updates if connected '''
             if self.node_connected:
-                self.emit_raw(Event('status', status, old, why))
+                self.emit_raw(Event('status', status.status, status.old, status.why))
         self.status.add_callback(emit_status)
 
         self.node_factory = NodeFactory(parent=self)

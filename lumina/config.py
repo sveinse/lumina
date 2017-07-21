@@ -129,13 +129,17 @@ class Config(object):
             return self[k]
 
 
-    def keys(self):
-        ''' Return the config keys '''
-        return self.config.keys()
+    #def keys(self):
+    #    ''' Return the config keys '''
+    #    return self.config.keys()
 
 
-    def getdict(self, k):
-        return self.config[k].copy()
+    #def getdict(self, k):
+    #    return self.config[k].copy()
+
+
+    def items(self):
+        return self.config.items()
 
 
     def __len__(self):

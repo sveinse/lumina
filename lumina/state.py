@@ -33,11 +33,14 @@ class State(object):
         self.states = states
         self.state_format = state_format or {}
         self.why = why
-        self.callback = None
+        self.callbacks = []
+        self.old = None
 
 
-    def add_callback(self, callback):
-        self.callback = callback
+    def add_callback(self, callback, run_now=False):
+        self.callbacks.append(callback)
+        if run_now:
+            callback(self)
 
 
     def set(self, state, why=None):
@@ -49,11 +52,12 @@ class State(object):
         if why is not None:
             swhy = ' (%s)' %(why,)
         if state != old:
+            self.old = old
             pstate = self.state_format.get(state, state)
             self.log.info('STATE change: {o} --> {n}{s}', o=old, n=pstate, s=swhy)
 
-        if self.callback and (state != old or why != oldwhy):
-            self.callback(state, old, why)
+        if self.callbacks and (state != old or why != oldwhy):
+            dummy = [ callback(self) for callback in self.callbacks ]
 
     def get(self):
         return self.state
