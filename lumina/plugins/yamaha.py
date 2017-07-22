@@ -333,8 +333,10 @@ Connection: keep-alive\r
             #log.msg("     >>>  '%s'" %(ET.tostring(xmle),), system=self.system)
 
             if command == PUT:
+                self.parent.status.set_GREEN()
                 self.defer.callback(xmle.text)
             else:
+                self.parent.status.set_GREEN()
                 self.defer.callback(xmle)
 
         except (ET.ParseError, CommandRunException) as e:
@@ -425,6 +427,7 @@ class Yamaha(Node):
         ]
 
         self.commands = {
+            'ison'        : lambda a: self.c(GET, POWER_ALL).addCallback(ison),
             'on'          : lambda a: self.c(PUT, POWER_MAIN, 'On'),
             'off'         : lambda a: self.c(PUT, POWER_ALL, 'Standby'),
             'pure_direct' : lambda a: self.c(PUT, PURE_DIRECT, 'On'),
@@ -464,6 +467,10 @@ class Yamaha(Node):
 
         reactor.listenMulticast(self.ssdp_port, self.ssdp, listenMultiple=True)
 
+        # Send a dummy command to force connection to the device. This will
+        # put it in GREEN or RED mode.
+        self.commands['ison'](None)
+
 
     def close(self):
         self.protocol.disconnect()
@@ -477,6 +484,7 @@ class Yamaha(Node):
 
     # --- Callbacks
     def notification(self, notifications):
+        self.status.set_GREEN()
         self.log.info("Got notifications: {n}", n=notifications)
         #if 'Volume' in notifications:
         #    self.get_command('avr/volume')(None).addCallback(self.event_as_arg, 'avr/volume')

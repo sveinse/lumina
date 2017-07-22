@@ -63,13 +63,14 @@ class LuminaProtocol(LineReceiver):
         self.keepalive = None
 
         # Setup status for the link
-        self.link = ColorState(log=self.log, state='OFF', why='Not connected')
+        self.link = ColorState(log=self.log, state='OFF', why='Not connected', what='LINK')
 
 
     def connectionMade(self):
         self.peer = "%s:%s" %(self.transport.getPeer().host, self.transport.getPeer().port)
 
         self.name = self.peer
+        self.link.name = self.name
         self.lastactivity = datetime.utcnow()
 
         self.requests = {}

@@ -2,4 +2,9 @@
 {
     // List of plugins to load
     "plugins": [ "server", "responder", "web" ]
+
+    // Host and port to the Lumina server
+    // "server": "lumina-server",
+    // "port": "8081",
+
 }

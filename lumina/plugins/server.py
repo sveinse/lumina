@@ -178,6 +178,8 @@ class Server(Plugin):
         self.connections = []
         self.sequence = 0
 
+        self.node_status = ColorState(log=self.log, state='OFF')
+
         # -- Create list of expected unconnected nodes
         self.nodes = {n: ServerProtocol(self) for n in self.nodelist}
         for n in self.nodes:
@@ -210,9 +212,10 @@ class Server(Plugin):
 
     # --- INTERNAL COMMANDS
     def update_status(self, status):
-        l = [node.status for node in self.connections]
-        l += [node.link for node in self.connections]
-        self.status.combine(*l)
+        l = [node.status for node in self.nodes.itervalues()]
+        l += [node.link for node in self.nodes.itervalues()]
+        (state, why) = ColorState.combine(*l)
+        self.node_status.set(state, why)
 
 
     def add_connection(self, node):
@@ -220,13 +223,14 @@ class Server(Plugin):
         self.connections.append(node)
         self.sequence += 1
         node.sequence = self.sequence
+        self.status.set_GREEN()
 
 
     def remove_connection(self, node):
         ''' Remove the disconnected node '''
         self.connections.remove(node)
-        #if not self.connections:
-        #    self.status.set_YELLOW('No nodes connected')
+        if not self.connections:
+            self.status.set_YELLOW('No nodes connected')
 
         if node.events:
             self.remove_events(node.events)
@@ -243,12 +247,13 @@ class Server(Plugin):
         # -- Transfer parameters to node
         name = params.get('node')
         node.name = name
+        node.status.name = name
+        node.link.name = name
         node.nodeid = params.get('nodeid')
         node.hostname = params.get('hostname')
         node.hostid = params.get('hostid')
         node.module = params.get('module')
 
-        self.log.info("PARAMS: {p}", p=params)
         self.log.info("Registering node {name} [{nodeid}], "
                       "type {module}, host {hostname} [{hostid}], "
                       "{n_e} events, {n_c} commands from {ip}",
@@ -330,7 +335,7 @@ class Server(Plugin):
     def get_info(self):
         ''' Return a dict of info about this server '''
         return {
-            'nodes'      : [{
+            'nodes'       : [{
                 'name'         : node.name,
                 'nodeid'       : node.nodeid,
                 'hostname'     : node.hostname,
@@ -346,10 +351,12 @@ class Server(Plugin):
                 'connected'    : node.connected,
                 'lastactivity' : node.lastactivity.isoformat()+'Z',
             } for node in self.nodes.itervalues()],
-            'n_commands' : len(self.commands),
-            'n_events'   : len(self.events),
-            'status'     : str(self.status),
-            'status_why' : str(self.status.why),
+            'n_commands'  : len(self.commands),
+            'n_events'    : len(self.events),
+            'status'      : str(self.status),
+            'status_why'  : str(self.status.why),
+            'node_status' : str(self.node_status),
+            'node_status_why' : str(self.node_status.why),
         }
 
 PLUGIN = Server

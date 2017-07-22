@@ -75,9 +75,6 @@ class NodeProtocol(LuminaProtocol):
     def registered(self, arg):
         ''' Handle registration response '''
 
-        # FIXME: Perhaps args.result must be washed? It should be a list
-        # None or reason.
-
         # Give up the connection if the response is rejected
         if arg.result:
             self.registerError(arg.result)
@@ -185,7 +182,7 @@ class Node(Plugin):
         def emit_status(status):
             ''' Status update callback. Only send updates if connected '''
             if self.node_connected:
-                self.emit_raw(Event('status', status.status, status.old, status.why))
+                self.emit_raw(Event('status', status.state, status.old, status.why))
         self.status.add_callback(emit_status)
 
         self.node_factory = NodeFactory(parent=self)

@@ -77,6 +77,7 @@ class Lumina(object):
 
             count += 1
             name = module
+            plugin = None
 
             try:
 
@@ -92,7 +93,7 @@ class Lumina(object):
 
                 self.log.info("Loading plugin {m}...", m=module)
 
-                plugin = import_module('lumina.plugins.' + module).PLUGIN()
+                plugin = import_module('lumina.plugins.' + module).PLUGIN(self)
 
                 # Get the name to use from the plugin if it is overridden
                 confname = name
@@ -109,13 +110,14 @@ class Lumina(object):
                 plugin.module = module
                 plugin.sequence = count
 
+                # Registering plugin
                 self.log.info("===  Registering #{c} plugin {m} as {n}", c=count, m=module, n=name)
                 self.plugins.append(plugin)
 
                 # Setup plugin
-                plugin.configure(main=self)
                 config.add_templates(plugin.GLOBAL_CONFIG)
                 config.add_templates(plugin.CONFIG, name=name)
+                plugin.configure(main=self)
                 plugin.setup(main=self)
                 plugin.status.add_callback(self.update_status, run_now=True)
 
@@ -128,19 +130,23 @@ class Lumina(object):
                 raise
 
             except Exception as e:    # pylint: disable=broad-except
-                msg = "Failed to load plugin '{m}': {e}".format(m=module, e=e)
+                msg = "Failed to load plugin '{m}': {t}: {e}".format(m=module, t=type(e).__name__, e=e.message)
                 self.log.failure("{m}  --  IGNORING", m=msg)
 
+                # Remove plugin if already added
+                if plugin in self.plugins:
+                    self.plugins.remove(plugin)
+
                 # Put in a empty failed placeholder
-                plugin = FailedPlugin()
+                plugin = FailedPlugin(self)
                 plugin.name = name
                 plugin.module = FailedPlugin.name
                 plugin.sequence = count
-                plugin.status = ColorState('RED', log=self.log, why=msg)
-                plugin.status.add_callback(self.update_status, run_now=True)
-
-                # FIXME: self.plugins might already have added the failed plugin
+                plugin.status = ColorState('RED', log=self.log, why=msg, name=module)
                 self.plugins.append(plugin)
+
+                # Update main status
+                plugin.status.add_callback(self.update_status, run_now=True)
 
 
         #== Register own shutdown
@@ -148,6 +154,7 @@ class Lumina(object):
 
         # Missing plugins?
         if not self.plugins:
+            self.status.set_OFF('No plugins')
             self.log.warn("No plugins have been configured. Doing nothing.")
 
 
@@ -156,7 +163,8 @@ class Lumina(object):
 
     #== INTERNAL FUNCTIONS
     def update_status(self, status):
-        self.status.combine(*[plugin.status for plugin in self.plugins])
+        (state,why) = ColorState.combine(*[plugin.status for plugin in self.plugins])
+        self.status.set(state, why)
 
 
     #== SERVICE FUNCTIONS
@@ -186,7 +194,6 @@ class Lumina(object):
                     'status'    : str(plugin.status),
                     'status_why': plugin.status.why,
                 } for plugin in self.plugins],
-            'n_config'   : len(self.config),
             'status'     : str(self.status),
             'status_why' : self.status.why,
             'config'     : [

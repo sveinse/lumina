@@ -24,7 +24,7 @@ class State(object):
     '''
 
     def __init__(self, state=None, states=None, state_format=None,
-                 log=None, why=None):
+                 log=None, why=None, name=None, what=None):
         self.state = state or 'init'
         if log is None:
             self.log = Logger()
@@ -35,6 +35,8 @@ class State(object):
         self.why = why
         self.callbacks = []
         self.old = None
+        self.name = name
+        self.what = what or 'STATE'
 
 
     def add_callback(self, callback, run_now=False):
@@ -54,7 +56,7 @@ class State(object):
         if state != old:
             self.old = old
             pstate = self.state_format.get(state, state)
-            self.log.info('STATE change: {o} --> {n}{s}', o=old, n=pstate, s=swhy)
+            self.log.info('{w} change: {o} --> {n}{s}', w=self.what, o=old, n=pstate, s=swhy)
 
         if self.callbacks and (state != old or why != oldwhy):
             dummy = [ callback(self) for callback in self.callbacks ]
@@ -101,19 +103,34 @@ class ColorState(State):
     def set_GREEN(self, *a):
         self.set('GREEN', *a)
 
-    def combine(self, *state):
+    @staticmethod
+    def combine(*state):
         ''' Combine a list of states into self.state. If any is RED, then output
             will be RED. If all are OFF or GREEN, the result will be OFF or GREEN
             respectively. Otherwise the state will be YELLOW. '''
         off = [s.state == 'OFF' for s in state]
         reds = [s.state == 'RED' for s in state]
         green = [s.state == 'GREEN' for s in state]
-        why = ". ".join([s.why for s in state if s.why is not None])
+        yellow = [s.state == 'YELLOW' for s in state]
+        why = None
         if any(reds):
-            self.set('RED', why)
+            status = 'RED'
+            reds = [s.name or '' for s in state if s.state == 'RED']
+            why = '(%s) ' %(len(reds)) + ', '.join(reds) + ' is RED'
         elif all(green):
-            self.set('GREEN', why)
+            status = 'GREEN'
         elif all(off):
-            self.set('OFF', why)
+            status = 'OFF'
         else:
-            self.set('YELLOW', why)
+            status = 'YELLOW'
+            whys = []
+            if any(yellow):
+                whys.append(', '.join([
+                    s.name or '' for s in state if s.state == 'YELLOW'
+                    ]) + ' is YELLOW')
+            if any(off):
+                whys.append(', '.join([
+                    s.name or '' for s in state if s.state == 'OFF'
+                    ]) + ' is OFF')
+            why = ". ".join(whys)
+        return (status,why)

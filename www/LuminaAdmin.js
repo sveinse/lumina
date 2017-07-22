@@ -13,9 +13,9 @@ angular.module('LuminaApp')
         };
 
         $scope.hosts = {};
-        $scope.plugins = [];
-        $scope.configs = [];
-
+        $scope.plugins = null;
+        $scope.configs = null;
+        
         var on_page_load = function() {
 
             // Get the main master info
@@ -24,7 +24,9 @@ angular.module('LuminaApp')
 
                     // Set the main info and set the host info for this host
                     $scope.main = data;
+                    data.hostclass = 'serverhost';
                     $scope.hosts[data.hostid] = data;
+                    $scope.hostslength = Object.keys($scope.hosts).length;
                 });
 
             // Get the server info
@@ -39,23 +41,26 @@ angular.module('LuminaApp')
 
                     for (let i=0; i < data.nodes.length; i++) {
 
-                        var node = data.nodes[i];
-                        var hostid = node.hostid;
+                        let node = data.nodes[i];
+                        let hostid = node.hostid;
+                        let connected = node.connected;
 
                         // Request host information for those hosts that
                         // is missing from our records (which are remote
                         // hosts)
-                        if (hostid !== null && !(hostid in $scope.hosts)) {
+                        if (hostid !== null && connected && !(hostid in $scope.hosts)) {
 
                             // Setup preliminary host info
                             $scope.hosts[hostid] = { hostid:hostid,
                                                      hostname:node.hostname,
                                                      node:node.name };
+                            $scope.hostslength = Object.keys($scope.hosts).length;
 
                             // Get host information
                             LuminaComm.get_host_info(node.name)
                                 .then(function(data) {
                                     $scope.hosts[data.hostid] = data;
+                                    $scope.hostslength = Object.keys($scope.hosts).length;
                                 }).catch(function(failure){});
                         };
                     };
@@ -63,12 +68,39 @@ angular.module('LuminaApp')
         };
 
         $scope.on_select_host = function(hostid) {
-            $scope.selected_host = $scope.hosts[hostid];
+            if (hostid) {
+                $scope.selected_host = $scope.hosts[hostid];
 
-            $scope.plugins = $scope.selected_host.plugins;
-            $scope.configs = $scope.selected_host.config;
-
+                $scope.plugins = $scope.selected_host.plugins;
+                $scope.configs = $scope.selected_host.config;
+            } else {
+                $scope.selected_host = null;
+                $scope.plugins = null;
+                $scope.config = null;
+            }
         };
+
+        $scope.show_configs = true;
+        $scope.toggle_show_configs = function() {
+            $scope.show_configs = !$scope.show_configs;
+            if($scope.show_configs) {
+                $scope.configs_icon='fa-caret-down';
+            } else {
+                $scope.configs_icon='fa-caret-right';
+            }                
+        }
+        $scope.toggle_show_configs();
+
+        $scope.show_plugins = false;
+        $scope.toggle_show_plugins = function() {
+            $scope.show_plugins = !$scope.show_plugins;
+            if($scope.show_plugins) {
+                $scope.plugins_icon='fa-caret-down';
+            } else {
+                $scope.plugins_icon='fa-caret-right';
+            }                
+        }
+        $scope.toggle_show_plugins();
 
         $scope.status_html = function(status, why) {
             let color = 'off';
@@ -89,7 +121,7 @@ angular.module('LuminaApp')
             let whyt = '';
             if (why) {
                 whyt = '&emsp;' + why;
-            }
+            };
             return $sce.trustAsHtml('<i class="fa ' + icon + ' fa-lg ' + color +'"></i>' + whyt);
         }
 

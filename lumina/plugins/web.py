@@ -152,7 +152,7 @@ class Web(Plugin):
 
         self.log.info("Logging access in {p}", p=self.logpath)
 
-        # FIXME: Is there a way to determine up or down?
+        # Ready
         self.status.set_GREEN()
 
 

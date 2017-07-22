@@ -448,7 +448,7 @@ class Hw50(Node):
 
 
     # --- Initialization
-    def __init__(self):
+    def __init__(self, main):
         self.sp = None
 
 

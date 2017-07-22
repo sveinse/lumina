@@ -162,7 +162,7 @@ class TelldusIn(Protocol):
         self.log = Logger(namespace=parent.name+'/in')
         self.parent = parent
         self.status = ColorState(log=self.log, state_format={0:0}) # <-- a hack to avoid color
-        self.status.add_callback(self.parent.update_status, run_now=True)
+        self.status.add_callback(self.parent.update_status)
         self.connected = False
         self.factory = TelldusInFactory(self, self.parent)
 
@@ -266,7 +266,7 @@ class TelldusOut(Protocol):
         self.log = Logger(namespace=parent.name+'/out')
         self.parent = parent
         self.status = ColorState(log=self.log, state_format={0:0})  # <-- a hack to avoid color
-        self.status.add_callback(self.parent.update_status, run_now=True)
+        self.status.add_callback(self.parent.update_status)
         self.connected = False
         self.completed = False
         self.running = True
@@ -391,7 +391,10 @@ class Telldus(Node):
 
     # --- Callbacks
     def update_status(self, status):
-        self.status.combine(self.inport.status, self.outport.status)
+        (state, why) = ColorState.combine(self.inport.status, self.outport.status)
+        why = ". ".join([s.why for s in [self.inport.status, self.outport.status] if s.why is not None])
+        self.status.set(state, why)
+
 
 
     # --- Commands

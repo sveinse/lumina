@@ -19,3 +19,16 @@ html body .table-borderless th {
 .off {
     color: grey;
 }
+.nobold {
+    font-weight: normal;
+}
+.serverhost {
+    font-weight: bold;
+    color: #6C3483;
+}
+.table>tbody>tr.active>td {
+  background: #d9d9ff;
+}
+.right {
+    float: right;
+}

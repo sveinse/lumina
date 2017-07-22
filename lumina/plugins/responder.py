@@ -49,7 +49,7 @@ class Responder(Plugin):
         # depends on that the handler for the commands are self.run_command
         server.add_commands({a: self.run_command for a in self.groups})
 
-        # This plugin does not have active statuses
+        # Ready
         self.status.set_GREEN()
 
 

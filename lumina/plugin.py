@@ -10,6 +10,9 @@ class Plugin(object):
     CONFIG = {}
     GLOBAL_CONFIG = {}
 
+    def __init__(self, main):
+        pass
+
     def override_name(self, name, main):
         ''' Override the configured name when instanciating this class.
             This method shall only be used in very special cases, such as
@@ -27,7 +30,7 @@ class Plugin(object):
         '''
 
         self.log = Logger(namespace=self.name)
-        self.status = ColorState(log=self.log)
+        self.status = ColorState(log=self.log, name=self.name)
 
     def close(self):
         ''' Close any open files and connections
