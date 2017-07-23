@@ -6,6 +6,8 @@ import os
 import socket
 from binascii import hexlify
 from importlib import import_module
+from datetime import datetime
+
 from twisted.internet import reactor
 
 from lumina.config import Config
@@ -55,6 +57,7 @@ class Lumina(object):
         self.hostid = hexlify(os.urandom(3))
         #self.hostid = config['hostid']
         self.pid = os.getpid()
+        self.starttime = datetime.utcnow()
 
         self.log.info("Host {host} [{hostid}], PID {pid}",
                       host=self.hostname, hostid=self.hostid, pid=self.pid)
@@ -204,4 +207,5 @@ class Lumina(object):
                     'type'    : v.get('type', str).__name__,
                     'help'    : v.get('help'),
                 } for k, v in self.config.items()],
+            'starttime' : self.starttime.isoformat()+'Z',
         }

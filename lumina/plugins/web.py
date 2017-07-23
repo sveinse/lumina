@@ -43,6 +43,7 @@ class RestCommand(LuminaResource):
 
     def render_POST(self, request):
         request.setHeader(b'Content-Type', b'application/json')
+        request.setHeader(b'Cache-Control', b'no-cache, no-store, must-revalidate')
         path = getPath(request)
 
         server = self.main_server
@@ -84,6 +85,7 @@ class RestCommand(LuminaResource):
 class RestMainInfo(LuminaResource):
     def render_GET(self, request):
         request.setHeader(b'Content-Type', b'application/json')
+        request.setHeader(b'Cache-Control', b'no-cache, no-store, must-revalidate')
         main = self.main
         return json.dumps(main.get_info())
 
@@ -91,6 +93,7 @@ class RestMainInfo(LuminaResource):
 class RestServerInfo(LuminaResource):
     def render_GET(self, request):
         request.setHeader(b'Content-Type', b'application/json')
+        request.setHeader(b'Cache-Control', b'no-cache, no-store, must-revalidate')
         server = self.main_server
         if not server:
             return json.dumps({})

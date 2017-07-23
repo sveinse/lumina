@@ -19,7 +19,7 @@
       <td>{{e.commands.length}} / {{e.events.length}}</td>
       <td ng-bind-html="status_html(e.status, e.status_why)"></td>
       <td ng-bind-html="status_html(e.link, e.link_why)"></td>
-      <td>{{e.lastactivity | date:'medium'}}</td>
+      <td>{{e.lastactivity | date:'short'}}</td>
     </tr>
   </table>
 
@@ -31,12 +31,14 @@
       <th># Plugins</th>
       <th># Config</th>
       <th>Status</th>
+      <th>Started</th>
     </tr>
     <tr ng-repeat="e in hosts" ng-click="on_select_host(e.hostid)" ng-class="{active: e==selected_host}">
       <td class="{{e.hostclass}}">{{e.hostname}} ({{e.hostid}})</td>
       <td>{{e.plugins.length}}</td>
       <td>{{e.config.length}}</td>
       <td ng-bind-html="status_html(e.status, e.status_why)"></td>
+      <td>{{e.starttime | date:'short'}}</td>
     </tr>
   </table>
 
