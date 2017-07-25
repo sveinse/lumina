@@ -1,6 +1,7 @@
 # Globbed excludes
 *.pyc
 *~
+*.pid
 __ditch/
 
 # Exclude project output dirs

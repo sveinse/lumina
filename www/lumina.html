@@ -1,54 +1,57 @@
 <!DOCTYPE html>
 <html lang="no">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta http-equiv="CACHE-CONTROL" content="NO-CACHE">
-    <meta http-equiv="CACHE-CONTROL" content="NO-STORE">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Angular JS 1, https://angularjs.org/ -->
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.1/angular.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.1/angular-route.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.1/angular-animate.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.1/angular-touch.min.js"></script>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Order above is important -->
+  <meta http-equiv="CACHE-CONTROL" content="NO-CACHE">
+  <meta http-equiv="CACHE-CONTROL" content="NO-STORE">
 
-    <!-- Bootstrap, http://getbootstrap.com/ -->
-    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Angular JS 1, https://angularjs.org/ -->
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular-route.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular-animate.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular-touch.min.js"></script>
 
-    <!-- Fant awsome, http://fontawesome.io/ -->
-    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+  <!-- Bootstrap, http://getbootstrap.com/ -->
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
 
-    <!-- Lumina CSS -->
-    <link href="lumina.css" type="text/css" rel="stylesheet" />
+  <!-- Fant awsome, http://fontawesome.io/ -->
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
 
-    <!-- UI Bootstrap, http://angular-ui.github.io/bootstrap/ -->
-    <script src="http://angular-ui.github.io/bootstrap/ui-bootstrap-tpls-2.4.0.min.js"></script>
+  <!-- Lumina CSS -->
+  <link href="lumina.css" type="text/css" rel="stylesheet" />
 
-    <!-- Lumina scripts -->
-    <script src="LuminaApp.js"></script>
-    <script src="LuminaMain.js"></script>
-    <script src="LuminaComm.js"></script>
-    <script src="LuminaYamaha.js"></script>
-    <script src="LuminaAdmin.js"></script>
+  <!-- UI Bootstrap, http://angular-ui.github.io/bootstrap/ -->
+  <script src="http://angular-ui.github.io/bootstrap/ui-bootstrap-tpls-2.5.0.min.js"></script>
 
-    <!-- To ensure A refs work with angular ngRouter -->
-    <base href="lumina.html">
+  <!-- Lumina scripts -->
+  <script src="lumina.js"></script>
+  <script src="lu-main.js"></script>
+  <script src="lu-comm.js"></script>
+  <script src="lu-yamaha.js"></script>
+  <script src="lu-admin.js"></script>
 
-    <title>Seldal Kino</title>
-  </head>
+  <!-- To ensure A refs work with angular ngRouter -->
+  <base href="lumina.html">
 
-  <body ng-app="LuminaApp">
+  <title>Seldal Kino</title>
+</head>
 
-    <!-- Navigation -->
-    <div ng-include="'LuminaNav.html'"></div>
+<body ng-app="LuminaApp">
 
-    <!-- Main view -->
-    <div ng-view></div>
+  <!-- Navigation -->
+  <div ng-include="'lumina-nav.html'"></div>
 
-    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) and Bootstrap CSS -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <!-- Main view -->
+  <div ng-view></div>
 
-  </body>
+  <!-- jQuery (necessary for Bootstrap's JavaScript plugins) and Bootstrap CSS -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+</body>
+
 </html>

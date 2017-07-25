@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # In-source entry to start lumina for debug puporses.
 # Will not be installed with pip install
 import sys
