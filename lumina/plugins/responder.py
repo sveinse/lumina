@@ -175,7 +175,7 @@ class Responder(Plugin):
                     # Prepare the response
                     request = self.request
                     request.result = self.commandlist
-                    request.success = self.success
+                    request.response = self.success
 
                     # Success is when all sub-jobs succeeds
                     if self.success == len(self.commandlist):

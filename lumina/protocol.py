@@ -15,17 +15,25 @@ from lumina.state import ColorState
 #
 # LuminaProtocol
 # ==============
-#    1. Either client and server can initiate message
-#        - Sends Event() objects
-#        - json encoded message
+#    1. JSON encoded messages, Event() objects:
+#       {
+#          'name':        # Name of the event/command
+#          'args':        # Arg list [optional]
+#          'kw':          # Arg dict [optional]
+#          'requestid':   # None: No response required
+#                         #     : Response is requested
+#          'response':    # None: A request/command message
+#                         #     : A response message
+#          'result':      # Result of the request
+#       }
 #
-#    2. event.success in message determines
-#        - None: A request.
-#        - not None: A response.
+#    2. Client connects to server. Either client or server
+#       can initiate new messages after connection.
 #
-#    3. If event.seq is set (not None) on an incoming request
-#        - A response is requested
-#        - Will call event.defer with incoming results
+#    3. If event.requestid is not None on an incoming request
+#        - A response is requested using same requestid
+#        - The receiver will call event.defer on the original
+#          request with incoming results
 #
 #    4. Special Node() -> Server() operations
 #        * register - Register node (client) capability
@@ -86,7 +94,7 @@ class LuminaProtocol(LineReceiver):
             self.keepalive.stop()
 
         # -- Cancel any pending requests
-        for (seq, request) in self.requests.items():
+        for (requestid, request) in self.requests.items():
             exc = NoConnectionException()
             request.set_fail(exc)
 
@@ -111,9 +119,6 @@ class LuminaProtocol(LineReceiver):
         # -- Parse the incoming message
         try:
             event = Event().load_json(data)
-            # Load string mode with shell-like parsing in interactive mode
-            #event = Event().load_str(data, shell=True)
-
             self.log.debug('', cmdin=event)
 
         except (SyntaxError, ValueError) as e:
@@ -133,27 +138,27 @@ class LuminaProtocol(LineReceiver):
             return
 
         # -- Handle reply to a former request
-        if event.success is not None:
+        if event.response is not None:
 
             # Not much to do if we are not expecting a reply. I.e. the deferred
             # has already fired.
-            if event.seq not in self.requests:
+            if event.requestid not in self.requests:
                 self.log.error("Dropping unexpeced response. Late reply from a previous timed out request?")
                 return
 
             # Get orginial request and delete it from the queue.
-            request = self.requests.pop(event.seq)
+            request = self.requests.pop(event.requestid)
             self.log.debug("       ^^ is a reply to {re}", re=request)
 
             # Copy received data into request
-            request.success = event.success
+            request.response = event.response
             request.result = event.result
 
             # Get the defer handler and remove it from the request to prevent
             # calling it twice
             (defer, request.defer) = (request.defer, None)
 
-            if event.success:
+            if event.response:
 
                 # Send successful result back
                 self.log.info('', cmdok=request)
@@ -215,8 +220,8 @@ class LuminaProtocol(LineReceiver):
             defer.addCallback(cmd_ok, event)
             defer.addErrback(cmd_error, event)
 
-            # If seq is set, the caller expects a reply.
-            if event.seq is not None:
+            # If requestid is set, the caller expects a reply.
+            if event.requestid is not None:
 
                 # Send response back to sender when the defer object fires
                 defer.addBoth(lambda r, c: self.send(c), event)
@@ -231,21 +236,22 @@ class LuminaProtocol(LineReceiver):
 
     def send(self, event, request_response=True):
 
-        # There are three ways calling this function:
+        # There are three originators calling this function:
+        #
         #   a) Send response to former command (from lineReceived())
         #         request_response = True (by default)
-        #         event.seq = <value>
+        #         event.requestid = not None
         #   b) Send new command (from request_raw())
         #         request_response = True
-        #         event.seq = None
+        #         event.requestid = None
         #   c) Send new event (from emit_raw())
         #         request_response = False
-        #         event.seq = None
+        #         event.requestid = None
 
         # -- Generate deferred and setup timeout if this is a new command
         #    to send (case b)
         defer = None
-        if event.seq is None and request_response:
+        if event.requestid is None and request_response:
 
             # -- Generate a deferred object
             event.defer = defer = Deferred()
@@ -253,7 +259,7 @@ class LuminaProtocol(LineReceiver):
             def timeout(event):
                 ''' Response if command suffers a timeout '''
                 self.link.set_YELLOW('Communication timeout')
-                self.requests.pop(event.seq)
+                self.requests.pop(event.requestid)
                 exc = TimeoutException()
                 event.set_fail(exc)
                 event.defer.errback(exc)
@@ -262,8 +268,8 @@ class LuminaProtocol(LineReceiver):
             #    event data failure is properly set
             utils.add_defer_timeout(defer, self.remote_timeout, timeout, event)
 
-            # -- Generate new seq for request, save it in request list
-            self.requests[event.gen_seq()] = event
+            # -- Generate new requestid for request, save it in request list
+            self.requests[event.gen_requestid()] = event
 
         # -- Encode and send the command
         self.log.debug('', cmdout=event)

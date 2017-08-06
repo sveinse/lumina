@@ -11,12 +11,12 @@ from lumina.utils import str_object, listify_dict
 DEBUG=False
 
 
-class MyEncoder(json.JSONEncoder):
+class EventEncoder(json.JSONEncoder):
     def default(self, obj):    # pylint: disable=E0202
         if isinstance(obj, Event):
             obj = obj.json_encoder()
         else:
-            obj = super(MyEncoder, self).default(obj)
+            obj = super(EventEncoder, self).default(obj)
         return obj
 
 
@@ -37,22 +37,22 @@ class Event(object):
         self.args = args
         self.kw = kw
 
-        # Event execution metas
-        self.success = None  # Callback successful. True or False execution has occurred
-        self.result = None   # Callback command result
+        # Event request and execution metas
+        self.response = None  # Set if response to a command
+        self.result = None    # Command result
 
-        # Event network seq metas
-        self.seq = None       # Network sequence number for transport
+        # Event network requestid meta for transport
+        self.requestid = None
 
 
     def __repr__(self):
         alist = []
         if DEBUG:
             alist.append('0x' + hex(id(self))[-6:])
-        if self.success is not None:
-            alist.append('=<%s,%s>' %(self.success, str_object(self.result, max_elements=5)))
-        if DEBUG and self.seq:
-            alist.append('#%s' %(self.seq))
+        if self.response is not None:
+            alist.append('=<%s,%s>' %(self.response, str_object(self.result, max_elements=5)))
+        if DEBUG and self.requestid:
+            alist.append('#%s' %(self.requestid))
         if DEBUG and hasattr(self, 'defer'):
             alist.append('d=%s' %(str(self.defer),))
         alist += list(self.args)
@@ -68,19 +68,19 @@ class Event(object):
     #----- IMPORT and EXPORT functions ------
 
     def json_encoder(self):
-        ''' Internal JSON encoder '''
+        ''' JSON encoder for Event objects '''
         jdict = {
             'name': self.name,
             'args': self.args,
             'kw': self.kw,
         }
-        if self.seq is not None:
+        if self.requestid is not None:
             jdict.update({
-                'seq': self.seq,
+                'requestid': self.requestid,
             })
-        if self.success is not None:
+        if self.response is not None:
             jdict.update({
-                'success': self.success,
+                'response': self.response,
                 'result': self.result,
             })
         return jdict
@@ -96,13 +96,13 @@ class Event(object):
         self.name = other.get('name')
         self.args = other.get('args', tuple())
         self.kw = other.get('kw', {})
-        self.success = other.get('success')
-        self.seq = other.get('seq')
+        self.response = other.get('response')
+        self.requestid = other.get('requestid')
 
         result = other.get('result')
 
         # FIXME: What does this do?
-        #if isinstance(result, dict) and 'seq' in result:
+        #if isinstance(result, dict) and 'requestid' in result:
         #    result = Event().load_dict(result)
 
         self.result = result
@@ -114,7 +114,7 @@ class Event(object):
 
     def dump_json(self):
         ''' Return a json representation of the instance data '''
-        return json.dumps(self, cls=MyEncoder)
+        return json.dumps(self, cls=EventEncoder)
 
     def load_json(self, string):
         ''' Load the data from a json string '''
@@ -193,31 +193,31 @@ class Event(object):
         return self
 
 
-    #----- SEQUENCE NUMBERS ------
+    #----- REQUEST ID NUMBERS ------
 
     # Sequence number stored as class attribute
-    __seq = 0
+    __sequence = 0
 
-    def gen_seq(self):
-        Event.__seq += 1
-        seq = self.seq = Event.__seq
-        return seq
+    def gen_requestid(self):
+        Event.__sequence += 1
+        requestid = self.requestid = Event.__sequence
+        return requestid
 
     # Unused it seems
-    #def del_seq(self):
-    #    self.seq = None
+    #def del_requestid(self):
+    #    self.requestid = None
 
 
     #----- EXECUTION ------
 
     #def reset(self):
-    #    self.success = None
+    #    self.response = None
     #    self.result = None
 
 
     def set_success(self, result):
         ''' Set event commant to succeed '''
-        self.success = True
+        self.response = True
         if isinstance(result, Event):
             self.result = result.result
         else:
@@ -230,7 +230,7 @@ class Event(object):
         # contains the actual exception in exc.value
         if isinstance(exc, Failure):
             (failure, exc) = (exc, exc.value)
-        self.success = False
+        self.response = False
         self.result = (exc.__class__.__name__, str(exc.message))
 
 
