@@ -56,7 +56,7 @@ class NodeProtocol(LuminaProtocol):
                       n_e=len(self.parent.events),
                       n_c=len(self.parent.commands),
                       **data)
-        defer = self.request('register', **data)
+        defer = self.request('register', data)
         defer.addCallback(self.registered)
         defer.addErrback(self.registerError)
 
@@ -213,17 +213,17 @@ class Node(Plugin):
 
 
     # -- Commands to communicate with server
-    def emit(self, name, *args, **kw):
+    def emit(self, name, *args):
         ''' Emit an event and send to server. Append the prefix for this
             node '''
-        return self.emit_raw(Event(self.name + '/' + name, *args, **kw))
+        return self.emit_raw(Event(self.name + '/' + name, *args))
 
     def emit_raw(self, event):
         ''' Send an event to server. An event does not expect a reply '''
         return self.sendServer(event, lambda ev: self.node_protocol.emit_raw(ev))
 
-    def request(self, name, *args, **kw):
-        return self.request_raw(Event(name, *args, **kw))
+    def request(self, name, *args):
+        return self.request_raw(Event(name, *args))
 
     def request_raw(self, event):
         ''' Send a request to server. A request expects a reply '''

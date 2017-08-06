@@ -22,7 +22,7 @@ class EventEncoder(json.JSONEncoder):
 
 class Event(object):
     ''' Event object.
-           event = Event(name,*args,**kw)
+           event = Event(name,*args)
 
         Event name text syntax:
            'foo'
@@ -31,11 +31,10 @@ class Event(object):
            'nul{arg1=foo,arg2=bar,5}'
     '''
 
-    def __init__(self, name=None, *args, **kw):
+    def __init__(self, name=None, *args):
         # Event data
         self.name = name
         self.args = args
-        self.kw = kw
 
         # Event request and execution metas
         self.response = None  # Set if response to a command
@@ -56,13 +55,12 @@ class Event(object):
         if DEBUG and hasattr(self, 'defer'):
             alist.append('d=%s' %(str(self.defer),))
         alist += list(self.args)
-        alist += listify_dict(self.kw)
         return "%s{%s}" %(self.name, str_object(alist, max_elements=5, brackets=False))
 
 
     def copy(self):
         ''' Return new copy of this object.  '''
-        return Event(self.name, *self.args, **self.kw)
+        return Event(self.name, *self.args)
 
 
     #----- IMPORT and EXPORT functions ------
@@ -72,7 +70,6 @@ class Event(object):
         jdict = {
             'name': self.name,
             'args': self.args,
-            'kw': self.kw,
         }
         if self.requestid is not None:
             jdict.update({
@@ -95,7 +92,6 @@ class Event(object):
             raise ValueError("Missing event name")
         self.name = other.get('name')
         self.args = other.get('args', tuple())
-        self.kw = other.get('kw', {})
         self.response = other.get('response')
         self.requestid = other.get('requestid')
 
@@ -148,7 +144,6 @@ class Event(object):
                 return self
             self.name = args[0]
             self.args = args[1:]
-            self.kw = dict()
             return self
 
         m = self.RE_LOAD_STR.match(string)
@@ -161,7 +156,6 @@ class Event(object):
 
         self.name = m.group(1)
         self.args = tuple(args)
-        self.kw = dict()  # Load from string does not support kw yet
 
         # If '$' agruments is encountered, replace with positional argument
         # from parse_event

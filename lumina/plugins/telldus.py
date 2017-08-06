@@ -507,7 +507,7 @@ class Telldus(Node):
 
 
     # --- Override default emit
-    def emit(self, event, *args, **kw):
+    def emit(self, event, *args):
         self.inport.log.info("Event '{e}'", e=event)
         if event in self.emitted:
             self.inport.log.info("Event '{e}' double triggered", e=event)
@@ -520,7 +520,7 @@ class Telldus(Node):
             del self.emitted[event]
         self.emitted[event] = True
         reactor.callLater(self.doubleprotect, del_protect, event)
-        Node.emit(self, event, *args, **kw)
+        Node.emit(self, event, *args)
 
 
     # --- Interfaces

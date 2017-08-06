@@ -97,7 +97,7 @@ class ServerProtocol(LuminaProtocol):
         if cmd == 'register':
 
             # Register with the server
-            result = self.parent.register_node(self, event.kw)
+            result = self.parent.register_node(self, event.args[0])
             if result:
                 self.log.error('Node registration failed: {e}', e=result)
                 return result

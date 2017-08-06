@@ -19,7 +19,6 @@ from lumina.state import ColorState
 #       {
 #          'name':        # Name of the event/command
 #          'args':        # Arg list [optional]
-#          'kw':          # Arg dict [optional]
 #          'requestid':   # None: No response required
 #                         #     : Response is requested
 #          'response':    # None: A request/command message
@@ -133,7 +132,7 @@ class LuminaProtocol(LineReceiver):
         self.link.set_GREEN('Up')
 
         # -- Handle 'exit' event
-        if event.name == 'exit':
+        if event.name == '_exit':
             self.transport.loseConnection()
             return
 
@@ -148,9 +147,10 @@ class LuminaProtocol(LineReceiver):
 
             # Get orginial request and delete it from the queue.
             request = self.requests.pop(event.requestid)
-            self.log.debug("       ^^ is a reply to {re}", re=request)
+            #self.log.debug("       ^^ is a reply to {re}", re=request)
 
-            # Copy received data into request
+            # Link the request with the response by copying the
+            # received data into the request
             request.response = event.response
             request.result = event.result
 
@@ -158,11 +158,14 @@ class LuminaProtocol(LineReceiver):
             # calling it twice
             (defer, request.defer) = (request.defer, None)
 
+            # Remote request successful
             if event.response:
 
                 # Send successful result back
                 self.log.info('', cmdok=request)
                 defer.callback(request)
+
+            # Remote request failed
             else:
 
                 def cmd_error(failure):
@@ -179,6 +182,7 @@ class LuminaProtocol(LineReceiver):
                 exc = NodeException(*request.result)
                 self.log.error('', cmderr=request)
                 defer.errback(exc)
+
 
         # -- New incoming request
         else:
@@ -281,14 +285,14 @@ class LuminaProtocol(LineReceiver):
 
 
     # -- Easy-to-remember wrapper functions for self.send()
-    def emit(self, name, *args, **kw):
-        return self.emit_raw(Event(name, *args, **kw))
+    def emit(self, name, *args):
+        return self.emit_raw(Event(name, *args))
 
     def emit_raw(self, event):
         return self.send(event, request_response=False)
 
-    def request(self, name, *args, **kw):
-        return self.request_raw(Event(name, *args, **kw))
+    def request(self, name, *args):
+        return self.request_raw(Event(name, *args))
 
     def request_raw(self, event):
         return self.send(event, request_response=True)
