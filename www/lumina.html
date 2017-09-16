@@ -32,7 +32,8 @@
   <script src="lu-main.js"></script>
   <script src="lu-comm.js"></script>
   <script src="lu-yamaha.js"></script>
-  <script src="lu-admin.js"></script>
+  <script src="lu-network.js"></script>
+  <script src="lu-debug.js"></script>
 
   <!-- To ensure A refs work with angular ngRouter -->
   <base href="lumina.html">
@@ -46,7 +47,7 @@
   <div ng-include="'lumina-nav.html'"></div>
 
   <!-- Main view -->
-  <div ng-view></div>
+  <div ng-view class="container-fluid"></div>
 
   <!-- jQuery (necessary for Bootstrap's JavaScript plugins) and Bootstrap CSS -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>

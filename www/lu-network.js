@@ -5,7 +5,7 @@
 */
 angular.module('LuminaApp')
 
-    .controller('LuminaAdmin', ['$scope', '$routeParams', '$sce', 'LuminaComm', function(
+    .controller('LuminaNetwork', ['$scope', '$routeParams', '$sce', 'LuminaComm', function(
         $scope, $routeParams, $sce, LuminaComm) {
 
         $scope.renderHtml = function(html_code) {

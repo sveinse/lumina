@@ -17,9 +17,13 @@ angular.module('LuminaApp', ['ngRoute', 'ui.bootstrap'])
                 templateUrl: 'lu-yamaha.html',
                 controller: 'LuminaYamaha'
             })
-            .when('/admin', {
-                templateUrl: 'lu-admin.html',
-                controller: 'LuminaAdmin'
+            .when('/network', {
+                templateUrl: 'lu-network.html',
+                controller: 'LuminaNetwork'
+            })
+            .when('/debug', {
+                templateUrl: 'lu-debug.html',
+                controller: 'LuminaDebug'
             })
             .otherwise( {redirectTo:'/main'} );
 

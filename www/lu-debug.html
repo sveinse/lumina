@@ -1,0 +1,15 @@
+<h2><i class="fa fa-bug fa-lg fa-fw"></i> Debug</h2>
+
+<form ng-submit="send()" class="form-inline">
+    <div class="form-group">
+        <div class="input-group">
+            <input type="text" class="form-control" ng-model="command" placeholder="Command">
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Send</button>
+</form>
+
+<button type="button" class="close" ng-click="luminaComm.debug.log=''">&times;</button>
+<p class="form-control-static">
+    <pre>{{luminaComm.debug.log}}</pre>
+</p>

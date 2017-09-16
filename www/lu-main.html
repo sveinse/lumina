@@ -1,43 +1,15 @@
-<div class="container">
-
-  <div ng-repeat="section in sections">
-    <h2><i class="fa {{section.icon}} fa-lg fa-fw"></i>{{section.title}}</h2>
-    <p>
+<div ng-repeat="section in sections">
+  <h2><i class="fa {{section.icon}} fa-lg fa-fw"></i>{{section.title}}</h2>
+  <p>
     <ol class="breadcrumb" ng-show="section.bar">
       <li ng-repeat="elem in section.bar">{{elem}}</li>
     </ol>
     <div class="btn-toolbar" role="toolbar">
       <div class="btn-group btn-group-lg" role="group" ng-repeat="grp in section.buttons">
         <button type="button" class="btn btn-{{btn.type}}" ng-repeat="btn in grp" ng-click="command(btn.cmd)">
-          <i class="fa {{btn.icon}} fc-lg"></i> {{btn.text}}
-        </button>
+        <i class="fa {{btn.icon}} fc-lg"></i> {{btn.text}}
+      </button>
       </div>
     </div>
     <hr>
-  </div>
-
-  <!-- CUSTOM COMMAND INPUT -->
-  <div>
-    <h2><i class="fa fa-bug fa-lg fa-fw"></i>
-      Debug
-    </h2>
-    <p />
-    <div class="well">
-      <button type="button" class="close" ng-click="lumina.debug.data=''">&times;</button>
-      <p class="form-control-static"><pre>{{luminaComm.debug.log}}</pre></p>
-    </div>
-
-
-    <!-- <form class="form-inline" id="lu-command">
-    <div class="form-group">
-          <div class="input-group">
-            <input type="text" class="form-control" id="lu-command-input" placeholder="Command">
-          </div>
-        </div>
-        <button type="submit" class="btn btn-primary">Send</button>
-      </form> -->
-    <hr />
-  </div>
-
-
 </div>

@@ -90,6 +90,7 @@ class RestMainInfo(LuminaResource):
         return json.dumps(main.get_info())
 
 
+
 class RestServerInfo(LuminaResource):
     def render_GET(self, request):
         request.setHeader(b'Content-Type', b'application/json')
@@ -98,6 +99,7 @@ class RestServerInfo(LuminaResource):
         if not server:
             return json.dumps({})
         return json.dumps(server.get_info())
+
 
 
 class Web(Plugin):
