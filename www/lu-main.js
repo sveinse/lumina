@@ -67,6 +67,10 @@ angular.module('LuminaApp')
                 ], [
                     {  type: 'default', icon: 'fa-circle-o',  text: 'Av', cmd: 'amp2/off'  },
                     {  type: 'default', icon: 'fa-power-off', text: 'På', cmd: 'amp2/on'  },
+                ], [
+                    {  type: 'default', icon: 'fa-plus-circle', text: '', cmd: 'avr/pure_direct'  },
+                    {  type: 'default', icon: 'fa-plus-circle', text: '', cmd: 'amp1/pure_direct'  },
+                    {  type: 'default', icon: 'fa-plus-circle', text: '', cmd: 'amp2/pure_direct'  },
                 ] ]
             },
             {
@@ -94,6 +98,9 @@ angular.module('LuminaApp')
                 buttons: [ [
                     {  type: 'default', icon: 'fa-circle-o', text: 'Av', cmd: 'hw50/off'  },
                     {  type: 'default', icon: 'fa-power-off', text: 'På', cmd: 'hw50/on'  },
+                ],[
+                    {  type: 'default', icon: 'fa-film', text: 'Film', cmd: 'hw50/preset/film1'  },
+                    {  type: 'default', icon: 'fa-television', text: 'TV', cmd: 'hw50/preset/tv'  },
                 ] ]
             },
         ];

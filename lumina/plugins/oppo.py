@@ -188,7 +188,7 @@ class OppoProtocol(LineReceiver):
 
 
 class Oppo(Node):
-    ''' Oppo mendia player interface
+    ''' Oppo media player interface
     '''
 
     CONFIG = {

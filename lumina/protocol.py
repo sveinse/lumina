@@ -261,7 +261,7 @@ class LuminaProtocol(LineReceiver):
             event.defer = defer = Deferred()
 
             def timeout(event):
-                ''' Response if command suffers a timeout '''
+                ''' Failure if remote command suffers a timeout '''
                 self.link.set_YELLOW('Communication timeout')
                 self.requests.pop(event.requestid)
                 exc = TimeoutException()

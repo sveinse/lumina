@@ -7,6 +7,7 @@ from lumina.state import ColorState
 
 class Plugin(object):
 
+    # Plugin configurations, both local and global
     CONFIG = {}
     GLOBAL_CONFIG = {}
 

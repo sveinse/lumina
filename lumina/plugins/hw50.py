@@ -276,6 +276,7 @@ def encode_hw50frame(item, cmd, data):
     return b
 
 
+
 class HW50Protocol(Protocol):
     timeout = 3
     keepalive_interval = 60
@@ -364,7 +365,6 @@ class HW50Protocol(Protocol):
                 self.log.info("-IGNORED-")
 
 
-
     def command(self, item, cmd=GET_RQ, data=0x0):
 
         # Compile next request
@@ -417,6 +417,7 @@ class HW50Protocol(Protocol):
         defer.addBoth(lambda a: None)
 
 
+
 class Hw50(Node):
     ''' Sony VPL-HW50 projector interface
     '''
@@ -435,15 +436,16 @@ class Hw50(Node):
             'off'          : lambda a : self.c(IR_PWROFF,cmd=SET_RQ),
             'on'           : lambda a : self.c(IR_PWRON,cmd=SET_RQ),
 
-            #'hw50/raw'          : lambda a : self.c(int(a.args[0],16),int(a.args[1],16),int(a.args[2],16)),
-            #'hw50/ison'         : lambda a : self.c(STATUS_POWER).addCallback(ison),
-            #'hw50/status_error' : lambda a : self.c(STATUS_ERROR),
-            #'hw50/status_power' : lambda a : self.c(STATUS_POWER),
-            #'hw50/lamp_timer'   : lambda a : self.c(LAMP_TIMER),
-            #'hw50/preset'       : lambda a : self.c(CALIB_PRESET),
-            #'hw50/preset/film1' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA1),
-            #'hw50/preset/film2' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA2),
-            #'hw50/preset/tv'    : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_TV),
+            'preset/film1' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA1),
+            'preset/film2' : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_CINEMA2),
+            'preset/tv'    : lambda a : self.c(CALIB_PRESET,cmd=SET_RQ,data=CALIB_PRESET_TV),
+            
+            #'raw'          : lambda a : self.c(int(a.args[0],16),int(a.args[1],16),int(a.args[2],16)),
+            #'ison'         : lambda a : self.c(STATUS_POWER).addCallback(ison),
+            #'status_error' : lambda a : self.c(STATUS_ERROR),
+            #'status_power' : lambda a : self.c(STATUS_POWER),
+            #'lamp_timer'   : lambda a : self.c(LAMP_TIMER),
+            #'preset'       : lambda a : self.c(CALIB_PRESET),
         }
 
 
