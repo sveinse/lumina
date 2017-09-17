@@ -112,6 +112,8 @@ class Web(Plugin):
         'log': dict(default='access-lumina.log', help='Path for web server logs'),
     }
 
+    DEPENDS = ['server', 'responder']
+
     def setup(self, main):
         Plugin.setup(self, main)
 

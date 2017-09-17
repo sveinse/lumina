@@ -473,6 +473,7 @@ class Yamaha(Node):
 
 
     def close(self):
+        Node.close(self)
         self.protocol.disconnect()
         self.ssdp.disconnect()
 

@@ -195,6 +195,12 @@ class Oppo(Node):
         'port' : dict(default='/dev/ttyUSB0', help='Oppo serial port'),
     }
 
+
+    # --- Initialization
+    def __init__(self, main):
+        self.sp = None
+
+
     # --- Interfaces
     def configure(self, main):
 
@@ -239,12 +245,6 @@ class Oppo(Node):
         }
 
 
-
-    # --- Initialization
-    def __init__(self, main):
-        self.sp = None
-
-
     # --- Initialization
     def setup(self, main):
         Node.setup(self, main)
@@ -267,6 +267,7 @@ class Oppo(Node):
 
 
     def close(self):
+        Node.close(self)
         if self.sp:
             self.sp.loseConnection()
 

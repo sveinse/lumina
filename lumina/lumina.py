@@ -15,6 +15,7 @@ from lumina.log import Logger
 from lumina.state import ColorState
 from lumina.plugin import Plugin
 from lumina.exceptions import ConfigException
+from lumina.utils import topolgical_sort
 
 
 
@@ -41,6 +42,7 @@ class Lumina(object):
         self.log = Logger(namespace='-')
         self.status = ColorState(log=self.log)
 
+
         #== CONFIGUATION
         self.config = config = Config()
         config.add_templates(self.GLOBAL_CONFIG)
@@ -49,6 +51,7 @@ class Lumina(object):
         if conffile:
             self.config.readconfig(conffile)
             self.config['conffile'] = conffile
+
 
         #== GENERAL INFORMATION
         self.hostname = socket.gethostname()
@@ -63,99 +66,80 @@ class Lumina(object):
                       host=self.hostname, hostid=self.hostid, pid=self.pid)
 
         #== PLUGINS
-        self.plugins = []
+        self.plugins = {}
+        self.plugin_count = 0
+        self.plugin_deps = {}
 
-        count = 0
-
-        # Ensure the admin plugin is always loaded
         plugins = list(config['plugins'])
-
-        # Iterate over the plugins from config
-        for module in plugins:
+        for i, module in enumerate(plugins):
 
             # Ignore empty plugin names
             module = module.strip()
             if not len(module):
                 continue
 
-            count += 1
+            # Check the name syntax
+            m = self.RE_PLUGIN_SYNTAX.match(module)
+            if not m:
+                self.log.error("Syntax error in plugin name '%s' (index %s)  --  IGNORING" %(
+                    module, i+1))
+                continue
             name = module
-            plugin = None
+            if m.group(3) is not None:
+                module = m.group(1)
+                name = m.group(3)
 
+            # Require unique names
+            if name in self.plugins:
+                self.log.error("Plugin with name '%s' already exists  -- IGNORING" %(name))
+                continue
+
+            # Load the plugin
+            plugin = self.load_plugin(module, name)
+
+
+        #== Load any additional dependencies
+        while True:
+
+            loaded = set()
+            depends = set()
+            for name, deps in self.plugin_deps.items():
+                loaded.add(name)
+                depends.update(deps)
+
+            toload = depends.difference(loaded)
+            if not toload:
+                break
+
+            self.log.warn("Loading missing dependencies: {l}", l=', '.join(list(toload)))
+            for module in toload:
+
+                # Load the dependency
+                plugin = self.load_plugin(module)
+
+
+        #== Sort the sequence
+        try:
+            sequence = topolgical_sort(self.plugin_deps)
+            self.log.info("Setup sequence: {l}", l=", ".join(sequence))
+        except:
+            self.log.critical("Cyclic dependencies detected. Stopping.")
+            self.log.critical("Dependencies: {d}", d=self.plugin_deps)
+            raise SystemExit(1)
+
+
+        #== Configure the plugins
+        for name in sequence:
             try:
-
-                # Check the name syntax
-                m = self.RE_PLUGIN_SYNTAX.match(module)
-                if not m:
-                    raise Exception("Syntax error in plugin name")
-
-                # Check if the syntax "plugin(name)" has been used
-                if m.group(3) is not None:
-                    module = m.group(1)
-                    name = m.group(3)
-
-                self.log.info("Loading plugin {m}...", m=module)
-
-                plugin = import_module('lumina.plugins.' + module).PLUGIN(self)
-
-                # Get the name to use from the plugin if it is overridden
-                confname = name
-                name = plugin.override_name(confname, self)
-                if name != confname:
-                    self.log.warn("Plugin name overridden from {o} to {n}", o=confname, n=name)
-
-                # Require unique names
-                if self.get_plugin_by_name(name):
-                    raise Exception("Plugin already exist: '%s'" %(name))
-
-                # Store plugin related information
-                plugin.name = name
-                plugin.module = module
-                plugin.sequence = count
-
-                # Registering plugin
-                self.log.info("===  Registering #{c} plugin {m} as {n}", c=count, m=module, n=name)
-                self.plugins.append(plugin)
-
-                # Setup plugin
-                config.add_templates(plugin.GLOBAL_CONFIG)
-                config.add_templates(plugin.CONFIG, name=name)
-                plugin.configure(main=self)
-                plugin.setup(main=self)
-                plugin.status.add_callback(self.update_status, run_now=True)
-
-                # Setup for closing the plugin on close
-                reactor.addSystemEventTrigger('before', 'shutdown', plugin.close)
-
-
-            # -- Handle errors loading
-            except ConfigException:
+                self.configure_plugin(name)
+            except:
                 raise
-
-            except Exception as e:    # pylint: disable=broad-except
-                msg = "Failed to load plugin '{m}': {t}: {e}".format(m=module, t=type(e).__name__, e=e.message)
-                self.log.failure("{m}  --  IGNORING", m=msg)
-
-                # Remove plugin if already added
-                if plugin in self.plugins:
-                    self.plugins.remove(plugin)
-
-                # Put in a empty failed placeholder
-                plugin = FailedPlugin(self)
-                plugin.name = name
-                plugin.module = FailedPlugin.name
-                plugin.sequence = count
-                plugin.status = ColorState('RED', log=self.log, why=msg, name=module)
-                self.plugins.append(plugin)
-
-                # Update main status
-                plugin.status.add_callback(self.update_status, run_now=True)
 
 
         #== Register own shutdown
         reactor.addSystemEventTrigger('before', 'shutdown', self.close)
 
-        # Missing plugins?
+        # No plugins?
         if not self.plugins:
             self.status.set_OFF('No plugins')
             self.log.warn("No plugins have been configured. Doing nothing.")
@@ -164,22 +148,114 @@ class Lumina(object):
     def close(self):
         pass
 
+
+    #==
+    def load_plugin(self, module, name=None):
+
+        if name is None:
+            name = module
+
+        self.plugin_count += 1
+
+        try:
+            self.log.info("Loading plugin {m}...", m=module)
+
+            # LOAD the plugin
+            plugin = import_module('lumina.plugins.' + module).PLUGIN(self)
+            plugin.failed = None
+
+            # Registering plugin
+            #self.log.info("===  Registering #{c} plugin {m} as {n}",
+            #              c=self.plugin_count, m=module, n=name)
+
+        except Exception as e:    # pylint: disable=broad-except
+            msg = "Failed to load plugin '{m}': {t}: {e}".format(
+                m=module, t=type(e).__name__, e=e.message)
+            self.log.failure("{m}", m=msg)
+
+            # Put in a empty failed placeholder
+            plugin = FailedPlugin(self)
+            module = FailedPlugin.name
+            plugin.failed = "%s: %s" %(type(e).__name__, e.message)
+
+            #plugin.status = ColorState('RED', log=self.log, why=msg, name=module)
+
+        # Set common admin attributes
+        plugin.name = name
+        plugin.module = module
+        plugin.sequence = self.plugin_count
+        # plugin.failed   <-- See above
+
+        plugin.log = Logger(namespace=plugin.name)
+        plugin.status = ColorState(log=plugin.log, name=plugin.name)
+
+        # Update main status
+        plugin.status.add_callback(self.update_status, run_now=True)
+
+        # Register plugin
+        self.plugins[name] = plugin
+
+        # Copy the plugin dependencies
+        deps = [unicode(d) for d in plugin.DEPENDS]
+        self.plugin_deps[name] = deps
+        if deps:
+            self.log.info("   depends on {d}", d=', '.join(deps))
+
+        return plugin
+
+
+    def configure_plugin(self, name):
+
+        plugin = self.plugins[name]
+
+        dep_status = [self.plugins[dep].failed for dep in self.plugin_deps[name]]
+        if any(dep_status):
+            deps=', '.join(self.plugin_deps[name])
+            plugin.failed = "DependencyError: One of the depending plugins has failed to load"
+
+        # Setup plugin
+        if not plugin.failed:
+            try:
+
+                self.log.info("===  Setting up plugin {n}", n=name)
+                self.config.add_templates(plugin.GLOBAL_CONFIG)
+                self.config.add_templates(plugin.CONFIG, name=name)
+                plugin.configure(main=self)
+                plugin.setup(main=self)
+
+            except Exception as e:
+                msg = "Failed to configure plugin '{n}': {t}: {e}".format(
+                    n=name, t=type(e).__name__, e=e.message)
+                self.log.failure("{m}", m=msg)
+                plugin.failed = "%s: %s" %(type(e).__name__, e.message)
+
+                # FIXME: What happens when the module failed?
+                plugin.close()
+
+        if plugin.failed:
+            self.log.error("###  Failed plugin {n} ({e})", n=name, e=plugin.failed)
+            plugin.status.set_RED(plugin.failed)
+
+         # Setup for closing the plugin on close
+        reactor.addSystemEventTrigger('before', 'shutdown', plugin.close)
+
+
     #== INTERNAL FUNCTIONS
     def update_status(self, status):
-        (state,why) = ColorState.combine(*[plugin.status for plugin in self.plugins])
+        (state, why) = ColorState.combine(*[plugin.status for plugin in self.plugins.itervalues()])
         self.status.set(state, why)
 
 
     #== SERVICE FUNCTIONS
     def get_plugin_by_module(self, module):
         ''' Return the instance for plugin given by the module argument '''
-        for inst in self.plugins:
+        for inst in self.plugins.itervalues():
             if inst.module == module:
                 return inst
 
     def get_plugin_by_name(self, name):
         ''' Return the instance for a plugin given by the name '''
-        for inst in self.plugins:
+        for inst in self.plugins.itervalues():
             if inst.name == name:
                 return inst
 
@@ -193,10 +269,11 @@ class Lumina(object):
                     'name'      : plugin.name,
                     'module'    : plugin.module,
                     'sequence'  : plugin.sequence,
+                    'depends'   : plugin.DEPENDS,
                     'doc'       : plugin.__doc__,
                     'status'    : str(plugin.status),
                     'status_why': plugin.status.why,
-                } for plugin in self.plugins],
+                } for plugin in self.plugins.itervalues()],
             'status'     : str(self.status),
             'status_why' : self.status.why,
             'config'     : [

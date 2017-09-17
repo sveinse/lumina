@@ -11,15 +11,11 @@ class Plugin(object):
     CONFIG = {}
     GLOBAL_CONFIG = {}
 
+    # List of plugin dependencies
+    DEPENDS = []
+
     def __init__(self, main):
         pass
-
-    def override_name(self, name, main):
-        ''' Override the configured name when instanciating this class.
-            This method shall only be used in very special cases, such as
-            by the admin plugin.
-        '''
-        return name
 
     def configure(self, main):
         ''' Configure the plugin. This method will be called before setup()
@@ -29,9 +25,6 @@ class Plugin(object):
     def setup(self, main):
         ''' Setup and start the services this plugin provides.
         '''
-
-        self.log = Logger(namespace=self.name)
-        self.status = ColorState(log=self.log, name=self.name)
 
     def close(self):
         ''' Close any open files and connections

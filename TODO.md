@@ -1,6 +1,17 @@
 TODO
 ====
 
+* 2017-09-17 @sveinse
+
+    * Fix better error handling in lumina.configure_plugin(). What happens
+      when if the plugin fails to load?
+    * The current implementation of plugin and nodes does not behave
+      consistently on close()
+    * Implement RX757 as a separate plugin. The plugin will have to be stateful
+      on power on/off to track the proper state of the pure_direct function.
+    * Implement protection delay from issuing rxv757 on to pure_direct can be
+      issued. Or any other commands?
+
 * 2017-01-29 @sveinse
 
     * Add timestamps and counters on
@@ -20,9 +31,6 @@ TODO
 
 * 2017-01-27 @sveinse
 
-    * Implement a DEPENDS feature in plugins to ensure they will only
-      load if the dependecies are not met. Might require reordering of
-      loading the packages.
     * Separate commands between actions and idempotent requests. This matters
       when using web API as the former uses POST and the latter cacheable
       GET.
@@ -35,7 +43,14 @@ TODO
 COMPLETED OR DISCARDED
 ======================
 
+* 2017-09-17 @sveinse
+
+    * Implement a DEPENDS feature in plugins to ensure they will only
+      load if the dependecies are not met. Might require reordering of
+      loading the packages. -- [OK 2017-09-17]
+
 * 2017-02-07 @sveinse
+
     * Debian installer should use `conf/example.conf`, or perhaps
       `conf/default.conf` instead of `debian/lumina.default`.
       -- [OK 2017-02-10]

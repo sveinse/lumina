@@ -189,6 +189,12 @@ class Node(Plugin):
         reactor.connectTCP(self.serverhost, self.serverport, self.node_factory)
 
 
+    def close(self):
+        Plugin.close(self)
+        if self.node_protocol:
+            self.node_protocol.transport.loseConnection()
+
+
     def run_command(self, event, fail_on_unknown=True):
         ''' Run a command and return reply or a deferred object for later reply '''
 

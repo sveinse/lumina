@@ -385,6 +385,7 @@ class Telldus(Node):
         self.inport.connect()
 
     def close(self):
+        Node.close(self)
         self.inport.disconnect()
         self.outport.disconnect()
 

@@ -52,12 +52,14 @@
         <th>#</th>
         <th>Name (Plugin)</th>
         <th>Status</th>
-        <th>Documentation</th>
+        <th>Dependencies</th>
+        <th>Description</th>
       </tr>
       <tr ng-repeat="e in plugins">
         <td>{{e.sequence}}</td>
         <td>{{e.name}} ({{e.module}})</td>
         <td ng-bind-html="status_html(e.status, e.status_why)"></td>
+        <td><span ng-repeat="d in e.depends">{{d}} </span></td>
         <td>{{e.doc}}</td>
       </tr>
     </table>
