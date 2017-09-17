@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 from twisted.internet import reactor
+from twisted.internet.protocol import Factory
 
 
 def add_defer_timeout(defer, timeout, callback, *args, **kw):
@@ -74,3 +75,16 @@ def str_object(obj, max_elements=0, brackets=True):
             # fallthrough
 
     return delim[0] + ','.join(obj) + delim[1]
+
+
+def connectEndpoint(protocol, endpoint, *args, **kw):
+    ''' A clone of twisted.internet.endpoint.connectEndpoint(), where this both 
+        creates the endpoint(*args, **kw) and sets up a non-noisy factory.
+    '''
+    class OneShotFactory(Factory):
+        noisy = False
+        def buildProtocol(self, addr):
+            return protocol
+
+    ep = endpoint(reactor, *args, **kw)
+    return ep.connect(OneShotFactory())

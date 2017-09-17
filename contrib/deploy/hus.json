@@ -39,10 +39,10 @@
         "telldus/remote/g/on"    : "light/normal",
         "telldus/remote/g/off"   : "light/off",
 
-        "telldus/wallsw1/on"     : "scene/light",
+        "telldus/wallsw1/on"     : "light/normal",
         "telldus/wallsw1/off"    : "light/off",
         "telldus/wallsw2/on"     : "light/finder",
-        "telldus/wallsw2/off"    : "scene/off"
+        "telldus/wallsw2/off"    : "light/all-off"
 
         // Oppo rules
         //"oppo/connected"         : "oppo/verbose",
@@ -76,11 +76,11 @@
 
         // Shows (on multimedia)
         "show/elec-off"    : [ "hw50/off", "oppo/off", "amps/off" ],
-        "show/music"       : [ "oppo/on", "amps/on" ],
-        "show/netflix"     : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/netflix" ],
-        "show/youtube"     : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/youtube" ],
-        "show/chrome"      : [ "hw50/on",            "amps/on", "avr/input{AV2}" ],
-        "show/tv"          : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home" ],
-        "show/movie"       : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home" ]
+        "show/music"       : [                       "amps/on" ],
+        "show/netflix"     : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/netflix", "hw50/preset/tv"    ],
+        "show/youtube"     : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/youtube", "hw50/preset/tv"    ],
+        "show/chrome"      : [ "hw50/on",            "amps/on", "avr/input{AV2}",                 "hw50/preset/tv"    ],
+        "show/tv"          : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home",    "hw50/preset/tv"    ],
+        "show/movie"       : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home",    "hw50/preset/film1" ]
     }
 }
