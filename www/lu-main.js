@@ -41,15 +41,15 @@ angular.module('LuminaApp')
 
                 buttons: [ [
                     {  type: 'danger',  icon: 'fa-moon-o',    text: 'Helt av', cmd: 'light/all-off'  },
-                    {  type: 'primary', icon: 'fa-circle-o',  text: 'Av',      cmd: 'light/off'  },
-                    {  type: 'default', icon: 'fa-circle-o',  text: 'Ambient', cmd: 'light/ambient'  },
-                    {  type: 'default', icon: 'fa-circle-o',  text: 'Svakt',   cmd: 'light/weak'  },
-                    {  type: 'default', icon: 'fa-circle-o',  text: 'Fullt',   cmd: 'light/full'  },
+                    {  type: 'primary', icon: 'fa-circle',    text: 'Av',      cmd: 'light/off'  },
+                    {  type: 'default', icon: 'fa-adjust',    text: 'Ambient', cmd: 'light/ambient'  },
+                    {  type: 'default', icon: 'fa-adjust',    text: 'Svakt',   cmd: 'light/weak'  },
+                    {  type: 'default', icon: 'fa-sun-o',     text: 'Fullt',   cmd: 'light/full'  },
                     {  type: 'success', icon: 'fa-power-off', text: 'På',      cmd: 'light/normal'  },
                 ],[
-                    {  type: 'default', icon: 'fa-circle-o',  text: 'Finne',   cmd: 'light/finder'  },
-                    {  type: 'default', icon: 'fa-circle-o',  text: 'LED av',  cmd: 'light/led-off'  },
-                    {  type: 'default', icon: 'fa-circle-o',  text: 'Spot av', cmd: 'light/spot-off'  },
+                    {  type: 'default', icon: 'fa-search',    text: 'Finne',   cmd: 'light/finder'  },
+                    {  type: 'default', icon: 'fa-remove',    text: 'LED av',  cmd: 'light/led-off'  },
+                    {  type: 'default', icon: 'fa-remove',    text: 'Spot av', cmd: 'light/spot-off'  },
                 ] ]
             },
             {
@@ -60,17 +60,21 @@ angular.module('LuminaApp')
 
                 buttons: [ [
                     {  type: 'default', icon: 'fa-circle-o',  text: 'Av', cmd: 'avr/off'  },
-                    {  type: 'default', icon: 'fa-power-off', text: 'På', cmd: 'avr/on'  },
+                    {  type: 'default', icon: 'fa-minus fa-rotate-90', text: 'På', cmd: 'avr/on'  },
                 ], [
                     {  type: 'default', icon: 'fa-circle-o',  text: 'Av', cmd: 'amp1/off'  },
-                    {  type: 'default', icon: 'fa-power-off', text: 'På', cmd: 'amp1/on'  },
+                    {  type: 'default', icon: 'fa-minus fa-rotate-90', text: 'På', cmd: 'amp1/on'  },
                 ], [
                     {  type: 'default', icon: 'fa-circle-o',  text: 'Av', cmd: 'amp2/off'  },
-                    {  type: 'default', icon: 'fa-power-off', text: 'På', cmd: 'amp2/on'  },
+                    {  type: 'default', icon: 'fa-minus fa-rotate-90', text: 'På', cmd: 'amp2/on'  },
                 ], [
-                    {  type: 'default', icon: 'fa-plus-circle', text: '', cmd: 'avr/pure_direct'  },
-                    {  type: 'default', icon: 'fa-plus-circle', text: '', cmd: 'amp1/pure_direct'  },
-                    {  type: 'default', icon: 'fa-plus-circle', text: '', cmd: 'amp2/pure_direct'  },
+                    {  type: 'default', icon: 'fa-bell-slash', text: '', cmd: 'avr/mute'   },
+                    {  type: 'default', icon: 'fa-bell-slash', text: '', cmd: 'amp1/mute'  },
+                    {  type: 'default', icon: 'fa-bell-slash', text: '', cmd: 'amp2/mute'  },
+                ], [
+                    {  type: 'default', icon: '', text: 'P', cmd: 'avr/pure_direct'   },
+                    {  type: 'default', icon: '', text: 'P', cmd: 'amp1/pure_direct'  },
+                    {  type: 'default', icon: '', text: 'P', cmd: 'amp2/pure_direct'  },
                 ] ]
             },
             {

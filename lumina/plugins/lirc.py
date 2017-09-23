@@ -7,7 +7,7 @@ from twisted.protocols.basic import LineReceiver
 from twisted.internet.endpoints import UNIXClientEndpoint
 from twisted.internet.defer import Deferred
 
-from lumina.node import Node
+from lumina.plugin import Plugin
 from lumina.utils import connectEndpoint
 from lumina.exceptions import CommandRunException, TimeoutException
 
@@ -30,22 +30,32 @@ from lumina.exceptions import CommandRunException, TimeoutException
 class LircProtocol(LineReceiver):
     delimiter = '\n'
 
+    CONFIG = {
+        'port': dict(default='/var/run/lirc/lircd', help='LIRC communication port'),
+    }
+
     # FIXME: Add proper timeout handling
 
-    def __init__(self, parent, command, defer):
+    def __init__(self, parent, command, port):
         self.log = parent.log
         self.status = parent.status
         self.command = command
-        self.defer = defer
+        self.port = port
+        self.defer = Deferred()
+
+        connectEndpoint(self, UNIXClientEndpoint, self.port)
+
 
     def connectionMade(self):
         self.status.set_YELLOW('Connecting')
         self.log.debug('', dataout=self.command)
         self.transport.write(self.command)
     
+
     #def connectionLost(self, reason):
     #    self.log.info("Conneciton lost: {c}", c=reason)
     #    self.status.set_OFF()
+
 
     def lineReceived(self, data):
         self.log.debug('', datain=data)
@@ -62,12 +72,14 @@ class LircProtocol(LineReceiver):
             self.transport.loseConnection()
 
 
-class Lirc(Node):
+
+class Lirc(Plugin):
     ''' IR control interface '''
 
     CONFIG = {
         'port': dict(default='/var/run/lirc/lircd', help='LIRC communication port'),
     }
+
 
     # --- Interfaces
     def configure(self, main):
@@ -76,28 +88,27 @@ class Lirc(Node):
         ]
 
         self.commands = {
-            'on' :         lambda a: self.c('Yamaha_RXV757', 'KEY_POWER_ON'),
-            'off' :        lambda a: self.c('Yamaha_RXV757', 'KEY_POWER_OFF'),
-            'pure_direct': lambda a: self.c('Yamaha_RXV757', 'KEY_PURE_DIRECT'),
         }
 
 
     # --- Initialization
     def setup(self, main):
-        Node.setup(self, main)
+        Plugin.setup(self, main)
 
         self.port = main.config.get('port', name=self.name)
-
         self.status.set_OFF()
 
 
-    def c(self, name, key):
-        command = 'SEND_ONCE %s %s\n' %(name, key)
+    def command(self, op, name, key):
+        command = '%s %s %s\n' %(op, name, key)
 
-        d = Deferred()
-        connectEndpoint(LircProtocol(self, command, d),
-                        UNIXClientEndpoint, self.port)
-        return d
+        lp = LircProtocol(self, command, self.port)
+        return lp.defer
+
+        #d = Deferred()
+        #connectEndpoint(LircProtocol(self, command, d),
+        #                UNIXClientEndpoint, self.port)
+        #return d
 
 
 # Main plugin object class

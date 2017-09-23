@@ -43,6 +43,13 @@ TODO
 COMPLETED OR DISCARDED
 ======================
 
+* 2017-09-22 @sveinse
+
+    * The serial protocols don't have any retry mechanisms with them. If the
+      connection is lost, there is no mechanism for retrying to reopen the
+      serial connection. If the connect fails, the plugin simply gives up.
+      -- [OK 2017-09-23]
+
 * 2017-09-17 @sveinse
 
     * Implement a DEPENDS feature in plugins to ensure they will only

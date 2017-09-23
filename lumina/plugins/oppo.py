@@ -6,12 +6,12 @@ from Queue import Queue
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.protocols.basic import LineReceiver
-from twisted.internet.serialport import SerialPort, EIGHTBITS, PARITY_NONE, STOPBITS_ONE
-from serial.serialutil import SerialException
+from twisted.internet.serialport import EIGHTBITS, PARITY_NONE, STOPBITS_ONE
 from twisted.internet.task import LoopingCall
 
 from lumina.node import Node
 from lumina.exceptions import CommandRunException, TimeoutException
+from lumina.serial import ReconnectingSerialPort
 
 
 #def ison(result):
@@ -27,8 +27,8 @@ class OppoProtocol(LineReceiver):
     keepalive_interval = 60
 
     def __init__(self, parent):
-        self.log = parent.log
         self.parent = parent
+        self.log = parent.log
         self.status = parent.status
         self.queue = Queue()
         self.lastcommand = None
@@ -46,9 +46,13 @@ class OppoProtocol(LineReceiver):
 
 
     def connectionLost(self, reason):
-        self.log.info("Lost connection: {e}", e=reason.getErrorMessage())
+        self.log.info("Lost connection with Oppo: {e}", e=reason.getErrorMessage())
         self.status.set_RED("Lost connection")
+        if self.timer:
+            self.timer.cancel()
+            self.timer = None
         self.heartbeat.stop()
+        self.parent.sp.connectionLost(reason)
 
 
     def lineReceived(self, data):
@@ -177,6 +181,8 @@ class OppoProtocol(LineReceiver):
         # The timeout response is to fail the request and proceed with the next command
         self.log.info("Command '{c}' timed out", c=self.lastcommand)
         self.status.set_RED('Timeout')
+        self.timer = None
+        self.lastcommand = None
         self.defer.errback(TimeoutException())
         self.send_next()
 
@@ -184,6 +190,21 @@ class OppoProtocol(LineReceiver):
     def keepalive(self):
         defer = self.command('QPW')
         defer.addBoth(lambda a: None)
+
+
+
+class OppoSerialPort(ReconnectingSerialPort):
+    noisy = False
+    maxDelay = 10
+    factor = 1.6180339887498948
+
+    #def connectionLost(self, reason):
+    #    ReconnectingSerialPort.connectionLost(self, reason)
+
+    def connectionFailed(self, reason):
+        self.protocol.status.set_RED(reason.getErrorMessage())
+        self.protocol.log.error('Oppo connect failed: {e}', e=reason.getErrorMessage())
+        ReconnectingSerialPort.connectionFailed(self, reason)
 
 
 
@@ -251,25 +272,20 @@ class Oppo(Node):
 
         self.port = main.config.get('port', name=self.name)
         self.protocol = OppoProtocol(self)
-
-        try:
-            self.sp = SerialPort(self.protocol, self.port, reactor,
+        self.sp = OppoSerialPort(self.protocol, self.port,
                                  baudrate=9600,
                                  bytesize=EIGHTBITS,
                                  parity=PARITY_NONE,
                                  stopbits=STOPBITS_ONE,
                                  xonxoff=0,
                                  rtscts=0)
-        except SerialException as e:
-            msg = "Failed to open port: {e}".format(e=e)
-            self.log.error("{m}", m=msg)
-            self.status.set_RED(msg)
+        self.sp.log = self.log
+        self.sp.connect()
 
 
     def close(self):
         Node.close(self)
-        if self.sp:
-            self.sp.loseConnection()
+        self.sp.loseConnection()
 
 
     # --- Convenience

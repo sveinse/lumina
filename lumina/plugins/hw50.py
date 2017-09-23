@@ -6,12 +6,12 @@ from Queue import Queue
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import Protocol
-from twisted.internet.serialport import SerialPort, EIGHTBITS, PARITY_EVEN, STOPBITS_ONE
-from serial.serialutil import SerialException
+from twisted.internet.serialport import EIGHTBITS, PARITY_EVEN, STOPBITS_ONE
 from twisted.internet.task import LoopingCall
 
 from lumina.node import Node
 from lumina.exceptions import LuminaException, TimeoutException, CommandRunException
+from lumina.serial import ReconnectingSerialPort
 
 
 class FrameException(LuminaException):
@@ -282,8 +282,8 @@ class HW50Protocol(Protocol):
     keepalive_interval = 60
 
     def __init__(self, parent):
-        self.log = parent.log
         self.parent = parent
+        self.log = parent.log
         self.status = parent.status
         self.rxbuffer = bytearray()
         self.queue = Queue()
@@ -302,8 +302,13 @@ class HW50Protocol(Protocol):
 
 
     def connectionLost(self, reason):
-        self.log.info("Lost connection: {e}", e=reason.getErrorMessage())
+        self.log.info("Lost connection with HW50: {e}", e=reason.getErrorMessage())
         self.status.set_RED("Lost connection")
+        if self.timer:
+            self.timer.cancel()
+            self.timer = None
+        self.heartbeat.stop()
+        self.parent.sp.connectionLost(reason)
 
 
     def dataReceived(self, data):
@@ -331,8 +336,8 @@ class HW50Protocol(Protocol):
                     self.log.info("Decode failure: {e}", e=e)
                     continue
 
-                # Consume all data up until the frame (including pre-junk) and save the data
-                # after the frame for later processing
+                # Consume all data up until the frame (including pre-junk) and
+                # save the data after the frame for later processing
                 self.rxbuffer = buffer[x+FRAMESIZE:]
                 if x > 0 or len(self.rxbuffer) > 0:
                     self.log.info("Discarded junk in data, '{b}' before, '{a}' after",
@@ -408,6 +413,8 @@ class HW50Protocol(Protocol):
         # The timeout response is to fail the request and proceed with the next command
         self.log.info("Command {c} timed out", c=dumptext(self.lastmsg))
         self.status.set_RED('Timeout')
+        self.timer = None
+        self.lastmsg = None
         self.defer.errback(TimeoutException())
         self.send_next()
 
@@ -415,6 +422,21 @@ class HW50Protocol(Protocol):
     def keepalive(self):
         defer = self.command(STATUS_POWER)
         defer.addBoth(lambda a: None)
+
+
+
+class Hw50SerialPort(ReconnectingSerialPort):
+    noisy = False
+    maxDelay = 10
+    factor = 1.6180339887498948
+
+    #def connectionLost(self, reason):
+    #    ReconnectingSerialPort.connectionLost(self, reason)
+
+    def connectionFailed(self, reason):
+        self.protocol.status.set_RED(reason.getErrorMessage())
+        self.protocol.log.error('HW50 connect failed: {e}', e=reason.getErrorMessage())
+        ReconnectingSerialPort.connectionFailed(self, reason)
 
 
 
@@ -461,25 +483,20 @@ class Hw50(Node):
 
         self.port = main.config.get('port', name=self.name)
         self.protocol = HW50Protocol(self)
-
-        try:
-            self.sp = SerialPort(self.protocol, self.port, reactor,
+        self.sp = Hw50SerialPort(self.protocol, self.port,
                                  baudrate=38400,
                                  bytesize=EIGHTBITS,
                                  parity=PARITY_EVEN,
                                  stopbits=STOPBITS_ONE,
                                  xonxoff=0,
                                  rtscts=0)
-        except SerialException as e:
-            msg = "Failed to open port: {e}".format(e=e)
-            self.log.error("{m}", m=msg)
-            self.status.set_RED(msg)
+        self.sp.log = self.log
+        self.sp.connect()
 
 
     def close(self):
         Node.close(self)
-        if self.sp:
-            self.sp.loseConnection()
+        self.sp.loseConnection()
 
 
     # --- Convenience
