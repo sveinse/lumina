@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from twisted.internet.defer import Deferred, maybeDeferred
 
-from lumina.event import Event
+from lumina.message import Message
 from lumina.plugin import Plugin
 from lumina.exceptions import CommandParseException, ConfigException, CommandRunException
 
@@ -55,20 +55,20 @@ class Responder(Plugin):
         self.status.set_GREEN()
 
 
-    def handle_event(self, event):
+    def handle_event(self, message):
         ''' Respond to the received event '''
 
         # Find the job for the given event
-        job = self.actions.get(event.name, None)
+        job = self.actions.get(message.name, None)
         if job is None:
-            self.log.info("Ignoring event '{e}'", e=event)
+            self.log.info("Ignoring event '{e}'", e=message)
             #self.log.info("  --:  Ignored",)
             return None
 
         # Make a job object and its parse args and run it
-        #self.log.debug("Event '{e}' received", e=event)
-        command = Event().load_str(job, parse_event=event)
-        self.log.info("Event '{e}' -> '{c}'", e=event, c=command)
+        #self.log.debug("Event '{e}' received", e=message)
+        command = Message().load_str(job, parse_event=message)
+        self.log.info("Event '{e}' -> '{c}'", e=message, c=command)
         return self.run_command(command)
 
 
@@ -78,7 +78,7 @@ class Responder(Plugin):
 
 
     def get_commandlist(self, command, depth=0):
-        ''' Get a list of (fn,event) tuples for the given command (Event() object
+        ''' Get a list of (fn,message) tuples for the given command (Message() object
             expected '''
 
         # Get the function for the given command. Return None if no command exists
@@ -103,19 +103,19 @@ class Responder(Plugin):
 
             # Convert the string group-element to Event() object
             try:
-                event = Event().load_str(cmd, parse_event=command)
+                message = Message().load_str(cmd, parse_event=command)
             except Exception as e:
                 raise CommandParseException("Command parsing failed: %s" %(e))
             #ev.system = command.system   # To override log system
 
             # Iterate over the found commands to check if they too are groups
-            commandlist += self.get_commandlist(event, depth=depth+1)
+            commandlist += self.get_commandlist(message, depth=depth+1)
 
         return commandlist
 
 
     def run_commandlist(self, command, commandlist):
-        ''' Run the commandlist (which should be an Event object) '''
+        ''' Run the commandlist (which should be an Message object) '''
 
         # Print the events
         self.log.info("  --:    {l}", l=commandlist)

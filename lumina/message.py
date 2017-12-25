@@ -11,20 +11,20 @@ from lumina.utils import str_object, listify_dict
 DEBUG=False
 
 
-class EventEncoder(json.JSONEncoder):
+class MessageEncoder(json.JSONEncoder):
     def default(self, obj):    # pylint: disable=E0202
-        if isinstance(obj, Event):
+        if isinstance(obj, Message):
             obj = obj.json_encoder()
         else:
-            obj = super(EventEncoder, self).default(obj)
+            obj = super(MessageEncoder, self).default(obj)
         return obj
 
 
-class Event(object):
-    ''' Event object.
-           event = Event(name,*args)
+class Message(object):
+    ''' Message object.
+           message = Message(name,*args)
 
-        Event name text syntax:
+        Message name text syntax:
            'foo'
            'bar{1,2}'
            'nul{arg1=foo,arg2=bar}'
@@ -32,15 +32,15 @@ class Event(object):
     '''
 
     def __init__(self, name=None, *args):
-        # Event data
+        # Message data
         self.name = name
         self.args = args
 
-        # Event request and execution metas
+        # Message request and execution metas
         self.response = None  # Set if response to a command
         self.result = None    # Command result
 
-        # Event network requestid meta for transport
+        # Message network requestid meta for transport
         self.requestid = None
 
 
@@ -60,13 +60,13 @@ class Event(object):
 
     def copy(self):
         ''' Return new copy of this object.  '''
-        return Event(self.name, *self.args)
+        return Message(self.name, *self.args)
 
 
     #----- IMPORT and EXPORT functions ------
 
     def json_encoder(self):
-        ''' JSON encoder for Event objects '''
+        ''' JSON encoder for Message objects '''
         jdict = {
             'name': self.name,
             'args': self.args,
@@ -89,7 +89,7 @@ class Event(object):
         ''' Load the data from a dict '''
         self.name = other.get('name')
         if self.name is None:
-            raise ValueError("Missing event name")
+            raise ValueError("Missing message name")
         self.name = other.get('name')
         self.args = other.get('args', tuple())
         self.response = other.get('response')
@@ -99,7 +99,7 @@ class Event(object):
 
         # FIXME: What does this do?
         #if isinstance(result, dict) and 'requestid' in result:
-        #    result = Event().load_dict(result)
+        #    result = Message().load_dict(result)
 
         self.result = result
 
@@ -110,7 +110,7 @@ class Event(object):
 
     def dump_json(self):
         ''' Return a json representation of the instance data '''
-        return json.dumps(self, cls=EventEncoder)
+        return json.dumps(self, cls=MessageEncoder)
 
     def load_json(self, string):
         ''' Load the data from a json string '''
@@ -173,7 +173,7 @@ class Event(object):
                         opt = parse_event.args[int(index)-1]
                     except IndexError:
                         raise IndexError(
-                            "%s argument index error '$%s', but event/request has %s args" %(
+                            "%s argument index error '$%s', but message has %s args" %(
                                 self.name, index, len(parse_event.args)))
                     except ValueError:
                         raise ValueError(
@@ -193,8 +193,8 @@ class Event(object):
     __sequence = 0
 
     def gen_requestid(self):
-        Event.__sequence += 1
-        requestid = self.requestid = Event.__sequence
+        Message.__sequence += 1
+        requestid = self.requestid = Message.__sequence
         return requestid
 
     # Unused it seems
@@ -210,16 +210,16 @@ class Event(object):
 
 
     def set_success(self, result):
-        ''' Set event commant to succeed '''
+        ''' Set message command to succeess '''
         self.response = True
-        if isinstance(result, Event):
+        if isinstance(result, Message):
             self.result = result.result
         else:
             self.result = result
 
 
     def set_fail(self, exc):
-        ''' Set event command state to fail '''
+        ''' Set message command state to failed '''
         # If this is run in the scope of an errback, exc will be a Failure object which
         # contains the actual exception in exc.value
         if isinstance(exc, Failure):

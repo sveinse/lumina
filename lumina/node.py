@@ -11,7 +11,7 @@ from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
-from lumina.event import Event
+from lumina.message import Message
 from lumina.exceptions import UnknownCommandException
 from lumina.protocol import LuminaProtocol
 
@@ -110,12 +110,12 @@ class NodeProtocol(LuminaProtocol):
         self.parent.node_protocol = None
 
 
-    def commandReceived(self, event):
+    def commandReceived(self, message):
         ''' Handle commands from server '''
 
         # Remove the plugin prefix from the name
         prefix = self.parent.name + '/'
-        cmd = event.name.replace(prefix, '')
+        cmd = message.name.replace(prefix, '')
 
         # -- Handle the internal commands
         if cmd == '_info':
@@ -123,7 +123,7 @@ class NodeProtocol(LuminaProtocol):
 
         # -- All other requests to nodes are commands
         else:
-            return self.parent.run_command(event)
+            return self.parent.run_command(message)
 
 
 
@@ -182,7 +182,7 @@ class Node(Plugin):
         def emit_status(status):
             ''' Status update callback. Only send updates if connected '''
             if self.node_connected:
-                self.emit_raw(Event('status', status.state, status.old, status.why))
+                self.emit_raw(Message('status', status.state, status.old, status.why))
         self.status.add_callback(emit_status)
 
         self.node_factory = NodeFactory(parent=self)
@@ -195,48 +195,49 @@ class Node(Plugin):
             self.node_protocol.transport.loseConnection()
 
 
-    def run_command(self, event, fail_on_unknown=True):
+    def run_command(self, message, fail_on_unknown=True):
         ''' Run a command and return reply or a deferred object for later reply '''
 
         # Remove the plugin prefix from the name
         prefix = self.name + '/'
-        name = event.name.replace(prefix, '')
+        name = message.name.replace(prefix, '')
 
-        def unknown_command(event):
+        def unknown_command(message):
             ''' Placeholder fn for unknown commands '''
-            exc = UnknownCommandException(event.name)
-            event.set_fail(exc)
+            exc = UnknownCommandException(message.name)
+            message.set_fail(exc)
             if fail_on_unknown:
-                self.log.error('NODE', cmderr=event)
+                self.log.error('NODE', cmderr=message)
                 raise exc
-            self.log.warn("Ignoring unknown command: '{n}'", n=event.name)
+            self.log.warn("Ignoring unknown command: '{n}'", n=message.name)
 
         # -- Run the named fn from the self.commands dict
 
         # FIXME: The maybeDeferred() is possibly not needed here
-        #return maybeDeferred(self.commands.get(name, unknown_command), event)
-        return self.commands.get(name, unknown_command)(event)
+        #return maybeDeferred(self.commands.get(name, unknown_command), message)
+        return self.commands.get(name, unknown_command)(message)
 
 
     # -- Commands to communicate with server
     def emit(self, name, *args):
-        ''' Emit an event and send to server. Append the prefix for this
+        ''' Emit an message and send to server. Append the prefix for this
             node '''
-        return self.emit_raw(Event(self.name + '/' + name, *args))
+        return self.emit_raw(Message(self.name + '/' + name, *args))
 
-    def emit_raw(self, event):
-        ''' Send an event to server. An event does not expect a reply '''
-        return self.sendServer(event, lambda ev: self.node_protocol.emit_raw(ev))
+    # FIXME: emit_raw() shold be renamed event_raw()
+    def emit_raw(self, message):
+        ''' Send an message to server. An event does not expect a reply '''
+        return self.sendServer(message, lambda ev: self.node_protocol.emit_raw(ev))
 
     def request(self, name, *args):
-        return self.request_raw(Event(name, *args))
+        return self.request_raw(Message(name, *args))
 
-    def request_raw(self, event):
+    def request_raw(self, message):
         ''' Send a request to server. A request expects a reply '''
-        return self.sendServer(event, lambda ev: self.node_protocol.request_raw(ev))
+        return self.sendServer(message, lambda ev: self.node_protocol.request_raw(ev))
 
 
-    def sendServer(self, event, protofn):
+    def sendServer(self, message, protofn):
         ''' Send a message to the node protocol. If the node is not connected queue
             the message.
         '''
@@ -244,15 +245,15 @@ class Node(Plugin):
         if self.node_connected:
             # If the protocol is avaible, simply call the function
             # It will return a deferred for us.
-            return protofn(event)
+            return protofn(message)
 
         # Create a defer object for the future reply
         defer = Deferred()
-        self.node_queue.put((defer, protofn, event))
+        self.node_queue.put((defer, protofn, message))
 
         self.log.info("{e}  --  Not connected to server, "
                       "queueing. {n} items in queue",
-                      e=event, n=self.node_queue.qsize())
+                      e=message, n=self.node_queue.qsize())
 
         return defer
 
@@ -268,9 +269,9 @@ class Node(Plugin):
 
         try:
             while True:
-                (defer, protofn, event) = self.node_queue.get(False)
-                self.log.info("Sending {e}", e=event)
-                result = protofn(event)
+                (defer, protofn, message) = self.node_queue.get(False)
+                self.log.info("Sending {e}", e=message)
+                result = protofn(message)
                 if isinstance(result, Deferred):
                     # Ensure that when the result object fires that the
                     # defer object also fire

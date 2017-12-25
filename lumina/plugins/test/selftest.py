@@ -9,7 +9,7 @@ from lumina.node import Node
 from lumina.callback import Callback
 from lumina.exceptions import ConfigException
 from lumina.plugin import Plugin
-from lumina.event import Event
+from lumina.message import Message
 from lumina.exceptions import (NodeException, NoConnectionException,
                                TimeoutException, UnknownCommandException)
 
@@ -56,7 +56,7 @@ class A(Node):
 
     def request1(self, name, now=False):
         def callback(self):
-            ev = Event(name)
+            ev = Message(name)
             d = self.request_raw(ev)
             self.log.info("++++  REQUEST {d}", d=d)
             d.addCallback(self.ok, ev)
@@ -170,8 +170,8 @@ class Selftest(Plugin):
         self.a.request1('test.selftest/a/event')
 
 
-    def handle_event(self, event):
-        self.log.info("++++  EVENT: {e}",e=event)
+    def handle_event(self, message):
+        self.log.info("++++  EVENT: {e}",e=message)
         return 7
 
     def ok(self, result, ev=None):
@@ -185,7 +185,7 @@ class Selftest(Plugin):
     def cmd2(self, cmd, fail=True):
         def callback(self):
             self.count += 1
-            ev = Event(cmd, self.count)
+            ev = Message(cmd, self.count)
             self.log.info("++++  CALLBACK {c} {e}", c=self.count, e=ev)
             d = self.server.run_command(ev, fail_on_unknown=fail)
             d.addCallback(self.ok,ev)

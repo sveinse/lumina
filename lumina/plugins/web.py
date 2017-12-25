@@ -13,7 +13,7 @@ from twisted.web.util import Redirect
 from twisted.internet.defer import maybeDeferred
 
 from lumina.plugin import Plugin
-from lumina.event import Event
+from lumina.message import Message
 
 
 
@@ -56,7 +56,7 @@ class RestCommand(LuminaResource):
         content = request.content.read()
         #self.log.debug("CONTENT: {l} '{c}'", l=len(content), c=content)
 
-        command = Event(path).load_json_args(content)
+        command = Message(path).load_json_args(content)
 
         def reply_ok(result, request, command):
             self.log.info('', cmdin=command)

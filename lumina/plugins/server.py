@@ -88,16 +88,16 @@ class ServerProtocol(LuminaProtocol):
         self.transport.loseConnection()
 
 
-    def commandReceived(self, event):
+    def commandReceived(self, message):
         ''' Handle messages from nodes '''
 
-        cmd = event.name
+        cmd = message.name
 
         # -- Register node name
         if cmd == 'register':
 
             # Register with the server
-            result = self.parent.register_node(self, event.args[0])
+            result = self.parent.register_node(self, message.args[0])
             if result:
                 self.log.error('Node registration failed: {e}', e=result)
                 return result
@@ -110,24 +110,24 @@ class ServerProtocol(LuminaProtocol):
 
         # -- Handle status update
         elif cmd == 'status':
-            # Not really interested in the old state in event.args[1]?
-            self.status.set(event.args[0], why=event.args[2])
+            # Not really interested in the old state in message.args[1]?
+            self.status.set(message.args[0], why=message.args[2])
             return
 
         # -- A new incoming event.
         elif cmd in self.parent.events:
-            return self.parent.handle_event(event)
+            return self.parent.handle_event(message)
 
         # -- A new command
         elif cmd in self.parent.commands:
-            # Must make a new event for the command and pass that
+            # Must make a new message for the command and pass that
             # defer back to the calling command
-            newevent = event.copy()
-            return self.parent.run_command(newevent)
+            newmessage = message.copy()
+            return self.parent.run_command(newmessage)
 
-        # -- An unknown event, but let's send it to the event handler
+        # -- An unknown message, but let's send it to the event handler
         else:
-            return self.parent.handle_event(event)
+            return self.parent.handle_event(message)
 
 
 
@@ -192,22 +192,22 @@ class Server(Plugin):
         reactor.listenTCP(self.port, self.factory)
 
 
-    def run_command(self, event, fail_on_unknown=True):
+    def run_command(self, message, fail_on_unknown=True):
         ''' Run a command and return reply or a deferred object for later reply '''
 
-        def unknown_command(event):
-            exc = UnknownCommandException(event.name)
-            event.set_fail(exc)
+        def unknown_command(message):
+            exc = UnknownCommandException(message.name)
+            message.set_fail(exc)
             if fail_on_unknown:
-                self.log.error('', cmderr=event)
+                self.log.error('', cmderr=message)
                 raise exc
-            self.log.warn("Ignoring unknown command: '{n}'", n=event.name)
+            self.log.warn("Ignoring unknown command: '{n}'", n=message.name)
 
         # -- Run the named fn from the self.commands dict
 
         # FIXME: The maybeDeferred() is possibly not needed here
-        #return maybeDeferred(self.commands.get(event.name, unknown_command), event)
-        return self.commands.get(event.name, unknown_command)(event)
+        #return maybeDeferred(self.commands.get(message.name, unknown_command), message)
+        return self.commands.get(message.name, unknown_command)(message)
 
 
     # --- INTERNAL COMMANDS
