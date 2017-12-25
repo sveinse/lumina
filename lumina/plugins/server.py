@@ -88,7 +88,7 @@ class ServerProtocol(LuminaProtocol):
         self.transport.loseConnection()
 
 
-    def commandReceived(self, message):
+    def messageReceived(self, message):
         ''' Handle messages from nodes '''
 
         cmd = message.name

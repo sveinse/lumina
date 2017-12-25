@@ -188,7 +188,7 @@ class LuminaProtocol(LineReceiver):
         else:
 
             # -- Process the request
-            defer = maybeDeferred(self.commandReceived, message)
+            defer = maybeDeferred(self.messageReceived, message)
 
             # -- Setup filling in the message data from the result
             def cmd_ok(result, message):
@@ -231,8 +231,8 @@ class LuminaProtocol(LineReceiver):
                 defer.addBoth(lambda r, c: self.send(c), message)
 
 
-    def commandReceived(self, message):
-        ''' Process an incoming command. This method should return
+    def messageReceived(self, message):
+        ''' Process an incoming message. This method should return
             a Deferred() if results are not immediately available
         '''
         raise UnknownCommandException(message.name)

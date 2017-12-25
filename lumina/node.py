@@ -110,8 +110,8 @@ class NodeProtocol(LuminaProtocol):
         self.parent.node_protocol = None
 
 
-    def commandReceived(self, message):
-        ''' Handle commands from server '''
+    def messageReceived(self, message):
+        ''' Handle message from server '''
 
         # Remove the plugin prefix from the name
         prefix = self.parent.name + '/'
