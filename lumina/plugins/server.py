@@ -9,10 +9,12 @@ from twisted.internet.protocol import Factory
 from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
-from lumina.exceptions import (NodeConfigException, UnknownCommandException)
+from lumina.exceptions import (NodeConfigException, UnknownCommandException,
+                               UnknownMessageException)
 from lumina.log import Logger
 from lumina.protocol import LuminaProtocol
 from lumina.state import ColorState
+from lumina.message import MsgCommand, MsgEvent
 
 
 # FIXME: Add this as a config statement
@@ -92,42 +94,53 @@ class ServerProtocol(LuminaProtocol):
         ''' Handle messages from nodes '''
 
         cmd = message.name
+        ctype = message.TYPE
 
-        # -- Register node name
-        if cmd == 'register':
 
-            # Register with the server
-            result = self.parent.register_node(self, message.args[0])
-            if result:
-                self.log.error('Node registration failed: {e}', e=result)
-                return result
+        # -- Command type
+        if ctype == MsgCommand.TYPE:
 
-            # Set logging name
-            self.log.namespace = self.servername + ':' + self.name
+            # -- Register node name
+            if cmd == 'register':
 
-            # Respond to the node if the node registration was successful
-            return None
+                # Register with the server
+                result = self.parent.register_node(self, message.args[0])
+                if result:
+                    self.log.error('Node registration failed: {e}', e=result)
+                    return result
 
-        # -- Handle status update
-        elif cmd == 'status':
-            # Not really interested in the old state in message.args[1]?
-            self.status.set(message.args[0], why=message.args[2])
-            return
+                # Set logging name
+                self.log.namespace = self.servername + ':' + self.name
 
-        # -- A new incoming event.
-        elif cmd in self.parent.events:
+                # Respond to the node if the node registration was successful
+                return None
+
+            # -- Handle status update
+            elif cmd == 'status':
+
+                # Not really interested in the old state in message.args[1]?
+                self.status.set(message.args[0], why=message.args[2])
+                return None
+
+            # -- General commands
+            #
+            # Note that this command will be called on non-existing commmands
+            # which is intended behaviour.
+            return self.parent.run_command(message)
+
+
+        # -- Event type
+        elif ctype == MsgEvent.TYPE:
+
+            # -- A new incoming event. Plainly accept it without checking
+            #    self.parent.events
             return self.parent.handle_event(message)
 
-        # -- A new command
-        elif cmd in self.parent.commands:
-            # Must make a new message for the command and pass that
-            # defer back to the calling command
-            newmessage = message.copy()
-            return self.parent.run_command(newmessage)
 
-        # -- An unknown message, but let's send it to the event handler
+        # -- Unknown message type (should have been caught earlier)
         else:
-            return self.parent.handle_event(message)
+            self.log.error("Unexpectedly received message {m}", m=message)
+            raise UnknownMessageException(message.name)
 
 
 
@@ -288,9 +301,9 @@ class Server(Plugin):
 
         # Here is the magic for connecting the remote node commands to the
         # server's command dict. Each node command will get an entry which
-        # will use LuminaProtocol.request_raw(). This function will simply
+        # will use LuminaProtocol.send(). This function will simply
         # send the request to the node and return a deferred for the reply
-        self.add_commands({e: node.request_raw for e in evlist})
+        self.add_commands({e: node.send for e in evlist})
 
         # Return success
         return None

@@ -15,6 +15,9 @@ class CommandParseException(LuminaException):
 class CommandRunException(LuminaException):
     ''' Error running a command '''
 
+class UnknownMessageException(LuminaException):
+    ''' Unknown message exception '''
+
 class UnknownCommandException(LuminaException):
     ''' Unknown command '''
 

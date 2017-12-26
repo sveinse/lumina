@@ -6,24 +6,28 @@ from datetime import datetime
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.defer import Deferred, maybeDeferred
 
-from lumina.message import Message
+from lumina.message import Message, MsgCommand, MsgEvent
 from lumina import utils
 from lumina.exceptions import (NodeException, NoConnectionException,
-                               TimeoutException, UnknownCommandException)
+                               TimeoutException, UnknownCommandException,
+                               UnknownMessageException)
 from lumina.state import ColorState
 
 #
 # LuminaProtocol
 # ==============
-#    1. JSON encoded messages, Message() objects:
+#    1. JSON encoded messages, Message() inherited objects:
 #       {
-#          'name':        # Name of the message (event/command)
-#          'args':        # Arg list [optional]
+#          'type':        # Type object (see message.py)
+#          'name':        # Name of the message
+#       // Optional args:
+#          'args':        # Args list
 #          'requestid':   # None: No response required
 #                         #     : Response is requested
 #          'response':    # None: A request/command message
 #                         #     : A response message
-#          'result':      # Result of the request
+#          'result':      # Result of the request (present if response is
+#                         # present
 #       }
 #
 #    2. Client connects to server. Either client or server
@@ -117,7 +121,7 @@ class LuminaProtocol(LineReceiver):
 
         # -- Parse the incoming message
         try:
-            message = Message().load_json(data)
+            message = Message.load_json(data)
             self.log.debug('', cmdin=message)
 
         except (SyntaxError, ValueError) as e:
@@ -150,9 +154,10 @@ class LuminaProtocol(LineReceiver):
             #self.log.debug("       ^^ is a reply to {re}", re=request)
 
             # Link the request with the response by copying the
-            # received data into the request
+            # received data into the request. Args isn't needed any more
             request.response = message.response
             request.result = message.result
+            request.args = None
 
             # Get the defer handler and remove it from the request to prevent
             # calling it twice
@@ -163,12 +168,15 @@ class LuminaProtocol(LineReceiver):
 
                 # Send successful result back
                 self.log.info('', cmdok=request)
-                defer.callback(request)
+                if not defer.called:
+                    defer.callback(request)
+                else:
+                    self.log.error('Dropping response as defer is already called. Timeout?')
 
             # Remote request failed
             else:
 
-                def cmd_error(failure):
+                def cmd_response_error(failure):
                     # Print the error
                     #self.log.error('{tb}', tb=failure.getTraceback())
 
@@ -176,91 +184,94 @@ class LuminaProtocol(LineReceiver):
                     return None
 
                 # Add an eat-error message to the end of the chain
-                defer.addErrback(cmd_error)
+                defer.addErrback(cmd_response_error)
 
                 # Send an error back
                 exc = NodeException(*request.result)
                 self.log.error('', cmderr=request)
-                defer.errback(exc)
+                if not defer.called:
+                    defer.errback(exc)
+                else:
+                    self.log.error('Dropping response as defer is already called. Timeout?')
+
+            # Done with the request response
+            return
 
 
-        # -- New incoming request
-        else:
+        # -- New incoming message
 
-            # -- Process the request
-            defer = maybeDeferred(self.messageReceived, message)
+        # -- Call the dispatcher with a copy of our message. Want the original
+        #    message as intact as possible for proper response to peer.
+        defer = maybeDeferred(self.messageReceived, message.copy())
 
-            # -- Setup filling in the message data from the result
-            def cmd_ok(result, message):
-                message.set_success(result)
-                self.log.info('', cmdok=message)
-                return result
+        # -- Setup filling in the message data from the result
+        def cmd_ok(result, message):
+            message.set_success(result)
+            self.log.info('', cmdok=message)
+            return result
 
-            def cmd_error(failure, message):
-                message.set_fail(failure)
+        def cmd_error(failure, message):
+            message.set_fail(failure)
 
-                # Accept the exception if listed in validNodeExceptions.
-                for exc in validNodeExceptions:
-                    if failure.check(exc):
-                        return None
+            # Accept the exception if listed in validNodeExceptions.
+            for exc in validNodeExceptions:
+                if failure.check(exc):
+                    return None
 
-                # Print the error and dump the traceback
-                self.log.error('REQUEST FAILED: {tb}', tb=failure.getTraceback())
+            # Print the error and dump the traceback
+            self.log.error('REQUEST FAILED: {tb}', tb=failure.getTraceback())
 
-                # Eat the error message
-                return None
+            # Eat the error message
+            return None
 
-            def cmd_timeout(message):
-                ''' Response if command suffers a timeout '''
-                exc = TimeoutException()
-                message.set_fail(exc)
-                self.log.error('REQUEST TIMED OUT')
-                defer.errback(exc)
+        def cmd_timeout(message):
+            ''' Response if command suffers a timeout '''
+            exc = TimeoutException()
+            message.set_fail(exc)
+            self.log.error('REQUEST TIMED OUT')
+            defer.errback(exc)
 
-            # -- Setup a timeout, and add a timeout err handler making sure the
-            #    message data failure is properly set
-            utils.add_defer_timeout(defer, self.command_timeout, cmd_timeout, message)
+        # -- Setup a timeout, and add a timeout err handler making sure the
+        #    message data failure is properly set
+        utils.add_defer_timeout(defer, self.command_timeout, cmd_timeout, message)
 
-            defer.addCallback(cmd_ok, message)
-            defer.addErrback(cmd_error, message)
+        defer.addCallback(cmd_ok, message)
+        defer.addErrback(cmd_error, message)
 
-            # If requestid is set, the caller expects a reply.
-            if message.requestid is not None:
+        # If requestid is set, the caller expects a reply.
+        if message.requestid is not None:
 
-                # Send response back to sender when the defer object fires
-                defer.addBoth(lambda r, c: self.send(c), message)
+            # Send response back to sender when the defer object fires
+            defer.addBoth(lambda r, c: self.send(c), message)
 
 
     def messageReceived(self, message):
         ''' Process an incoming message. This method should return
             a Deferred() if results are not immediately available
         '''
-        raise UnknownCommandException(message.name)
+        raise UnknownMessageException(message.name)
 
 
-    def send(self, message, request_response=True):
+    def send(self, message):
 
-        # There are three originators calling this function:
+        # There are two originators calling this function:
         #
         #   a) Send response to former command (from lineReceived())
-        #         request_response = True (by default)
+        #         message is MsgRequest
         #         message.requestid = not None
-        #   b) Send new command (from request_raw())
-        #         request_response = True
-        #         message.requestid = None
-        #   c) Send new event (from emit_raw())
-        #         request_response = False
+        #   b) Send new message (from send*())
+        #         message is MsgCommand / MsgEvent
         #         message.requestid = None
 
         # -- Generate deferred and setup timeout if this is a new command
         #    to send (case b)
         defer = None
-        if message.requestid is None and request_response:
+        if message.WANT_RESPONSE and message.requestid is None:
 
             # -- Generate a deferred object
             message.defer = defer = Deferred()
 
-            def timeout(message):
+            def send_timeout(message):
                 ''' Failure if remote command suffers a timeout '''
                 self.link.set_YELLOW('Communication timeout')
                 self.requests.pop(message.requestid)
@@ -270,9 +281,9 @@ class LuminaProtocol(LineReceiver):
 
             # -- Setup a timeout, and add a timeout err handler making sure the
             #    message data failure is properly set
-            utils.add_defer_timeout(defer, self.remote_timeout, timeout, message)
+            utils.add_defer_timeout(defer, self.remote_timeout, send_timeout, message)
 
-            # -- Generate new requestid for request, save it in request list
+            # -- Generate new requestid for message, save message in request list
             self.requests[message.gen_requestid()] = message
 
         # -- Encode and send the command
@@ -285,15 +296,8 @@ class LuminaProtocol(LineReceiver):
 
 
     # -- Easy-to-remember wrapper functions for self.send()
-    def emit(self, name, *args):
-        return self.emit_raw(Message(name, *args))
+    def sendEvent(self, name, *args):
+        return self.send(MsgEvent(name, *args))
 
-    # FIXME: Should set proper type
-    def emit_raw(self, message):
-        return self.send(message, request_response=False)
-
-    def request(self, name, *args):
-        return self.request_raw(Message(name, *args))
-
-    def request_raw(self, message):
-        return self.send(message, request_response=True)
+    def sendCommand(self, name, *args):
+        return self.send(MsgCommand(name, *args))

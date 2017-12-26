@@ -1,5 +1,6 @@
 #-*- python -*-
 import sys
+import traceback
 from zope.interface import implementer
 from twisted.logger import Logger
 from twisted.logger import ILogObserver
@@ -40,19 +41,23 @@ class LuminaLogObserver(object):
 
     def __call__(self, event):
 
-        # Check if the message should be printed or suppressed
-        ok = self.filter_logtext(event)
-        if not ok:
-            return
+        try:
+            # Check if the message should be printed or suppressed
+            ok = self.filter_logtext(event)
+            if not ok:
+                return
 
-        # Add the Lumina specific log items and generate the text for output
-        self.add_custom_logtext(event)
-        self.format_logtext(event)
+            # Add the Lumina specific log items and generate the text for output
+            self.add_custom_logtext(event)
+            self.format_logtext(event)
+
+        except Exception as e:
+            sys.stderr.write(traceback.format_exc())
 
         if self.syslog is None:
 
             fmt = ("{l_timestamp} {l_level:<6} "
-                   "[{system}]  {message}\n")
+                "[{system}]  {message}\n")
             text = fmt.format(**event)
             #text = formatEventAsClassicLogText(event)#
 

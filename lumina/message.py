@@ -5,10 +5,10 @@ import re
 import json
 import shlex
 from twisted.python.failure import Failure
-from lumina.utils import str_object, listify_dict
+from lumina.utils import str_object
 
 
-DEBUG=False
+DEBUG = False
 
 
 class MessageEncoder(json.JSONEncoder):
@@ -31,13 +31,15 @@ class Message(object):
            'nul{arg1=foo,arg2=bar,5}'
     '''
 
+    TYPE = 'message'
+
     def __init__(self, name=None, *args):
         # Message data
         self.name = name
         self.args = args
 
         # Message request and execution metas
-        self.response = None  # Set if response to a command
+        self.response = None  # Not None if response to a command
         self.result = None    # Command result
 
         # Message network requestid meta for transport
@@ -54,23 +56,30 @@ class Message(object):
             alist.append('#%s' %(self.requestid))
         if DEBUG and hasattr(self, 'defer'):
             alist.append('d=%s' %(str(self.defer),))
-        alist += list(self.args)
-        return "%s{%s}" %(self.name, str_object(alist, max_elements=5, brackets=False))
+        if self.args is not None:
+            alist += list(self.args)
+        return "%s:%s{%s}" %(self.TYPE, self.name, str_object(alist, max_elements=5, brackets=False))
 
 
     def copy(self):
         ''' Return new copy of this object.  '''
-        return Message(self.name, *self.args)
+        return type(self)(self.name, *self.args)
 
 
     #----- IMPORT and EXPORT functions ------
 
-    def json_encoder(self):
+    def json_encoder(self, jdict=None):
         ''' JSON encoder for Message objects '''
-        jdict = {
+        if not jdict:
+            jdict = {}
+        jdict.update({
+            'type': self.TYPE,
             'name': self.name,
-            'args': self.args,
-        }
+        })
+        if self.args is not None:
+            jdict.update({
+                'args': self.args,
+            })
         if self.requestid is not None:
             jdict.update({
                 'requestid': self.requestid,
@@ -90,18 +99,13 @@ class Message(object):
         self.name = other.get('name')
         if self.name is None:
             raise ValueError("Missing message name")
-        self.name = other.get('name')
+
         self.args = other.get('args', tuple())
-        self.response = other.get('response')
+
         self.requestid = other.get('requestid')
 
-        result = other.get('result')
-
-        # FIXME: What does this do?
-        #if isinstance(result, dict) and 'requestid' in result:
-        #    result = Message().load_dict(result)
-
-        self.result = result
+        self.response = other.get('response')
+        self.result = other.get('result')
 
         return self
 
@@ -111,12 +115,6 @@ class Message(object):
     def dump_json(self):
         ''' Return a json representation of the instance data '''
         return json.dumps(self, cls=MessageEncoder)
-
-    def load_json(self, string):
-        ''' Load the data from a json string '''
-        jdict = json.loads(string, encoding='ascii')
-        self.load_dict(jdict)
-        return self
 
     def load_json_args(self, string):
         ''' Load args only from a json string '''
@@ -212,6 +210,7 @@ class Message(object):
     def set_success(self, result):
         ''' Set message command to succeess '''
         self.response = True
+        self.args = None
         if isinstance(result, Message):
             self.result = result.result
         else:
@@ -225,6 +224,7 @@ class Message(object):
         if isinstance(exc, Failure):
             (failure, exc) = (exc, exc.value)
         self.response = False
+        self.args = None
         self.result = (exc.__class__.__name__, str(exc.message))
 
 
@@ -236,3 +236,39 @@ class Message(object):
     #
     #    self.defer = Deferred()
     #    return self.defer
+
+
+    #----- STATIC METHODS ------
+
+    @staticmethod
+    def load_json(string):
+        ''' Create a new Message() object from a json string '''
+        jdict = json.loads(string, encoding='ascii')
+
+        msgtype = jdict.get('type')
+        if msgtype is None:
+            raise ValueError("Missing message type")
+
+        for cls in MSGTYPES:
+            if cls.TYPE == msgtype:
+                return cls().load_dict(jdict)
+        raise ValueError("Uknown message type '%s'" %(msgtype))
+
+
+class MsgEvent(Message):
+    ''' Event message '''
+    TYPE = 'event'
+    WANT_RESPONSE = False
+
+
+class MsgCommand(Message):
+    ''' Command message '''
+    TYPE = 'command'
+    WANT_RESPONSE = True
+
+
+# List of all message types
+MSGTYPES = (
+    MsgEvent,
+    MsgCommand
+)

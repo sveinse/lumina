@@ -17,6 +17,11 @@ class Test(Node):
     }
 
 
+    # --- Initialization
+    def __init__(self, main):
+        self.count = 0
+
+
     # --- Interfaces
     def configure(self, main):
 
@@ -42,13 +47,9 @@ class Test(Node):
             'delay'     : lambda a: self.delay(a.args[0], (1, 2, 3)),
             'fail'      : lambda a: self.err(),
             'never'     : lambda a: Deferred(),
-            'echo'      : lambda a: self.emit(a.args[0]),
+            'echo'      : lambda a: self.sendEvent(a.args[0]),
         }
 
-
-    # --- Initialization
-    def __init__(self):
-        self.count = 0
 
     def setup(self, main):
         Node.setup(self, main)
@@ -65,11 +66,11 @@ class Test(Node):
     # --- Worker
     def loop_cb1(self):
         self.count += 1
-        self.emit('timer1', self.count)
+        self.sendEvent('timer1', self.count)
 
     def loop_cb2(self):
         self.count += 1
-        self.emit('timer2', self.count)
+        self.sendEvent('timer2', self.count)
 
     def delay(self, time, data):
         defer = Deferred()

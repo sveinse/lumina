@@ -11,7 +11,7 @@ from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
-from lumina.message import Message
+from lumina.message import MsgCommand, MsgEvent
 from lumina.exceptions import UnknownCommandException
 from lumina.protocol import LuminaProtocol
 
@@ -56,7 +56,7 @@ class NodeProtocol(LuminaProtocol):
                       n_e=len(self.parent.events),
                       n_c=len(self.parent.commands),
                       **data)
-        defer = self.request('register', data)
+        defer = self.sendCommand('register', data)
         defer.addCallback(self.registered)
         defer.addErrback(self.registerError)
 
@@ -90,8 +90,8 @@ class NodeProtocol(LuminaProtocol):
         # reconnect, a new update must be pushed
         # Equal value on state and old state indicates a refresh, not
         # new value.
-        self.emit('status', self.parent.status.state,
-                  self.parent.status.state, self.parent.status.why)
+        self.sendCommand('status', self.parent.status.state,
+                         self.parent.status.state, self.parent.status.why)
 
         # -- Enable sending of events from the parent class
         self.parent.node_connected = True
@@ -182,7 +182,7 @@ class Node(Plugin):
         def emit_status(status):
             ''' Status update callback. Only send updates if connected '''
             if self.node_connected:
-                self.emit_raw(Message('status', status.state, status.old, status.why))
+                self.sendCommand('status', status.state, status.old, status.why)
         self.status.add_callback(emit_status)
 
         self.node_factory = NodeFactory(parent=self)
@@ -219,22 +219,17 @@ class Node(Plugin):
 
 
     # -- Commands to communicate with server
-    def emit(self, name, *args):
-        ''' Emit an message and send to server. Append the prefix for this
-            node '''
-        return self.emit_raw(Message(self.name + '/' + name, *args))
+    def sendEvent(self, name, *args):
+        ''' Send event to server. Append the prefix for this node '''
+        return self.send(MsgEvent(self.name + '/' + name, *args))
 
-    # FIXME: emit_raw() shold be renamed event_raw()
-    def emit_raw(self, message):
-        ''' Send an message to server. An event does not expect a reply '''
-        return self.sendServer(message, lambda ev: self.node_protocol.emit_raw(ev))
+    def sendCommand(self, name, *args):
+        ''' Send command to server. '''
+        return self.send(MsgCommand(name, *args))
 
-    def request(self, name, *args):
-        return self.request_raw(Message(name, *args))
+    def send(self, message):
+        return self.sendServer(message, lambda ev: self.node_protocol.send(ev))
 
-    def request_raw(self, message):
-        ''' Send a request to server. A request expects a reply '''
-        return self.sendServer(message, lambda ev: self.node_protocol.request_raw(ev))
 
 
     def sendServer(self, message, protofn):

@@ -13,7 +13,7 @@ from twisted.web.util import Redirect
 from twisted.internet.defer import maybeDeferred
 
 from lumina.plugin import Plugin
-from lumina.message import Message
+from lumina.message import MsgCommand, MsgEvent
 
 
 
@@ -26,8 +26,6 @@ class LuminaResource(Resource):
         self.log = log
         self.main = main
         self.main_server = main.get_plugin_by_module('server')
-
-        # FIXME: Fail if server is not available
 
 
 
@@ -55,8 +53,10 @@ class RestCommand(LuminaResource):
         #self.log.debug('HEADERS: {h}', h=request.requestHeaders)
         content = request.content.read()
         #self.log.debug("CONTENT: {l} '{c}'", l=len(content), c=content)
+        command = MsgCommand(path).load_json_args(content)
 
-        command = Message(path).load_json_args(content)
+        self.log.info('', cmdout=command)
+        defer = maybeDeferred(server.run_command, command)
 
         def reply_ok(result, request, command):
             self.log.info('', cmdin=command)
@@ -71,11 +71,8 @@ class RestCommand(LuminaResource):
             request.write(command.dump_json())
             request.finish()
 
-        self.log.info('', cmdout=command)
-
-        # Requires maybeDeferred() as the server.run_command might not return a deferred object
-        #defer = server.run_command(command)
-        defer = maybeDeferred(server.run_command, command)
+        # Do not add a timeout handler here. The server.run_command will
+        # time out and call our errback function
         defer.addCallback(reply_ok, request, command)
         defer.addErrback(reply_error, request, command)
         return NOT_DONE_YET
@@ -128,6 +125,7 @@ class Web(Plugin):
 
         # List of resources that we want added
         resources = {'rest/command': RestCommand(main, self.log),
+                     #'rest/event': RestEvent(main, self.log),
                      'rest/main/info': RestMainInfo(main, self.log),
                      'rest/server/info': RestServerInfo(main, self.log),
                     }

@@ -457,7 +457,7 @@ class Telldus(Node):
                         continue
 
                     # Match found, process it as an event
-                    self.emit(ev)
+                    self.sendEvent(ev)
                     return
 
 
@@ -475,7 +475,7 @@ class Telldus(Node):
                         continue
 
                     # Match found, process it as an event
-                    self.emit(ev)
+                    self.sendEvent(ev)
                     return
 
 
@@ -494,10 +494,10 @@ class Telldus(Node):
 
                     # Match found, process it as an event
                     if 'humidity' in args:
-                        self.emit(ev, ('temp', args['temp']),
-                                  ('humidity', args['humidity']))
+                        self.sendEvent(ev, ('temp', args['temp']),
+                                       ('humidity', args['humidity']))
                     else:
-                        self.emit(ev, ('temp', args['temp']))
+                        self.sendEvent(ev, ('temp', args['temp']))
                     return
 
                 # Uncommant if not interested in logging temp events we don't subscribe to
@@ -507,8 +507,8 @@ class Telldus(Node):
         self.inport.log.info("Ignoring '{c}' {e}", c=cmd, e=event[1:])
 
 
-    # --- Override default emit
-    def emit(self, event, *args):
+    # --- Override default sendEvent
+    def sendEvent(self, event, *args):
         self.inport.log.info("Event '{e}'", e=event)
         if event in self.emitted:
             self.inport.log.info("Event '{e}' double triggered", e=event)
@@ -521,7 +521,7 @@ class Telldus(Node):
             del self.emitted[event]
         self.emitted[event] = True
         reactor.callLater(self.doubleprotect, del_protect, event)
-        Node.emit(self, event, *args)
+        Node.sendEvent(self, event, *args)
 
 
     # --- Interfaces

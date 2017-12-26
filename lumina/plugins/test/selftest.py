@@ -40,7 +40,7 @@ class A(Node):
     def emit1(self, name, now=False):
         def callback(self):
             self.count += 1
-            d = self.emit(name, self.count)
+            d = self.sendEvent(name, self.count)
             self.log.info("++++  TEST EMIT {d}", d=d)
             if isinstance(d, Deferred):
                 d.addCallback(self.ok)
@@ -56,8 +56,8 @@ class A(Node):
 
     def request1(self, name, now=False):
         def callback(self):
-            ev = Message(name)
-            d = self.request_raw(ev)
+            ev = MsgCommand(name)
+            d = self.send(ev)
             self.log.info("++++  REQUEST {d}", d=d)
             d.addCallback(self.ok, ev)
             d.addErrback(self.err, ev)
