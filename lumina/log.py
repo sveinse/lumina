@@ -51,13 +51,13 @@ class LuminaLogObserver(object):
             self.add_custom_logtext(event)
             self.format_logtext(event)
 
-        except Exception as e:
+        except Exception:  # pylint: disable=broad-except
             sys.stderr.write(traceback.format_exc())
 
         if self.syslog is None:
 
             fmt = ("{l_timestamp} {l_level:<6} "
-                "[{system}]  {message}\n")
+                   "[{system}]  {message}\n")
             text = fmt.format(**event)
             #text = formatEventAsClassicLogText(event)#
 
@@ -106,7 +106,7 @@ class LuminaLogObserver(object):
         else:
             try:
                 system = unicode(system)
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 system = u"UNFORMATTABLE"
         event['system'] = system
 
@@ -115,10 +115,10 @@ class LuminaLogObserver(object):
 
         if "log_failure" in event:
             try:
-                traceback = event["log_failure"].getTraceback()
-            except Exception:
-                traceback = u"(UNABLE TO OBTAIN TRACEBACK FROM EVENT)\n"
-            eventtext = u"\n".join((eventtext, traceback))
+                tbk = event["log_failure"].getTraceback()
+            except Exception:  # pylint: disable=broad-except
+                tbk = u"(UNABLE TO OBTAIN TRACEBACK FROM EVENT)\n"
+            eventtext = u"\n".join((eventtext, tbk))
 
         if not eventtext:
             eventtext = u''

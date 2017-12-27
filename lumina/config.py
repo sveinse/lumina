@@ -1,7 +1,6 @@
 # -*- python -*-
 from __future__ import absolute_import
 
-import os
 import re
 import json
 
@@ -9,19 +8,19 @@ from lumina.log import Logger
 from lumina.exceptions import ConfigException
 
 
-log = Logger(namespace='config')
+LOG = Logger(namespace='config')
 
 
 
-def verify_type(key, object, otype):
-    ''' Verify that object is of type otype. Fail with ValueError()
+def verify_type(key, obj, otype):
+    ''' Verify that obj is of type otype. Fail with ValueError()
     '''
 
     # None indicates that we don't check type
     if otype is None:
         return
 
-    tobj = type(object)
+    tobj = type(obj)
 
     if tobj is not otype:
         if ((tobj is unicode and otype is str)           # unicode and str is equivalent
@@ -63,7 +62,7 @@ class Config(object):
         ''' Register new configuration templates to the config class
         '''
 
-        log.info("Adding {n} config templates", n=len(templates))
+        LOG.info("Adding {n} config templates", n=len(templates))
         for (k, template) in templates.items():
             if name:
                 k = name + '.' + k

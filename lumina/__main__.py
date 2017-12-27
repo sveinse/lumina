@@ -65,7 +65,7 @@ def daemonize(pidfile):
 
 
 #===  MAIN function
-def main(args=None):    # pylint: disable=W0613
+def main(args=None):    # pylint: disable=unused-variable
     ''' Lumina main function '''
 
     #==  PARSE ARGS

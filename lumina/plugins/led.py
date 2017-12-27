@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 import array
 
-from ola.OlaClient import OlaClient
+from ola.OlaClient import OlaClient  # pylint: disable=E0401
 
 from lumina.node import Node
 

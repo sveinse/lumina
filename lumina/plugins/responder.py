@@ -20,7 +20,7 @@ class Responder(Plugin):
         'max_depth': dict(default=10, help='Maxium nesting depth of recursive groups', type=int),
     }
 
-    DEPENDS = [ 'server' ]
+    DEPENDS = ['server']
 
 
     def setup(self, main):
@@ -149,10 +149,6 @@ class Responder(Plugin):
                     for cmd in self.commandlist:
 
                         # -- Attach callbacks to handle progress
-
-                        # Requires maybeDeferred() as the server.run_command
-                        # might not return a deferred object
-                        #defer = server.run_command(cmd)
                         defer = maybeDeferred(server.run_command, cmd)
                         defer.addCallback(self.cmd_ok, cmd)
                         defer.addErrback(self.cmd_err, cmd)
@@ -162,7 +158,7 @@ class Responder(Plugin):
 
                 return self.defer
 
-            def cmd_ok(self, result, cmd):
+            def cmd_ok(self, result, cmd):  # pylint: disable=unused-variable
                 self.success += 1
                 return result
 
@@ -170,7 +166,7 @@ class Responder(Plugin):
                 self.failed.append(cmd)
                 return failure
 
-            def cmd_done(self, result):
+            def cmd_done(self, result):  # pylint: disable=unused-variable
                 self.remain -= 1
                 # Done?
                 if self.remain <= 0:

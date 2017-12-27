@@ -1,15 +1,15 @@
 # -*-python-*-
 from __future__ import absolute_import
 
-from twisted.internet import reactor
-from twisted.internet.protocol import Protocol
+#from twisted.internet import reactor
+#from twisted.internet.protocol import Protocol
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.endpoints import UNIXClientEndpoint
 from twisted.internet.defer import Deferred
 
 from lumina.plugin import Plugin
 from lumina.utils import connectEndpoint
-from lumina.exceptions import CommandRunException, TimeoutException
+from lumina.exceptions import CommandRunException #, TimeoutException
 
 # Protocol response:
 #   BEGIN
@@ -50,7 +50,7 @@ class LircProtocol(LineReceiver):
         self.status.set_YELLOW('Connecting')
         self.log.debug('', dataout=self.command)
         self.transport.write(self.command)
-    
+
 
     #def connectionLost(self, reason):
     #    self.log.info("Conneciton lost: {c}", c=reason)

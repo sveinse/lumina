@@ -1,8 +1,8 @@
 # -*- python -*-
 from __future__ import absolute_import
 
-from lumina.log import Logger
-from lumina.state import ColorState
+#from lumina.log import Logger
+#from lumina.state import ColorState
 
 
 class Plugin(object):

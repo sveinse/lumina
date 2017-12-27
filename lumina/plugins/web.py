@@ -58,13 +58,13 @@ class RestCommand(LuminaResource):
         self.log.info('', cmdout=command)
         defer = maybeDeferred(server.run_command, command)
 
-        def reply_ok(result, request, command):
+        def reply_ok(result, request, command):  # pylint: disable=unused-variable
             self.log.info('', cmdin=command)
             request.responseHeaders.addRawHeader(b'Content-Type', b'application/json')
             request.write(command.dump_json())
             request.finish()
 
-        def reply_error(failure, request, command):
+        def reply_error(failure, request, command):  # pylint: disable=unused-variable
             self.log.info('', cmderr=command)
             request.responseHeaders.addRawHeader(b'Content-Type', b'application/json')
             request.setResponseCode(http.BAD_REQUEST)

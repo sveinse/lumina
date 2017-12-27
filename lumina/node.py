@@ -6,7 +6,7 @@ from Queue import Queue, Empty
 from binascii import hexlify
 
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred #, maybeDeferred
+from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.task import LoopingCall
 
@@ -212,9 +212,6 @@ class Node(Plugin):
             self.log.warn("Ignoring unknown command: '{n}'", n=message.name)
 
         # -- Run the named fn from the self.commands dict
-
-        # FIXME: The maybeDeferred() is possibly not needed here
-        #return maybeDeferred(self.commands.get(name, unknown_command), message)
         return self.commands.get(name, unknown_command)(message)
 
 
@@ -228,8 +225,8 @@ class Node(Plugin):
         return self.send(MsgCommand(name, *args))
 
     def send(self, message):
+        # pylint: disable=unnecessary-lambda
         return self.sendServer(message, lambda ev: self.node_protocol.send(ev))
-
 
 
     def sendServer(self, message, protofn):

@@ -182,7 +182,7 @@ class TelldusIn(Protocol):
         self.timer.start(self.idleTimeout, now=False)
 
 
-    def connectionLost(self, reason):
+    def connectionLost(self, reason):  # pylint: disable=W0222
         self.connected = False
         self.log.info("Lost connection with {p}: {e}", p=self.path, e=reason.getErrorMessage())
         self.status.set_OFF('IN connection closed')
@@ -283,7 +283,7 @@ class TelldusOut(Protocol):
         self.send()
 
 
-    def connectionLost(self, reason):
+    def connectionLost(self, reason):  # pylint: disable=W0222
         self.connected = False
         if not self.completed:
             # Lost connection before we could get any reply back.
@@ -391,7 +391,7 @@ class Telldus(Node):
 
 
     # --- Callbacks
-    def update_status(self, status):
+    def update_status(self, status):  # pylint: disable=unused-variable
         (state, why) = ColorState.combine(self.inport.status, self.outport.status)
         why = ". ".join([s.why for s in [self.inport.status, self.outport.status] if s.why is not None])
         self.status.set(state, why)

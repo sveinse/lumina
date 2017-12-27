@@ -45,7 +45,7 @@ class OppoProtocol(LineReceiver):
         self.heartbeat.start(self.keepalive_interval, True)
 
 
-    def connectionLost(self, reason):
+    def connectionLost(self, reason):  # pylint: disable=W0222
         self.log.info("Lost connection with Oppo: {e}", e=reason.getErrorMessage())
         self.status.set_RED("Lost connection")
         if self.timer:
@@ -218,7 +218,7 @@ class Oppo(Node):
 
 
     # --- Initialization
-    def __init__(self, main):
+    def __init__(self, main):  # pylint: disable=W0231
         self.sp = None
 
 

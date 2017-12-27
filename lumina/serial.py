@@ -24,7 +24,7 @@ class ReconnectingSerialPort(Reconnector):
             self.sp = SerialPort(self.protocol, self.port, reactor,
                                  *self.args, **self.kwargs)
             self.resetDelay()
-        except SerialException as e:
+        except SerialException:
             self.connectionFailed(Failure())
 
 

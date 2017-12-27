@@ -5,7 +5,6 @@ from datetime import datetime
 
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory
-#from twisted.internet.defer import maybeDeferred
 from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
@@ -217,14 +216,11 @@ class Server(Plugin):
             self.log.warn("Ignoring unknown command: '{n}'", n=message.name)
 
         # -- Run the named fn from the self.commands dict
-
-        # FIXME: The maybeDeferred() is possibly not needed here
-        #return maybeDeferred(self.commands.get(message.name, unknown_command), message)
         return self.commands.get(message.name, unknown_command)(message)
 
 
     # --- INTERNAL COMMANDS
-    def update_status(self, status):
+    def update_status(self, status):  # pylint: disable=unused-variable
         l = [node.status for node in self.nodes.itervalues()]
         l += [node.link for node in self.nodes.itervalues()]
         (state, why) = ColorState.combine(*l)

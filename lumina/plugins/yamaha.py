@@ -9,8 +9,8 @@ import socket
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import DatagramProtocol, ClientFactory, Protocol
-from twisted.web.client import Agent
-from twisted.web.http_headers import Headers
+#from twisted.web.client import Agent
+#from twisted.web.http_headers import Headers
 
 from lumina.node import Node
 from lumina.log import Logger
@@ -228,7 +228,7 @@ Connection: keep-alive\r
         self.transport.write(data)
 
 
-    def connectionLost(self, reason):
+    def connectionLost(self, reason):  # pylint: disable=W0222
         self.log.info("Connection lost: {e}", e=reason.getErrorMessage())
         #self.setstate('closed', reason.getErrorMessage())
         # This will catch up server-side close and 0 length body packages

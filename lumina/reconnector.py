@@ -31,12 +31,12 @@ class Reconnector(object):
         pass
 
 
-    def connectionFailed(self, unused_reason):
+    def connectionFailed(self, unused_reason):  # pylint: disable=unused-variable
         if self.continueTrying:
             self.retry()
 
 
-    def connectionLost(self, unused_reason):
+    def connectionLost(self, unused_reason):  # pylint: disable=unused-variable
         if self.continueTrying:
             self.retry()
 

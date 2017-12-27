@@ -59,7 +59,7 @@ class State(object):
             self.log.info('{w} change: {o} --> {n}{s}', w=self.what, o=old, n=pstate, s=swhy)
 
         if self.callbacks and (state != old or why != oldwhy):
-            dummy = [ callback(self) for callback in self.callbacks ]
+            dummy = [callback(self) for callback in self.callbacks]
 
     def get(self):
         return self.state
@@ -133,4 +133,4 @@ class ColorState(State):
                     s.name or '' for s in state if s.state == 'OFF'
                     ]) + ' is OFF')
             why = ". ".join(whys)
-        return (status,why)
+        return (status, why)

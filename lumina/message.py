@@ -58,7 +58,8 @@ class Message(object):
             alist.append('d=%s' %(str(self.defer),))
         if self.args is not None:
             alist += list(self.args)
-        return "%s:%s{%s}" %(self.TYPE, self.name, str_object(alist, max_elements=5, brackets=False))
+        return "%s:%s{%s}" %(self.TYPE, self.name,
+                             str_object(alist, max_elements=5, brackets=False))
 
 
     def copy(self):
@@ -222,7 +223,7 @@ class Message(object):
         # If this is run in the scope of an errback, exc will be a Failure object which
         # contains the actual exception in exc.value
         if isinstance(exc, Failure):
-            (failure, exc) = (exc, exc.value)
+            (failure, exc) = (exc, exc.value)  # pylint: disable=unused-variable
         self.response = False
         self.args = None
         self.result = (exc.__class__.__name__, str(exc.message))

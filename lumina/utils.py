@@ -78,16 +78,16 @@ def str_object(obj, max_elements=0, brackets=True):
 
 
 def connectEndpoint(protocol, endpoint, *args, **kw):
-    ''' A clone of twisted.internet.endpoint.connectEndpoint(), where this both 
+    ''' A clone of twisted.internet.endpoint.connectEndpoint(), where this both
         creates the endpoint(*args, **kw) and sets up a non-noisy factory.
     '''
-    class OneShotFactory(Factory):
+    class OneShotFactory(Factory):  # pylint: disable=W0232
         noisy = False
         def buildProtocol(self, addr):
             return protocol
 
-    ep = endpoint(reactor, *args, **kw)
-    return ep.connect(OneShotFactory())
+    endp = endpoint(reactor, *args, **kw)
+    return endp.connect(OneShotFactory())
 
 
 # Written by Stephen McDonald, copied from

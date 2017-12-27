@@ -301,7 +301,7 @@ class HW50Protocol(Protocol):
         self.heartbeat.start(self.keepalive_interval, True)
 
 
-    def connectionLost(self, reason):
+    def connectionLost(self, reason):  # pylint: disable=W0222
         self.log.info("Lost connection with HW50: {e}", e=reason.getErrorMessage())
         self.status.set_RED("Lost connection")
         if self.timer:
@@ -318,15 +318,15 @@ class HW50Protocol(Protocol):
 
         # Search for data frames in the incoming data buffer. Search for SOF and EOF markers.
         # It will only iterate if the buffer is large enough for a complete frame
-        buffer = self.rxbuffer
-        for x in range(0, len(buffer)-FRAMESIZE+1):
+        buf = self.rxbuffer
+        for x in range(0, len(buf)-FRAMESIZE+1):
 
             # Search for SOF and EOF markers
-            if buffer[x] == SOF and buffer[x+FRAMESIZE-1] == EOF:
+            if buf[x] == SOF and buf[x+FRAMESIZE-1] == EOF:
 
                 try:
                     # Decode the response-frame
-                    frame = buffer[x:x+FRAMESIZE]
+                    frame = buf[x:x+FRAMESIZE]
                     self.log.debug("     >>>  {f} - {t}", f=dump(frame), t=dumptext(frame))
                     (item, cmd, data) = decode_hw50frame(frame)
 
@@ -338,10 +338,10 @@ class HW50Protocol(Protocol):
 
                 # Consume all data up until the frame (including pre-junk) and
                 # save the data after the frame for later processing
-                self.rxbuffer = buffer[x+FRAMESIZE:]
+                self.rxbuffer = buf[x+FRAMESIZE:]
                 if x > 0 or len(self.rxbuffer) > 0:
                     self.log.info("Discarded junk in data, '{b}' before, '{a}' after",
-                                  b=dump(buffer[:x]), a=dump(self.rxbuffer))
+                                  b=dump(buf[:x]), a=dump(self.rxbuffer))
 
                 # From here on, consider this a valid frame
                 self.status.set_GREEN()
@@ -450,7 +450,7 @@ class Hw50(Node):
 
 
     # --- Initialization
-    def __init__(self, main):
+    def __init__(self, main):  # pylint: disable=W0231
         self.sp = None
 
 

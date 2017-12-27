@@ -9,8 +9,7 @@ from twisted.internet.defer import Deferred, maybeDeferred
 from lumina.message import Message, MsgCommand, MsgEvent
 from lumina import utils
 from lumina.exceptions import (NodeException, NoConnectionException,
-                               TimeoutException, UnknownCommandException,
-                               UnknownMessageException)
+                               TimeoutException, UnknownMessageException)
 from lumina.state import ColorState
 
 #
@@ -89,7 +88,7 @@ class LuminaProtocol(LineReceiver):
         self.link.set_YELLOW('Connecting')
 
 
-    def connectionLost(self, reason):
+    def connectionLost(self, reason):  # pylint: disable=W0222
         self.link.set_RED('Connection lost')
 
         # -- Cancel timer
@@ -97,7 +96,7 @@ class LuminaProtocol(LineReceiver):
             self.keepalive.stop()
 
         # -- Cancel any pending requests
-        for (requestid, request) in self.requests.items():
+        for (requestid, request) in self.requests.items():  # pylint: disable=unused-variable
             exc = NoConnectionException()
             request.set_fail(exc)
 
@@ -176,7 +175,7 @@ class LuminaProtocol(LineReceiver):
             # Remote request failed
             else:
 
-                def cmd_response_error(failure):
+                def cmd_response_error(failure):  # pylint: disable=unused-variable
                     # Print the error
                     #self.log.error('{tb}', tb=failure.getTraceback())
 

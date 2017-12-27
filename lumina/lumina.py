@@ -14,7 +14,6 @@ from lumina.config import Config
 from lumina.log import Logger
 from lumina.state import ColorState
 from lumina.plugin import Plugin
-from lumina.exceptions import ConfigException
 from lumina.utils import topolgical_sort
 
 
@@ -95,7 +94,7 @@ class Lumina(object):
                 continue
 
             # Load the plugin
-            plugin = self.load_plugin(module, name)
+            self.load_plugin(module, name)
 
 
         #== Load any additional dependencies
@@ -115,7 +114,7 @@ class Lumina(object):
             for module in toload:
 
                 # Load the dependency
-                plugin = self.load_plugin(module)
+                self.load_plugin(module)
 
 
         #== Sort the sequence
@@ -210,7 +209,7 @@ class Lumina(object):
 
         dep_status = [self.plugins[dep].failed for dep in self.plugin_deps[name]]
         if any(dep_status):
-            deps=', '.join(self.plugin_deps[name])
+            #deps = ', '.join(self.plugin_deps[name])
             plugin.failed = "DependencyError: One of the depending plugins has failed to load"
 
         # Setup plugin
@@ -223,7 +222,7 @@ class Lumina(object):
                 plugin.configure(main=self)
                 plugin.setup(main=self)
 
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 msg = "Failed to configure plugin '{n}': {t}: {e}".format(
                     n=name, t=type(e).__name__, e=e.message)
                 self.log.failure("{m}", m=msg)
@@ -241,7 +240,7 @@ class Lumina(object):
 
 
     #== INTERNAL FUNCTIONS
-    def update_status(self, status):
+    def update_status(self, status):  # pylint: disable=unused-variable
         (state, why) = ColorState.combine(*[plugin.status for plugin in self.plugins.itervalues()])
         self.status.set(state, why)
 
