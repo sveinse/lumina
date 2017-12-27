@@ -1,5 +1,5 @@
 {
-    "plugins": [ "oppo", "yamaha(avr)", "yamaha(amp1)", "lirc(amp2)" ],
+    "plugins": [ "oppo", "avr(yamaha)", "amp1(yamaha)", "amp2(rxv757)", "lirc" ],
 
     "server": "hus.local",
     "port": 5326,

@@ -27,7 +27,7 @@ class FailedPlugin(Plugin):
 class Lumina(object):
 
     # The plugin= syntax in the configuration file
-    RE_PLUGIN_SYNTAX = re.compile(r'^([\w.]+)(\(([\w]+)\))?$')
+    RE_PLUGIN_SYNTAX = re.compile(r'^([\w.]+)(\(([\w.]+)\))?$')
 
     # Overall (default) global config options
     GLOBAL_CONFIG = {
@@ -89,8 +89,8 @@ class Lumina(object):
                 continue
             name = module
             if m.group(3) is not None:
-                module = m.group(1)
-                name = m.group(3)
+                module = m.group(3)
+                name = m.group(1)
 
             # Require unique names
             if name in self.plugins:
