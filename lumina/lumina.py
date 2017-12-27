@@ -37,10 +37,10 @@ class Lumina(object):
     }
 
 
-    def setup(self, conffile=None):
+    # Setup Lumina. This is run before the reactpr has been started
+    def __init__(self, conffile=None):
         self.log = Logger(namespace='-')
         self.status = ColorState(log=self.log)
-
 
         #== CONFIGUATION
         self.config = config = Config()
@@ -50,7 +50,6 @@ class Lumina(object):
         if conffile:
             self.config.readconfig(conffile)
             self.config['conffile'] = conffile
-
 
         #== GENERAL INFORMATION
         self.hostname = socket.gethostname()
@@ -64,12 +63,17 @@ class Lumina(object):
         self.log.info("Host {host} [{hostid}], PID {pid}",
                       host=self.hostname, hostid=self.hostid, pid=self.pid)
 
+
+    def setup(self):
+
+        self.log.info("Starting plugins...")
+
         #== PLUGINS
         self.plugins = {}
         self.plugin_count = 0
         self.plugin_deps = {}
 
-        plugins = list(config['plugins'])
+        plugins = list(self.config['plugins'])
         for i, module in enumerate(plugins):
 
             # Ignore empty plugin names

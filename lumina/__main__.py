@@ -93,10 +93,10 @@ def main(args=None):    # pylint: disable=unused-variable
     #==  LOGGING
     log.start(syslog=(os.name != 'nt' and opts.syslog), syslog_prefix='Lumina')
 
-    #== MAIN
-    #   This will load the plugins and set them up
-    lumina = Lumina()
-    lumina.setup(conffile=opts.config)
+    #==  MAIN
+    lumina = Lumina(conffile=opts.config)
+    reactor.callLater(0, lumina.setup)
 
-    #== START TWISTED
+    #==  START TWISTED
+    lumina.log.info("Starting reactor")
     reactor.run()
