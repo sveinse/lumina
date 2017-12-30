@@ -205,7 +205,12 @@ class Server(Plugin):
         self.node_status = ColorState(log=self.log, state='OFF')
 
         # -- Create list of expected unconnected nodes
-        self.nodes = {n: ServerProtocol(self) for n in self.nodelist}
+        #    Do not use dict comprehension here, as the dict must be updated
+        #    one by one. The ServerProtocol() instance creation will call
+        #    self.update_status() which in turn uses self.nodes
+        self.nodes = {}
+        for n in self.nodelist:
+            self.nodes[n] = ServerProtocol(self)
         for n in self.nodes:
             self.nodes[n].name = n
 

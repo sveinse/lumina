@@ -1,5 +1,6 @@
 {
     "plugins": ["server", "responder", "web" ],
+    "server.nodes": [ "telldus", "led", "hw50", "avr", "amp1", "amp2", "oppo" ],
 
     "port": 5326,
 

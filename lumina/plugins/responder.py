@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from twisted.internet.defer import Deferred, maybeDeferred
 
-from lumina.message import Message
+from lumina.message import MsgCommand
 from lumina.plugin import Plugin
 from lumina.exceptions import CommandParseException, ConfigException, CommandRunException
 
@@ -26,10 +26,9 @@ class Responder(Plugin):
     def setup(self, main):
         Plugin.setup(self, main)
 
-        self.max_depth = main.config.get('max_depth', name=self.name)
-
         self.groups = main.config.get('groups', name=self.name).copy()
         self.actions = main.config.get('actions', name=self.name).copy()
+        self.max_depth = main.config.get('max_depth', name=self.name)
 
         # If any items in the actions list contains a list, make it into
         # a group with name '__<name>'
@@ -58,16 +57,14 @@ class Responder(Plugin):
     def handle_event(self, message):
         ''' Respond to the received event '''
 
-        # Find the job for the given event
-        job = self.actions.get(message.name, None)
-        if job is None:
+        # Find the action for the given event
+        action = self.actions.get(message.name, None)
+        if action is None:
             self.log.info("Ignoring event '{e}'", e=message)
-            #self.log.info("  --:  Ignored",)
             return None
 
-        # Make a job object and its parse args and run it
-        #self.log.debug("Event '{e}' received", e=message)
-        command = Message().load_str(job, parse_event=message)
+        # Make a action object and its parse args and run it
+        command = MsgCommand().load_str(action, parse_event=message)
         self.log.info("Event '{e}' -> '{c}'", e=message, c=command)
         return self.run_command(command)
 
@@ -103,7 +100,7 @@ class Responder(Plugin):
 
             # Convert the string group-element to Event() object
             try:
-                message = Message().load_str(cmd, parse_event=command)
+                message = MsgCommand().load_str(cmd, parse_event=command)
             except Exception as e:
                 raise CommandParseException("Command parsing failed: %s" %(e))
             #ev.system = command.system   # To override log system

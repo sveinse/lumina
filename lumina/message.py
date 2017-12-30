@@ -48,6 +48,11 @@ class Message(object):
 
 
     def __repr__(self):
+        tdict = {
+            'message': 'm',
+            'command': 'c',
+            'event':   'e',
+        }
         alist = []
         if DEBUG:
             alist.append('0x' + hex(id(self))[-6:])
@@ -59,7 +64,7 @@ class Message(object):
             alist.append('d=%s' %(str(self.defer),))
         if self.args is not None:
             alist += list(self.args)
-        return "%s:%s{%s}" %(self.type, self.name,
+        return "%s:%s{%s}" %(tdict.get(self.type,'?'), self.name,
                              str_object(alist, max_elements=5, brackets=False))
 
 
