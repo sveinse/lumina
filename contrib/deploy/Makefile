@@ -91,6 +91,8 @@ $(1)-stop:
 	$(call remotecmd,$(1),"sudo service lumina stop")
 $(1)-logs:
 	$(call remotecmd,$(1),"journalctl -f -u lumina")
+$(1)-oldlogs:
+	$(call remotecmd,$(1),"tail -f /var/log/messages")
 
 # Crosslink remote target to the configured builder
 $(1)-build: $($(1)-TYPE)-build

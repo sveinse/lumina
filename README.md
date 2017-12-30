@@ -4,18 +4,14 @@
 
 **Homepage:** [https://github.com/sveinse/lumina](https://github.com/sveinse/lumina)
 
-Lumina is a distributed framework for controlling lighting and home theater
-equipment (such as AV receivers, projectors). It can provide programmable
-action when events occur, either from the equipment and sensors or from the
-built-in web-server.
+Lumina is a small lightweight distributed framework for interfacing external
+equipment and provide programmable rules for controlling the equipment. The
+intended use-case is to control lighting and electronics in a home theater
+setup. It provides programmable actions when events occur triggered by events
+from equipment or from the built-in web-server.
 
-It is well-suited for being used by small embedded Linux devices, such as the
-Rasberry Pi, connected in a distributed networks. Each node (client) connects to
-a central server which provides messaging services. It also provides a small
-built-in web-interface.
-
-The Lumina framework is written in Python 2.7 using Twisted. It use plugin
-based client-server scheme, giving great flexibility.
+The Lumina framework is written in Python 2.7 using Twisted. It is well-suited
+for being run on small embedded Linux devices, such as the Rasberry Pi. 
 
 ### History
 
@@ -25,8 +21,36 @@ by Lumina mainly represents the author's own equipment.
 
 ### Architecture
 
+Lumina is a network communication and controller framework that runs on one or
+more **hosts** (or instances). Each host runs loadable **plugins**. Plugins
+which communicates with external equipment is called **nodes** and can run on
+any host. One designated host must run the **server** plugin, which provides
+the connection point and messaging central for the nodes. Each node provide
+a set of **commands** for executing operation on the equipment and each node
+can send **events** to the server.
+
+The **responder** plugin connects the incoming event from a node and execute a
+configurable command or chain of commands. The **web** plugin provides a web-
+interface to Lumina, which provides a control interface from smartphones and
+other computers.
+
 More information about the technical architecture and implementation can
 be found here: [`Lumina design`](docs/lumina.md)
+
+### Supported plugins and interfaces
+
+ Plugin | Type | Description
+ ------ | -----| ------
+ [`hw50     `](lumina/plugins/hw50.py) | Node | Sony VPL-HW50 Projector interface
+ [`led      `](lumina/plugins/led.py) | Node | Simple DMX LED strip controller
+ [`lirc     `](lumina/plugins/lirc.py) | Interface | Linux IR interface plugin
+ [`oppo     `](lumina/plugins/oppo.py) | Node | Oppo BDP-103 media player interface
+ [`responder`](lumina/plugins/responder.py) | Server | Main event manager handling responses to incoming events
+ [`rxv757   `](lumina/plugins/lirc.py) | Node | Yamaha RX-V757 IR interface
+ [`server   `](lumina/plugins/server.py) | Server | Main Lumina node server
+ [`telldus  `](lumina/plugins/telldus.py) | Node | Telldus home automation interface
+ [`web      `](lumina/plugins/web.py) | Server | Lumina Web interface
+ [`yamaha   `](lumina/plugins/yamaha.py) | Node | Yamaha Aventage family interface
 
 
 ## Source layout
@@ -34,7 +58,6 @@ be found here: [`Lumina design`](docs/lumina.md)
 The sources comprise of the following files:
 
  * `bin/` - Binary tools
-   * `bin/lumina.py` - Development tool to be able to run lumina in-source.
  * `conf/` - Lumina configuration example
  * `contrib/` - Supporing tools and utilities not part of Lumina
  * `debian/` - Debian package descriptions
@@ -45,12 +68,12 @@ The sources comprise of the following files:
    * `lumina/plugins/tests/` - Plugins for testing
  * `www/` - The web-pages and scripts for Lumina
  * `LICENSE`
- * `Makefile` - Build and packaging helper
  * `MANIFEST.in` - Python package manifest
+ * `Makefile` - Build and packaging helper
  * `README.md` - This file (main readme)
  * `README.rst` - Python package readme. Contains except from `README.md`.
- * `setup.py` - Main Python installation script
  * `TODO.md` - All things dreamt of but not yet accomplished
+ * `setup.py` - Main Python installation script
 
 ### contrib/ layout
 
