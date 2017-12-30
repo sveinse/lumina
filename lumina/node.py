@@ -12,7 +12,7 @@ from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
 from lumina.message import MsgCommand, MsgEvent
-from lumina.exceptions import UnknownCommandException
+from lumina.exceptions import (UnknownCommandException, UnknownMessageException)
 from lumina.protocol import LuminaProtocol
 
 # FIXME: Add this as a config statement
@@ -28,6 +28,9 @@ class NodeProtocol(LuminaProtocol):
     def connectionMade(self):
         LuminaProtocol.connectionMade(self)
         self.log.info("Connected to {ip}", ip=self.peer)
+
+        # -- Update protocol variables
+        self.name = self.parent.name
 
         # -- Link this protocol to the parent
         self.parent.node_protocol = self
@@ -49,14 +52,15 @@ class NodeProtocol(LuminaProtocol):
                     hostid=self.parent.hostid,
                     module=self.parent.module,
                     events=self.parent.events,
-                    commands=commands)
+                    commands=commands,
+                   )
         self.log.info("Registering node {node} [{nodeid}], "
                       "type {module}, host {hostname} [{hostid}], "
                       "{n_e} events, {n_c} commands",
                       n_e=len(self.parent.events),
                       n_c=len(self.parent.commands),
                       **data)
-        defer = self.sendCommand('register', data)
+        defer = self.send(MsgCommand('register', data))
         defer.addCallback(self.registered)
         defer.addErrback(self.registerError)
 
@@ -90,8 +94,8 @@ class NodeProtocol(LuminaProtocol):
         # reconnect, a new update must be pushed
         # Equal value on state and old state indicates a refresh, not
         # new value.
-        self.sendCommand('status', self.parent.status.state,
-                         self.parent.status.state, self.parent.status.why)
+        self.send(MsgCommand('status', self.parent.status.state,
+                             self.parent.status.state, self.parent.status.why))
 
         # -- Enable sending of events from the parent class
         self.parent.node_connected = True
@@ -114,16 +118,35 @@ class NodeProtocol(LuminaProtocol):
         ''' Handle message from server '''
 
         # Remove the plugin prefix from the name
-        prefix = self.parent.name + '/'
+        prefix = self.name + '/'
         cmd = message.name.replace(prefix, '')
+        ctype = message.type
 
-        # -- Handle the internal commands
-        if cmd == '_info':
-            return self.parent.main.get_info()
+        # -- Command type
+        if ctype == MsgCommand.type:
 
-        # -- All other requests to nodes are commands
+            # -- Handle the internal commands
+            if cmd == '_info':
+                return self.parent.main.get_info()
+
+            # -- All other requests to nodes are commands handled by
+            #    the Node parent
+
+            def unknown_command(message):
+                ''' Placeholder fn for unknown commands '''
+                exc = UnknownCommandException(message.name)
+                message.set_fail(exc)
+                self.log.error('NODE', cmderr=message)
+                raise exc
+
+            # -- Run the named fn from the commands dict
+            return self.parent.commands.get(cmd, unknown_command)(message)
+
+
+        # -- Unknown message type
         else:
-            return self.parent.run_command(message)
+            self.log.error("Unexpectedly received message {m}", m=message)
+            raise UnknownMessageException("Unknown message type: '%s'" %(message.type,))
 
 
 
@@ -179,11 +202,11 @@ class Node(Plugin):
         self.node_queue = Queue()
 
         # Subscribe to the change of state by sending status back to server
-        def emit_status(status):
+        def send_status(status):
             ''' Status update callback. Only send updates if connected '''
             if self.node_connected:
-                self.sendCommand('status', status.state, status.old, status.why)
-        self.status.add_callback(emit_status)
+                self.send(MsgCommand('status', status.state, status.old, status.why))
+        self.status.add_callback(send_status)
 
         self.node_factory = NodeFactory(parent=self)
         reactor.connectTCP(self.serverhost, self.serverport, self.node_factory)
@@ -195,53 +218,24 @@ class Node(Plugin):
             self.node_protocol.transport.loseConnection()
 
 
-    def run_command(self, message, fail_on_unknown=True):
-        ''' Run a command and return reply or a deferred object for later reply '''
-
-        # Remove the plugin prefix from the name
-        prefix = self.name + '/'
-        name = message.name.replace(prefix, '')
-
-        def unknown_command(message):
-            ''' Placeholder fn for unknown commands '''
-            exc = UnknownCommandException(message.name)
-            message.set_fail(exc)
-            if fail_on_unknown:
-                self.log.error('NODE', cmderr=message)
-                raise exc
-            self.log.warn("Ignoring unknown command: '{n}'", n=message.name)
-
-        # -- Run the named fn from the self.commands dict
-        return self.commands.get(name, unknown_command)(message)
-
-
     # -- Commands to communicate with server
-    def sendEvent(self, name, *args):
-        ''' Send event to server. Append the prefix for this node '''
-        return self.send(MsgEvent(self.name + '/' + name, *args))
-
-    def sendCommand(self, name, *args):
-        ''' Send command to server. '''
-        return self.send(MsgCommand(name, *args))
-
     def send(self, message):
-        # pylint: disable=unnecessary-lambda
-        return self.sendServer(message, lambda ev: self.node_protocol.send(ev))
-
-
-    def sendServer(self, message, protofn):
         ''' Send a message to the node protocol. If the node is not connected queue
             the message.
         '''
 
+        # The function to send the data to the server
+        # pylint: disable=unnecessary-lambda
+        sendfn = lambda ev: self.node_protocol.send(ev)
+
         if self.node_connected:
             # If the protocol is avaible, simply call the function
             # It will return a deferred for us.
-            return protofn(message)
+            return sendfn(message)
 
         # Create a defer object for the future reply
         defer = Deferred()
-        self.node_queue.put((defer, protofn, message))
+        self.node_queue.put((defer, sendfn, message))
 
         self.log.info("{e}  --  Not connected to server, "
                       "queueing. {n} items in queue",
@@ -261,9 +255,9 @@ class Node(Plugin):
 
         try:
             while True:
-                (defer, protofn, message) = self.node_queue.get(False)
+                (defer, sendfn, message) = self.node_queue.get(False)
                 self.log.info("Sending {e}", e=message)
-                result = protofn(message)
+                result = sendfn(message)
                 if isinstance(result, Deferred):
                     # Ensure that when the result object fires that the
                     # defer object also fire
@@ -272,3 +266,11 @@ class Node(Plugin):
                     defer.callback(result)
         except Empty:
             pass
+
+
+    # -- Helper functions
+    def sendEvent(self, name, *args):
+        ''' Send event to server. '''
+        # The events must be prefixed by its node name before being
+        # dispatched to the server
+        return self.send(MsgEvent(self.name + '/' + name, *args))

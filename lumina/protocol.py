@@ -6,7 +6,7 @@ from datetime import datetime
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.defer import Deferred, maybeDeferred
 
-from lumina.message import Message, MsgCommand, MsgEvent
+from lumina.message import Message
 from lumina import utils
 from lumina.exceptions import (NodeException, NoConnectionException,
                                TimeoutException, UnknownMessageException)
@@ -125,7 +125,7 @@ class LuminaProtocol(LineReceiver):
 
         except (SyntaxError, ValueError) as e:
             # Raised if the load_json didn't succeed
-            self.log.error("Protocol error on incoming message: {e}", e.message)
+            self.log.error("Protocol error on incoming message: {e}", e=e.message)
             return
 
         # -- Update the activity timer
@@ -141,66 +141,12 @@ class LuminaProtocol(LineReceiver):
 
         # -- Handle reply to a former request
         if message.response is not None:
+            return self.handleResponse(message)
 
-            # Not much to do if we are not expecting a reply. I.e. the deferred
-            # has already fired.
-            if message.requestid not in self.requests:
-                self.log.error("Dropping unexpeced response. Late reply from a previous timed out request?")
-                return
-
-            # Get orginial request and delete it from the queue.
-            request = self.requests.pop(message.requestid)
-            #self.log.debug("       ^^ is a reply to {re}", re=request)
-
-            # Link the request with the response by copying the
-            # received data into the request. Args isn't needed any more
-            request.response = message.response
-            request.result = message.result
-            request.args = None
-
-            # Get the defer handler and remove it from the request to prevent
-            # calling it twice
-            (defer, request.defer) = (request.defer, None)
-
-            # Remote request successful
-            if message.response:
-
-                # Send successful result back
-                self.log.info('', cmdok=request)
-                if not defer.called:
-                    defer.callback(request)
-                else:
-                    self.log.error('Dropping response as defer is already called. Timeout?')
-
-            # Remote request failed
-            else:
-
-                def cmd_response_error(failure):  # pylint: disable=unused-variable
-                    # Print the error
-                    #self.log.error('{tb}', tb=failure.getTraceback())
-
-                    # Eat the error message
-                    return None
-
-                # Add an eat-error message to the end of the chain
-                defer.addErrback(cmd_response_error)
-
-                # Send an error back
-                exc = NodeException(*request.result)
-                self.log.error('', cmderr=request)
-                if not defer.called:
-                    defer.errback(exc)
-                else:
-                    self.log.error('Dropping response as defer is already called. Timeout?')
-
-            # Done with the request response
-            return
-
-
-        # -- New incoming message
-
-        # -- Call the dispatcher with a copy of our message. Want the original
-        #    message as intact as possible for proper response to peer.
+        # -- New incoming message:
+        #
+        #    Call the dispatcher with a copy of our message. Want the
+        #    original message intact for the response to peer.
         defer = maybeDeferred(self.messageReceived, message.copy())
 
         # -- Setup filling in the message data from the result
@@ -244,6 +190,61 @@ class LuminaProtocol(LineReceiver):
             defer.addBoth(lambda r, c: self.send(c), message)
 
 
+    def handleResponse(self, message):
+        ''' Handle the incoming response to a previous request. '''
+
+        # Not much to do if we are not expecting a reply. I.e. the deferred
+        # has already fired.
+        if message.requestid not in self.requests:
+            self.log.error("Dropping unexpeced response. Late reply from a previous timed out request?")
+            return
+
+        # Get orginial request and delete it from the queue.
+        request = self.requests.pop(message.requestid)
+        #self.log.debug("       ^^ is a reply to {re}", re=request)
+
+        # Link the request with the response by copying the
+        # received data into the request. Args isn't needed any more
+        request.response = message.response
+        request.result = message.result
+        request.args = None
+
+        # Get the defer handler and remove it from the request to prevent
+        # calling it twice
+        (defer, request.defer) = (request.defer, None)
+
+        # -- Remote request successful
+        if message.response:
+
+            # Send successful result back
+            self.log.info('', cmdok=request)
+            if not defer.called:
+                defer.callback(request)
+            else:
+                self.log.error('Dropping callback as defer has already been called. Timeout?')
+
+        # -- Remote request failed
+        else:
+
+            def cmd_response_error(failure):  # pylint: disable=W0613
+                # Print the error
+                #self.log.error('{tb}', tb=failure.getTraceback())
+
+                # Eat the error message
+                return None
+
+            # Add an eat-error message to the end of the chain
+            defer.addErrback(cmd_response_error)
+
+            # Send an error back
+            exc = NodeException(*request.result)
+            self.log.error('', cmderr=request)
+            if not defer.called:
+                defer.errback(exc)
+            else:
+                self.log.error('Dropping errback as defer has already been called. Timeout?')
+
+
     def messageReceived(self, message):
         ''' Process an incoming message. This method should return
             a Deferred() if results are not immediately available
@@ -252,20 +253,16 @@ class LuminaProtocol(LineReceiver):
 
 
     def send(self, message):
-
-        # There are two originators calling this function:
-        #
-        #   a) Send response to former command (from lineReceived())
-        #         message is MsgRequest
-        #         message.requestid = not None
-        #   b) Send new message (from send*())
-        #         message is MsgCommand / MsgEvent
-        #         message.requestid = None
+        ''' Send a message to the peer. A Deferred() object is returned if
+            the message requires a response from peer.
+        '''
 
         # -- Generate deferred and setup timeout if this is a new command
         #    to send (case b)
         defer = None
-        if message.WANT_RESPONSE and message.requestid is None:
+        if message.want_response and message.requestid is None:
+            # If want_response=True and requestid is set, then this
+            # is is the response.
 
             # -- Generate a deferred object
             message.defer = defer = Deferred()
@@ -292,11 +289,3 @@ class LuminaProtocol(LineReceiver):
         self.transport.write(data+'\n')
 
         return defer
-
-
-    # -- Easy-to-remember wrapper functions for self.send()
-    def sendEvent(self, name, *args):
-        return self.send(MsgEvent(name, *args))
-
-    def sendCommand(self, name, *args):
-        return self.send(MsgCommand(name, *args))

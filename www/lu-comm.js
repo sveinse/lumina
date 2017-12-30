@@ -26,6 +26,7 @@ angular.module('LuminaApp')
             return $http.post('/rest/command/' + command, args)
                 .then(function(response) {
                     log('>>> ' + JSON.stringify(response.data));
+                    log(response.data.result);
                     return response.data.result;
                 }).catch(function(failure) {
                     //log('<<< ' + command);

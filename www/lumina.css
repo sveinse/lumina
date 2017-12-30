@@ -4,6 +4,9 @@ html body .table-borderless td,
 html body .table-borderless th {
     border-top: 0;
 }
+pre {
+    white-space: pre-wrap;
+}
 .table-no-width {
     width: 0%;
 }

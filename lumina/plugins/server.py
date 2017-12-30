@@ -93,11 +93,11 @@ class ServerProtocol(LuminaProtocol):
         ''' Handle messages from nodes '''
 
         cmd = message.name
-        ctype = message.TYPE
+        ctype = message.type
 
 
         # -- Command type
-        if ctype == MsgCommand.TYPE:
+        if ctype == MsgCommand.type:
 
             # -- Register node name
             if cmd == 'register':
@@ -129,17 +129,29 @@ class ServerProtocol(LuminaProtocol):
 
 
         # -- Event type
-        elif ctype == MsgEvent.TYPE:
+        elif ctype == MsgEvent.type:
+
+            prefix = self.name + '/'
+
+            # -- Check that the event is valid and registred
+            if not cmd.startswith(prefix):
+                self.log.error("Ignoring undeclared event '{m}'", m=message)
+                return None
+
+            cmd = cmd.replace(prefix,'')
+            if cmd not in self.parent.events:
+                self.log.error("Ignoring undeclared event '{m}'", m=message)
+                return None
 
             # -- A new incoming event. Plainly accept it without checking
             #    self.parent.events
             return self.parent.handle_event(message)
 
 
-        # -- Unknown message type (should have been caught earlier)
+        # -- Unknown message type
         else:
             self.log.error("Unexpectedly received message {m}", m=message)
-            raise UnknownMessageException(message.name)
+            raise UnknownMessageException("Unknown message type: '%s'" %(message.type,))
 
 
 
@@ -273,7 +285,8 @@ class Server(Plugin):
                       module=node.module,
                       ip=node.peer,
                       n_e=len(params.get('events')),
-                      n_c=len(params.get('commands')))
+                      n_c=len(params.get('commands')),
+                     )
 
         # -- Known node?
         if name in self.nodes:

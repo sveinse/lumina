@@ -31,7 +31,8 @@ class Message(object):
            'nul{arg1=foo,arg2=bar,5}'
     '''
 
-    TYPE = 'message'
+    type = 'message'
+    want_response = False
 
     def __init__(self, name=None, *args):
         # Message data
@@ -58,7 +59,7 @@ class Message(object):
             alist.append('d=%s' %(str(self.defer),))
         if self.args is not None:
             alist += list(self.args)
-        return "%s:%s{%s}" %(self.TYPE, self.name,
+        return "%s:%s{%s}" %(self.type, self.name,
                              str_object(alist, max_elements=5, brackets=False))
 
 
@@ -74,7 +75,7 @@ class Message(object):
         if not jdict:
             jdict = {}
         jdict.update({
-            'type': self.TYPE,
+            'type': self.type,
             'name': self.name,
         })
         if self.args is not None:
@@ -251,25 +252,25 @@ class Message(object):
             raise ValueError("Missing message type")
 
         for cls in MSGTYPES:
-            if cls.TYPE == msgtype:
+            if cls.type == msgtype:
                 return cls().load_dict(jdict)
         raise ValueError("Uknown message type '%s'" %(msgtype))
 
 
 class MsgEvent(Message):
     ''' Event message '''
-    TYPE = 'event'
-    WANT_RESPONSE = False
+    type = 'event'
+    want_response = False
 
 
 class MsgCommand(Message):
     ''' Command message '''
-    TYPE = 'command'
-    WANT_RESPONSE = True
+    type = 'command'
+    want_response = True
 
 
 # List of all message types
 MSGTYPES = (
     MsgEvent,
-    MsgCommand
+    MsgCommand,
 )
