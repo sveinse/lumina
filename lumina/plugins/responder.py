@@ -169,13 +169,25 @@ class Responder(Plugin):
                 if self.remain <= 0:
                     # Prepare the response
                     request = self.request
-                    request.result = self.commandlist
                     request.response = self.success
+
+                    # Have been back and forth if the result list should be a
+                    # list of the results or the actual command objects. The
+                    # former fails to work when a command fails and the 
+                    # commands have only succeeded partially.
+                    #request.result = [ c.result for c in self.commandlist ]
+                    request.result = self.commandlist
 
                     # Success is when all sub-jobs succeeds
                     if self.success == len(self.commandlist):
                         self.log.info('', cmdok=request)
-                        self.defer.callback(request)
+
+                        # Likewise, if request.result is sent back, the list
+                        # is sent without the request.response containing the
+                        # number of successful commands.
+                        
+                        self.defer.callback(request.result)
+                        #self.defer.callback(request)
 
                     else:
                         self.log.error('{_cmderr}, {f}/{n} succeeded',

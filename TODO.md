@@ -1,6 +1,10 @@
 TODO
 ====
 
+* 2017-12-31 @sveinse
+
+    * Rename 'main' to 'master'?
+
 * 2017-09-17 @sveinse
 
     * Fix better error handling in lumina.configure_plugin(). What happens

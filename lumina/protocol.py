@@ -150,12 +150,12 @@ class LuminaProtocol(LineReceiver):
         defer = maybeDeferred(self.messageReceived, message.copy())
 
         # -- Setup filling in the message data from the result
-        def cmd_ok(result, message):
+        def msg_ok(result):
             message.set_success(result)
             self.log.info('', cmdok=message)
             return result
 
-        def cmd_error(failure, message):
+        def msg_error(failure):
             message.set_fail(failure)
 
             # Accept the exception if listed in validNodeExceptions.
@@ -169,7 +169,7 @@ class LuminaProtocol(LineReceiver):
             # Eat the error message
             return None
 
-        def cmd_timeout(message):
+        def msg_timeout():
             ''' Response if command suffers a timeout '''
             exc = TimeoutException()
             message.set_fail(exc)
@@ -178,10 +178,10 @@ class LuminaProtocol(LineReceiver):
 
         # -- Setup a timeout, and add a timeout err handler making sure the
         #    message data failure is properly set
-        utils.add_defer_timeout(defer, self.command_timeout, cmd_timeout, message)
+        utils.add_defer_timeout(defer, self.command_timeout, msg_timeout)
 
-        defer.addCallback(cmd_ok, message)
-        defer.addErrback(cmd_error, message)
+        defer.addCallback(msg_ok)
+        defer.addErrback(msg_error)
 
         # If requestid is set, the caller expects a reply.
         if message.requestid is not None:
@@ -207,11 +207,15 @@ class LuminaProtocol(LineReceiver):
         # received data into the request. Args isn't needed any more
         request.response = message.response
         request.result = message.result
-        request.args = None
 
         # Get the defer handler and remove it from the request to prevent
-        # calling it twice
-        (defer, request.defer) = (request.defer, None)
+        # calling it twice. Delete other modification from the request object
+        defer = request.defer
+        del request.defer
+        request.requestid = None
+        #request.args = None  # Might not be a good idea to remove the args
+                              # from the request since ideally the the original
+                              # request should be intact.
 
         # -- Remote request successful
         if message.response:
@@ -219,14 +223,35 @@ class LuminaProtocol(LineReceiver):
             # Send successful result back
             self.log.info('', cmdok=request)
             if not defer.called:
-                defer.callback(request)
+
+                # Been back and forth between sending 'request' or
+                # 'request.result' back to the caller. When run_command() is
+                # called, if the command returns immediately an immediate result 
+                # is returned. If run_command() returns a Deferred(), the object
+                # sent back from here will be the object the caller receives.
+                # If the 'request' object is sent back, the caller receives the
+                # request object and not the result, which breaks the logic
+                # from the direct, non-Deferred(), result.
+                # On the other hand, since the run_command() parameter is a
+                # Message(), then it can be argued that the response should
+                # be the the request object.
+                # In all cases the caller's request object will contain the
+                # result of the command. So I think the best solution is to send
+                # back the result, and rather let the caller use the request
+                # object if needed.
+                #
+                # The choice here is also linked to the response in
+                # Responder.run_commandlist()
+                #
+                defer.callback(request.result)
+                #defer.callback(request)
             else:
                 self.log.error('Dropping callback as defer has already been called. Timeout?')
 
         # -- Remote request failed
         else:
 
-            def cmd_response_error(failure):  # pylint: disable=W0613
+            def response_error(failure):  # pylint: disable=W0613
                 # Print the error
                 #self.log.error('{tb}', tb=failure.getTraceback())
 
@@ -234,7 +259,7 @@ class LuminaProtocol(LineReceiver):
                 return None
 
             # Add an eat-error message to the end of the chain
-            defer.addErrback(cmd_response_error)
+            defer.addErrback(response_error)
 
             # Send an error back
             exc = NodeException(*request.result)

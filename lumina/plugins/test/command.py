@@ -20,6 +20,7 @@ class Command(Node):
         self.commands = {
             '1' :        lambda a: 1,
             '2' :        lambda a: 2,
+            '3' :        lambda a: 3,
             'none':      lambda a: None,
             'true':      lambda a: True,
             'false':     lambda a: False,

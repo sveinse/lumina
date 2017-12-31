@@ -26,7 +26,6 @@ angular.module('LuminaApp')
             return $http.post('/rest/command/' + command, args)
                 .then(function(response) {
                     log('>>> ' + JSON.stringify(response.data));
-                    log(response.data.result);
                     return response.data.result;
                 }).catch(function(failure) {
                     //log('<<< ' + command);
@@ -38,22 +37,15 @@ angular.module('LuminaApp')
         };
 
         // Admin functions
-        var get_main_info = function() {
-            return $http.get('/rest/main/info')
-                .then(function(response) {
-                    return response.data;
-                });
-        }
-
         var get_server_info = function() {
-            return $http.get('/rest/server/info')
-                .then(function(response) {
-                    return response.data;
-                });
+            return command('_server');
         }
 
-        var get_host_info = function(node) {
-            return command(node + '/' + '_info');
+        var get_host_info = function(node='') {
+            if (node.length>0) {
+                node = node + '/';
+            }
+            return command(node + '_info');
         }
 
         // Functions
@@ -61,7 +53,6 @@ angular.module('LuminaApp')
             debug: debug,
             command: command,
 
-            get_main_info: get_main_info,
             get_server_info: get_server_info,
             get_host_info: get_host_info,
         };

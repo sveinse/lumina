@@ -19,7 +19,7 @@ angular.module('LuminaApp')
         var on_page_load = function() {
 
             // Get the main master info
-            LuminaComm.get_main_info()
+            LuminaComm.get_host_info()
                 .then(function(data) {
 
                     // Set the main info and set the host info for this host

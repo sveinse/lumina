@@ -65,24 +65,19 @@ class NodeProtocol(LuminaProtocol):
         defer.addErrback(self.registerError)
 
 
-    def registerError(self, err):
+    def registerError(self, failure):
         ''' Handle server-side registration error. The server has issued
             an exception at this point.
         '''
-        self.log.error("Node registration FAILED: {err}", err=err)
+        self.log.error("Node registration FAILED: {f}", f=failure)
         self.transport.loseConnection()
 
         # FIXME: Should we give up the retry connect mechanism?
         #self.parent.node_factory.stopTrying()
 
 
-    def registered(self, arg):
+    def registered(self, result):  # pylint: disable=W0613
         ''' Handle registration response '''
-
-        # Give up the connection if the response is rejected
-        if arg.result:
-            self.registerError(arg.result)
-            return
 
         self.log.info("Node registration SUCCESS")
 

@@ -6,6 +6,7 @@ from datetime import datetime
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 from twisted.internet.task import LoopingCall
+from twisted.internet.defer import Deferred
 
 from lumina.plugin import Plugin
 from lumina.exceptions import (NodeConfigException, UnknownCommandException,
@@ -187,6 +188,14 @@ class Server(Plugin):
     }
 
 
+    def configure(self, main):
+
+        self.server_commands = {
+            '_info': lambda a: main.get_info(),
+            '_server': lambda a: self.get_info(),
+        }
+
+
     def setup(self, main):
         Plugin.setup(self, main)
 
@@ -197,6 +206,7 @@ class Server(Plugin):
         # -- List of server commands and events
         self.events = []
         self.commands = {}
+        self.add_commands(self.server_commands)
 
         # -- List of connections
         self.connections = []

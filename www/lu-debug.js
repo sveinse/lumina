@@ -16,7 +16,8 @@ angular.module('LuminaApp')
             // This is a hack: LuminaComm.command() will add any failing
             // commands to the debug.log, but we'll have to do this
             // on successful commands too.
-            $scope.luminaComm.debug.log += $scope.luminaComm.debug.stage;
+            $scope.luminaComm.debug.log += $scope.luminaComm.debug.stage + data + '\n';
+            console.log(data);
         };
 
         $scope.send = function() {

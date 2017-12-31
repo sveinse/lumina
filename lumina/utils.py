@@ -36,28 +36,32 @@ def cmp_dict(a, b, c):
     return True
 
 
-def listify_dict(obj):
-    ''' Return a list with 'k=v' elements from obj '''
-    return ['%s=%s' %(k, str_object(v, max_elements=0)) for k, v in obj.items()]
-
-
-def str_object(obj, max_elements=0, brackets=True):
+def str_object(obj, max_elements=None, brackets=True):
     ''' Return a string representation of obj. '''
 
     # max_elements=0: [..#34..]
     # max_elements=5: [1,2,3,4,5 ... +3 more]
 
+    if max_elements is None:
+        max_elements = ()
+    else:
+        max_elements = tuple(max_elements)
+    nmax = 0
+    if max_elements:
+        nmax = max_elements[0]
+        max_elements = max_elements[1:]
+
     if isinstance(obj, list):
         delim = ('[', ']')
-        obj = [str_object(v, max_elements=0) for v in obj]
+        obj = [str_object(v, max_elements=max_elements) for v in obj]
 
     elif isinstance(obj, tuple):
         delim = ('(', ')')
-        obj = [str_object(v, max_elements=0) for v in obj]
+        obj = [str_object(v, max_elements=max_elements) for v in obj]
 
     elif isinstance(obj, dict):
         delim = ('{', '}')
-        obj = listify_dict(obj)
+        obj = ['%s=%s' %(k, str_object(v, max_elements=max_elements)) for k, v in obj.items()]
 
     else:
         return str(obj)
@@ -65,12 +69,12 @@ def str_object(obj, max_elements=0, brackets=True):
     if not brackets:
         delim = ('', '')
 
-    if len(obj) > max_elements:
-        if max_elements == 0:
+    if len(obj) > nmax:
+        if nmax == 0:
             return delim[0] + '..#' + str(len(obj)) + '..' + delim[1]
         else:
-            more = len(obj)-max_elements
-            obj = obj[:max_elements]
+            more = len(obj)-nmax
+            obj = obj[:nmax]
             obj.append(' ... +%s more' %(more))
             # fallthrough
 

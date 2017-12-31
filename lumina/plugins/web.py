@@ -13,20 +13,12 @@ from twisted.web.util import Redirect
 from twisted.internet.defer import maybeDeferred
 
 from lumina.plugin import Plugin
-from lumina.message import MsgCommand, MsgEvent
+from lumina.message import MsgCommand
+from lumina import utils
+from lumina.exceptions import TimeoutException
 
 
-
-class LuminaResource(Resource):
-    isLeaf = True
-    noisy = False
-
-    def __init__(self, main, log):
-        Resource.__init__(self)
-        self.log = log
-        self.main = main
-        self.main_server = main.get_plugin_by_module('server')
-
+COMMAND_TIMEOUT = 10
 
 
 def getPath(request):
@@ -36,15 +28,76 @@ def getPath(request):
         return ''
 
 
+class LuminaResource(Resource):
+    isLeaf = True
+    noisy = False
+    command_timeout = COMMAND_TIMEOUT
+
+
+    def __init__(self, main, log):
+        Resource.__init__(self)
+        self.log = log
+        self.main = main
+        self.main_server = main.get_plugin_by_module('server')
+
+
+    def run_command(self, command):
+        self.log.info('', cmdout=command)
+
+        defer = maybeDeferred(self.main_server.run_command, command)
+
+        def cmd_ok(result):
+            command.set_success(result)
+            self.log.info('', cmdin=command)
+            return result
+
+        def cmd_error(failure):
+            command.set_fail(failure)
+            self.log.info('', cmderr=command)
+            return failure
+
+        def cmd_timeout():
+            ''' Response if command suffers a timeout '''
+            exc = TimeoutException()
+            command.set_fail(exc)
+            self.log.error('REQUEST TIMED OUT')
+            defer.errback(exc)
+
+        # -- Setup a timeout, and add a timeout err handler making sure the
+        #    message data failure is properly set
+        utils.add_defer_timeout(defer, self.command_timeout, cmd_timeout, command)
+        
+        defer.addCallback(cmd_ok)
+        defer.addErrback(cmd_error)
+        return defer
+
+
+    def web_command(self, request, command):
+        ''' Front-end command for running Lumina commands '''
+
+        def reply_ok(result):  # pylint: disable=unused-variable
+            request.responseHeaders.addRawHeader(b'Content-Type', b'application/json')
+            request.write(command.dump_json())
+            request.finish()
+
+        def reply_error(failure):  # pylint: disable=unused-variable
+            request.responseHeaders.addRawHeader(b'Content-Type', b'application/json')
+            request.setResponseCode(http.BAD_REQUEST)
+            request.write(command.dump_json())
+            request.finish()
+
+        # Do not add a timeout handler here. The server.run_command will
+        # time out and call our errback function
+        self.run_command(command).addCallback(reply_ok).addErrback(reply_error)
+        return NOT_DONE_YET
+
+
 
 class RestCommand(LuminaResource):
-
     def render_POST(self, request):
         request.setHeader(b'Content-Type', b'application/json')
         request.setHeader(b'Cache-Control', b'no-cache, no-store, must-revalidate')
         path = getPath(request)
-
-        server = self.main_server
 
         #self.log.debug('PATH: {p}', h=path)
         if not path:
@@ -54,48 +107,25 @@ class RestCommand(LuminaResource):
         content = request.content.read()
         #self.log.debug("CONTENT: {l} '{c}'", l=len(content), c=content)
         command = MsgCommand(path).load_json_args(content)
-
-        self.log.info('', cmdout=command)
-        defer = maybeDeferred(server.run_command, command)
-
-        def reply_ok(result, request, command):  # pylint: disable=unused-variable
-            self.log.info('', cmdin=command)
-            request.responseHeaders.addRawHeader(b'Content-Type', b'application/json')
-            request.write(command.dump_json())
-            request.finish()
-
-        def reply_error(failure, request, command):  # pylint: disable=unused-variable
-            self.log.info('', cmderr=command)
-            request.responseHeaders.addRawHeader(b'Content-Type', b'application/json')
-            request.setResponseCode(http.BAD_REQUEST)
-            request.write(command.dump_json())
-            request.finish()
-
-        # Do not add a timeout handler here. The server.run_command will
-        # time out and call our errback function
-        defer.addCallback(reply_ok, request, command)
-        defer.addErrback(reply_error, request, command)
-        return NOT_DONE_YET
+        return self.web_command(request, command)
 
 
 
-class RestMainInfo(LuminaResource):
+class RestInfo(LuminaResource):
     def render_GET(self, request):
         request.setHeader(b'Content-Type', b'application/json')
         request.setHeader(b'Cache-Control', b'no-cache, no-store, must-revalidate')
-        main = self.main
-        return json.dumps(main.get_info())
+        path = getPath(request)
 
+        if path == '':
+            path = '_info'
+        if path in ('_info', '_server'):
+            command = MsgCommand(path)
+        else:
+            # All others refer to remote nodes
+            command=MsgCommand(path + '/_info')
 
-
-class RestServerInfo(LuminaResource):
-    def render_GET(self, request):
-        request.setHeader(b'Content-Type', b'application/json')
-        request.setHeader(b'Cache-Control', b'no-cache, no-store, must-revalidate')
-        server = self.main_server
-        if not server:
-            return json.dumps({})
-        return json.dumps(server.get_info())
+        return self.web_command(request, command)
 
 
 
@@ -125,9 +155,7 @@ class Web(Plugin):
 
         # List of resources that we want added
         resources = {'rest/command': RestCommand(main, self.log),
-                     #'rest/event': RestEvent(main, self.log),
-                     'rest/main/info': RestMainInfo(main, self.log),
-                     'rest/server/info': RestServerInfo(main, self.log),
+                     'rest/info': RestInfo(main, self.log),
                     }
 
         # Traverse all resources and add them to the tree. Add empty

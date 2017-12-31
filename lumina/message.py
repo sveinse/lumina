@@ -9,6 +9,8 @@ from lumina.utils import str_object
 
 
 DEBUG = False
+MAX_ELEMENTS = (5,5)
+#MAX_ELEMENTS = (5,5,3)   # Useful in debug
 
 
 class MessageEncoder(json.JSONEncoder):
@@ -57,15 +59,19 @@ class Message(object):
         if DEBUG:
             alist.append('0x' + hex(id(self))[-6:])
         if self.response is not None:
-            alist.append('=<%s,%s>' %(self.response, str_object(self.result, max_elements=5)))
+            alist.append('=<%s,%s>' %(self.response,
+                                      str_object(self.result, max_elements=MAX_ELEMENTS)))
         if DEBUG and self.requestid:
             alist.append('#%s' %(self.requestid))
         if DEBUG and hasattr(self, 'defer'):
             alist.append('d=%s' %(str(self.defer),))
         if self.args is not None:
             alist += list(self.args)
-        return "%s:%s{%s}" %(tdict.get(self.type,'?'), self.name,
-                             str_object(alist, max_elements=5, brackets=False))
+        return "%s:%s{%s}" %(tdict.get(self.type,'?'),
+                             self.name,
+                             str_object(alist,
+                                        max_elements=MAX_ELEMENTS,
+                                        brackets=False))
 
 
     def copy(self):
@@ -202,17 +208,8 @@ class Message(object):
         requestid = self.requestid = Message.__sequence
         return requestid
 
-    # Unused it seems
-    #def del_requestid(self):
-    #    self.requestid = None
-
 
     #----- EXECUTION ------
-
-    #def reset(self):
-    #    self.response = None
-    #    self.result = None
-
 
     def set_success(self, result):
         ''' Set message command to succeess '''
@@ -222,6 +219,7 @@ class Message(object):
             self.result = result.result
         else:
             self.result = result
+        return self
 
 
     def set_fail(self, exc):
@@ -233,16 +231,8 @@ class Message(object):
         self.response = False
         self.args = None
         self.result = (exc.__class__.__name__, str(exc.message))
+        return self
 
-
-    #----- DEFERRED ------
-
-    #def get_defer(self):
-    #    if self.defer:
-    #        return self.defer
-    #
-    #    self.defer = Deferred()
-    #    return self.defer
 
 
     #----- STATIC METHODS ------
