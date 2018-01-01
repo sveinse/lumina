@@ -22,8 +22,8 @@ class Led(Node):
     # --- Interfaces
     def configure(self):
 
-        self.events = [
-        ]
+        self.events = (
+        )
 
         self.commands = {
             'set'       : lambda a: self.command(*a.args),
@@ -32,7 +32,6 @@ class Led(Node):
 
     # --- Initialization
     def setup(self):
-        Node.setup(self)
 
         self.universe = master.config.get('universe', name=self.name)
         self.status.set_GREEN()

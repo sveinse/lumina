@@ -21,11 +21,10 @@ class Responder(Plugin):
         'max_depth': dict(default=10, help='Maxium nesting depth of recursive groups', type=int),
     }
 
-    DEPENDS = ['server']
+    DEPENDS = ('server',)
 
 
     def setup(self):
-        Plugin.setup(self)
 
         self.groups = master.config.get('groups', name=self.name).copy()
         self.actions = master.config.get('actions', name=self.name).copy()

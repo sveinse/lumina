@@ -376,7 +376,6 @@ class Telldus(Node):
 
     # --- Initialization
     def setup(self):
-        Node.setup(self)
 
         self.doubleprotect = master.config.get('double_protect', name=self.name)
         self.emitted = {}

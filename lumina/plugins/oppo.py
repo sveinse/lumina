@@ -226,7 +226,7 @@ class Oppo(Node):
     # --- Interfaces
     def configure(self):
 
-        self.events = [
+        self.events = (
             #'oppo/starting'     : None,  # Created oppo object
             #'oppo/stopping'     : None,  # close() have been called
             #'oppo/connected'    : None,  # Connection with Oppo has been made
@@ -243,7 +243,7 @@ class Oppo(Node):
             #'oppo/loading' : dict(cmd='UPL', arg='LOAD'),
             #'oppo/closing' : dict(cmd='UPL', arg='CLOS'),
             #'oppo/audio'   : dict(cmd='UAT', arg=None),
-        ]
+        )
 
         self.commands = {
             'on'      : lambda a: self.c('PON'),
@@ -269,7 +269,6 @@ class Oppo(Node):
 
     # --- Initialization
     def setup(self):
-        Node.setup(self)
 
         self.port = master.config.get('port', name=self.name)
         self.protocol = OppoProtocol(self)

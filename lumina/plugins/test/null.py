@@ -8,7 +8,6 @@ class Null(Node):
     """ (TEST) A minimal do-nothing plugin """
 
     def setup(self):
-        Node.setup(self)
         self.status.set_GREEN()
 
 

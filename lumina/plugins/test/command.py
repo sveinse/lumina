@@ -33,7 +33,6 @@ class Command(Node):
         }
 
     def setup(self):
-        Node.setup(self)
         self.status.set_GREEN()
 
     def delay(self, time, value):

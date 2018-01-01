@@ -21,7 +21,6 @@ class EventUndeclared(Node):
         )
 
     def setup(self):
-        Node.setup(self)
         self.status.set_GREEN()
 
         self.loop1 = LoopingCall(self.loop_cb1)

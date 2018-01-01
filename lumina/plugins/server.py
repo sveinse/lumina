@@ -198,7 +198,6 @@ class Server(Plugin):
 
 
     def setup(self):
-        Plugin.setup(self)
 
         # -- Config options
         self.port = master.config.get('port')

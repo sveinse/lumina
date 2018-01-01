@@ -18,7 +18,6 @@ class Logger(Node):
         }
 
     def setup(self):
-        Node.setup(self)
         self.status.set_GREEN()
 
 

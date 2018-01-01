@@ -12,13 +12,13 @@ class Rxv757(Node):
     CONFIG = {
     }
 
-    DEPENDS = ['lirc']
+    DEPENDS = ('lirc',)
 
     # --- Interfaces
     def configure(self):
 
-        self.events = [
-        ]
+        self.events = (
+        )
 
         self.commands = {
             'on' :         lambda a: self.c('Yamaha_RXV757', 'KEY_POWER_ON'),
@@ -30,7 +30,6 @@ class Rxv757(Node):
 
     # --- Initialization
     def setup(self):
-        Node.setup(self)
 
         self.lirc = master.get_plugin_by_name('lirc')
         self.status.set_GREEN()

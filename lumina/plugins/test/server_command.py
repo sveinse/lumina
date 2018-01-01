@@ -22,7 +22,6 @@ class ServerCommand(Plugin):
     """ (TEST) A plugin for generating server commands as direct requests """
 
     def setup(self):
-        Plugin.setup(self)
         self.status.set_GREEN()
 
         cmds = (

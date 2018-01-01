@@ -418,7 +418,7 @@ class Yamaha(Node):
     # --- Interfaces
     def configure(self):
 
-        self.events = [
+        self.events = (
             #'avr/starting',      # Created avr object
             #'avr/stopping',      # close() have been called
             #'avr/error',         # Connection failed
@@ -426,7 +426,7 @@ class Yamaha(Node):
             #'avr/volume',        # Volume event
             #'avr/input',         # Input change event
             #'avr/power',         # Change in power
-        ]
+        )
 
         self.commands = {
             'ison'        : lambda a: self.c(GET, POWER_ALL).addCallback(ison),
@@ -458,7 +458,6 @@ class Yamaha(Node):
 
     # --- Initialization
     def setup(self):
-        Node.setup(self)
 
         self.host = master.config.get('host', name=self.name)
         self.port = master.config.get('port', name=self.name)

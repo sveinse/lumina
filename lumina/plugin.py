@@ -9,7 +9,11 @@ class Plugin(object):
     GLOBAL_CONFIG = {}
 
     # List of plugin dependencies
-    DEPENDS = []
+    DEPENDS = ()
+
+    # List of function names to initialize when starting the class
+    INIT_METHODS = ('configure', 'setup')
+
 
     def configure(self):
         ''' Configure the plugin. This method will be called before setup()

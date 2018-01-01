@@ -139,10 +139,9 @@ class Web(Plugin):
         'log': dict(default='access-lumina.log', help='Path for web server logs'),
     }
 
-    DEPENDS = ['server', 'responder']
+    DEPENDS = ('server', 'responder')
 
     def setup(self):
-        Plugin.setup(self)
 
         self.port = master.config.get('port', name=self.name)
         self.webroot = master.config.get('root', name=self.name)

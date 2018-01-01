@@ -182,9 +182,12 @@ class Node(Plugin):
         'server': dict(default='localhost', help='Lumina server to connect to'),
     }
 
+    # Override the init methods from the Plugin
+    INIT_METHODS = ('configure', 'node_setup', 'setup')
 
-    def setup(self):
-        Plugin.setup(self)
+
+    def node_setup(self):
+        ''' Setup the node '''
 
         self.serverhost = master.config.get('server')
         self.serverport = master.config.get('port')

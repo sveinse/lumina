@@ -223,8 +223,10 @@ class Lumina(object):
                 self.log.info("===  Setting up plugin {n}", n=name)
                 self.config.add_templates(plugin.GLOBAL_CONFIG)
                 self.config.add_templates(plugin.CONFIG, name=name)
-                plugin.configure()
-                plugin.setup()
+
+                # Call the specified init methods
+                for method in plugin.INIT_METHODS:
+                    getattr(plugin, method)()
 
             except Exception as e:  # pylint: disable=broad-except
                 msg = "Failed to configure plugin '{n}': {t}: {e}".format(

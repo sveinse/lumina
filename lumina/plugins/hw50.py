@@ -458,8 +458,8 @@ class Hw50(Node):
     # --- Interfaces
     def configure(self):
 
-        self.events = [
-        ]
+        self.events = (
+        )
 
         self.commands = {
             'off'          : lambda a : self.c(IR_PWROFF,cmd=SET_RQ),
@@ -480,7 +480,6 @@ class Hw50(Node):
 
     # --- Initialization
     def setup(self):
-        Node.setup(self)
 
         self.port = master.config.get('port', name=self.name)
         self.protocol = HW50Protocol(self)
