@@ -16,6 +16,7 @@ from lumina.plugin import Plugin
 from lumina.message import MsgCommand
 from lumina import utils
 from lumina.exceptions import TimeoutException
+from lumina.lumina import master
 
 
 COMMAND_TIMEOUT = 10
@@ -34,10 +35,9 @@ class LuminaResource(Resource):
     command_timeout = COMMAND_TIMEOUT
 
 
-    def __init__(self, master, log):
+    def __init__(self, log):
         Resource.__init__(self)
         self.log = log
-        self.master = master
         self.master_server = master.get_plugin_by_module('server')
 
 
@@ -141,8 +141,8 @@ class Web(Plugin):
 
     DEPENDS = ['server', 'responder']
 
-    def setup(self, master):
-        Plugin.setup(self, master)
+    def setup(self):
+        Plugin.setup(self)
 
         self.port = master.config.get('port', name=self.name)
         self.webroot = master.config.get('root', name=self.name)
@@ -154,8 +154,8 @@ class Web(Plugin):
         root.putChild('', Redirect('lumina.html'))
 
         # List of resources that we want added
-        resources = {'rest/command': RestCommand(master, self.log),
-                     'rest/info': RestInfo(master, self.log),
+        resources = {'rest/command': RestCommand(self.log),
+                     'rest/info': RestInfo(self.log),
                     }
 
         # Traverse all resources and add them to the tree. Add empty

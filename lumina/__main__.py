@@ -9,7 +9,7 @@ import setproctitle
 from twisted.internet import reactor
 
 from lumina import log
-from lumina.lumina import Lumina
+from lumina.lumina import initLumina
 
 
 #===  Become DAEMON
@@ -94,7 +94,7 @@ def main(args=None):    # pylint: disable=unused-variable
     log.start(syslog=(os.name != 'nt' and opts.syslog), syslog_prefix='Lumina')
 
     #==  MAIN
-    lumina = Lumina(conffile=opts.config)
+    lumina = initLumina(conffile=opts.config)
     reactor.callLater(0, lumina.setup)
 
     #==  START TWISTED

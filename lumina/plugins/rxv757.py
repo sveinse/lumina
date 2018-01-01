@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 from lumina.node import Node
+from lumina.lumina import master
 
 
 
@@ -14,7 +15,7 @@ class Rxv757(Node):
     DEPENDS = ['lirc']
 
     # --- Interfaces
-    def configure(self, master):
+    def configure(self):
 
         self.events = [
         ]
@@ -28,8 +29,8 @@ class Rxv757(Node):
 
 
     # --- Initialization
-    def setup(self, master):
-        Node.setup(self, master)
+    def setup(self):
+        Node.setup(self)
 
         self.lirc = master.get_plugin_by_name('lirc')
         self.status.set_GREEN()

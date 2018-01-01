@@ -10,19 +10,19 @@ class EventGenerator(Node):
     """ (TEST) A timer-based event generator """
 
     # --- Initialization
-    def __init__(self, master):
+    def __init__(self):
         self.count = 0
 
     # --- Interfaces
-    def configure(self, master):
+    def configure(self):
 
         self.events = (
             'event1',
             'event2',
         )
 
-    def setup(self, master):
-        Node.setup(self, master)
+    def setup(self):
+        Node.setup(self)
         self.status.set_GREEN()
 
         self.loop1 = LoopingCall(self.loop_cb1)

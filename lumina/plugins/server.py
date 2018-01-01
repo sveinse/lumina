@@ -15,6 +15,7 @@ from lumina.log import Logger
 from lumina.protocol import LuminaProtocol
 from lumina.state import ColorState
 from lumina.message import MsgCommand, MsgEvent
+from lumina.lumina import master
 
 
 # FIXME: Add this as a config statement
@@ -188,7 +189,7 @@ class Server(Plugin):
     }
 
 
-    def configure(self, master):
+    def configure(self):
 
         self.server_commands = {
             '_info': lambda a: master.get_info(),
@@ -196,8 +197,8 @@ class Server(Plugin):
         }
 
 
-    def setup(self, master):
-        Plugin.setup(self, master)
+    def setup(self):
+        Plugin.setup(self)
 
         # -- Config options
         self.port = master.config.get('port')

@@ -11,6 +11,7 @@ from lumina.state import ColorState
 from lumina.log import Logger
 from lumina.exceptions import NoConnectionException, TimeoutException, ConfigException
 from lumina import utils
+from lumina.lumina import master
 
 
 
@@ -374,8 +375,8 @@ class Telldus(Node):
 
 
     # --- Initialization
-    def setup(self, master):
-        Node.setup(self, master)
+    def setup(self):
+        Node.setup(self)
 
         self.doubleprotect = master.config.get('double_protect', name=self.name)
         self.emitted = {}
@@ -525,7 +526,7 @@ class Telldus(Node):
 
 
     # --- Interfaces
-    def configure(self, master):
+    def configure(self):
 
         # Baseline commands and events
         self.commands = {}

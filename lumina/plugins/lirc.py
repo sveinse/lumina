@@ -10,6 +10,7 @@ from twisted.internet.defer import Deferred
 from lumina.plugin import Plugin
 from lumina.utils import connectEndpoint
 from lumina.exceptions import CommandRunException #, TimeoutException
+from lumina.lumina import master
 
 # Protocol response:
 #   BEGIN
@@ -82,7 +83,7 @@ class Lirc(Plugin):
 
 
     # --- Interfaces
-    def configure(self, master):
+    def configure(self):
 
         self.events = [
         ]
@@ -92,8 +93,8 @@ class Lirc(Plugin):
 
 
     # --- Initialization
-    def setup(self, master):
-        Plugin.setup(self, master)
+    def setup(self):
+        Plugin.setup(self)
 
         self.port = master.config.get('port', name=self.name)
         self.status.set_OFF()

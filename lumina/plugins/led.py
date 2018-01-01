@@ -6,6 +6,7 @@ import array
 from ola.OlaClient import OlaClient  # pylint: disable=E0401
 
 from lumina.node import Node
+from lumina.lumina import master
 
 
 
@@ -19,7 +20,7 @@ class Led(Node):
     }
 
     # --- Interfaces
-    def configure(self, master):
+    def configure(self):
 
         self.events = [
         ]
@@ -30,8 +31,8 @@ class Led(Node):
 
 
     # --- Initialization
-    def setup(self, master):
-        Node.setup(self, master)
+    def setup(self):
+        Node.setup(self)
 
         self.universe = master.config.get('universe', name=self.name)
         self.status.set_GREEN()

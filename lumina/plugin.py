@@ -1,9 +1,6 @@
 # -*- python -*-
 from __future__ import absolute_import
 
-#from lumina.log import Logger
-#from lumina.state import ColorState
-
 
 class Plugin(object):
 
@@ -14,15 +11,12 @@ class Plugin(object):
     # List of plugin dependencies
     DEPENDS = []
 
-    def __init__(self, master):
-        pass
-
-    def configure(self, master):
+    def configure(self):
         ''' Configure the plugin. This method will be called before setup()
             and expects to setup any internal attributes.
         '''
 
-    def setup(self, master):
+    def setup(self):
         ''' Setup and start the services this plugin provides.
         '''
 

@@ -15,6 +15,7 @@ from twisted.internet.protocol import DatagramProtocol, ClientFactory, Protocol
 from lumina.node import Node
 from lumina.log import Logger
 from lumina.exceptions import LuminaException, CommandRunException, TimeoutException
+from lumina.lumina import master
 
 
 class SSDPException(LuminaException):
@@ -415,7 +416,7 @@ class Yamaha(Node):
     }
 
     # --- Interfaces
-    def configure(self, master):
+    def configure(self):
 
         self.events = [
             #'avr/starting',      # Created avr object
@@ -456,8 +457,8 @@ class Yamaha(Node):
 
 
     # --- Initialization
-    def setup(self, master):
-        Node.setup(self, master)
+    def setup(self):
+        Node.setup(self)
 
         self.host = master.config.get('host', name=self.name)
         self.port = master.config.get('port', name=self.name)

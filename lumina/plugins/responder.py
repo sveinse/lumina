@@ -6,6 +6,7 @@ from twisted.internet.defer import Deferred, maybeDeferred
 from lumina.message import MsgCommand
 from lumina.plugin import Plugin
 from lumina.exceptions import CommandParseException, ConfigException, CommandRunException
+from lumina.lumina import master
 
 
 
@@ -23,8 +24,8 @@ class Responder(Plugin):
     DEPENDS = ['server']
 
 
-    def setup(self, master):
-        Plugin.setup(self, master)
+    def setup(self):
+        Plugin.setup(self)
 
         self.groups = master.config.get('groups', name=self.name).copy()
         self.actions = master.config.get('actions', name=self.name).copy()

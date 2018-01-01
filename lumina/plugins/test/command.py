@@ -11,7 +11,7 @@ class Command(Node):
     """ (TEST) A plugin for testing commands """
 
     # --- Interfaces
-    def configure(self, master):
+    def configure(self):
 
         self.events = (
             'event',
@@ -32,8 +32,8 @@ class Command(Node):
             'event':     lambda a: self.delay_event(2, 43),
         }
 
-    def setup(self, master):
-        Node.setup(self, master)
+    def setup(self):
+        Node.setup(self)
         self.status.set_GREEN()
 
     def delay(self, time, value):

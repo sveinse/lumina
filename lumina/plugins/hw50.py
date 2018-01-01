@@ -12,6 +12,7 @@ from twisted.internet.task import LoopingCall
 from lumina.node import Node
 from lumina.exceptions import LuminaException, TimeoutException, CommandRunException
 from lumina.serial import ReconnectingSerialPort
+from lumina.lumina import master
 
 
 class FrameException(LuminaException):
@@ -450,12 +451,12 @@ class Hw50(Node):
 
 
     # --- Initialization
-    def __init__(self, master):  # pylint: disable=W0231
+    def __init__(self):
         self.sp = None
 
 
     # --- Interfaces
-    def configure(self, master):
+    def configure(self):
 
         self.events = [
         ]
@@ -478,8 +479,8 @@ class Hw50(Node):
 
 
     # --- Initialization
-    def setup(self, master):
-        Node.setup(self, master)
+    def setup(self):
+        Node.setup(self)
 
         self.port = master.config.get('port', name=self.name)
         self.protocol = HW50Protocol(self)

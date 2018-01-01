@@ -12,6 +12,7 @@ from twisted.internet.task import LoopingCall
 from lumina.node import Node
 from lumina.exceptions import CommandRunException, TimeoutException
 from lumina.serial import ReconnectingSerialPort
+from lumina.lumina import master
 
 
 #def ison(result):
@@ -218,12 +219,12 @@ class Oppo(Node):
 
 
     # --- Initialization
-    def __init__(self, master):  # pylint: disable=W0231
+    def __init__(self):
         self.sp = None
 
 
     # --- Interfaces
-    def configure(self, master):
+    def configure(self):
 
         self.events = [
             #'oppo/starting'     : None,  # Created oppo object
@@ -267,8 +268,8 @@ class Oppo(Node):
 
 
     # --- Initialization
-    def setup(self, master):
-        Node.setup(self, master)
+    def setup(self):
+        Node.setup(self)
 
         self.port = master.config.get('port', name=self.name)
         self.protocol = OppoProtocol(self)

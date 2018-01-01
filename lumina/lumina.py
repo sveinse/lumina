@@ -164,7 +164,7 @@ class Lumina(object):
             self.log.info("Loading plugin {m}...", m=module)
 
             # LOAD the plugin
-            plugin = import_module('lumina.plugins.' + module).PLUGIN(self)
+            plugin = import_module('lumina.plugins.' + module).PLUGIN()
             plugin.failed = None
 
             # Registering plugin
@@ -177,7 +177,7 @@ class Lumina(object):
             self.log.failure("{m}", m=msg)
 
             # Put in a empty failed placeholder
-            plugin = FailedPlugin(self)
+            plugin = FailedPlugin()
             module = FailedPlugin.name
             plugin.failed = "%s: %s" %(type(e).__name__, e.message)
 
@@ -192,7 +192,7 @@ class Lumina(object):
         plugin.log = Logger(namespace=plugin.name)
         plugin.status = ColorState(log=plugin.log, name=plugin.name)
 
-        # Update master status
+        # Update status
         plugin.status.add_callback(self.update_status, run_now=True)
 
         # Register plugin
@@ -223,8 +223,8 @@ class Lumina(object):
                 self.log.info("===  Setting up plugin {n}", n=name)
                 self.config.add_templates(plugin.GLOBAL_CONFIG)
                 self.config.add_templates(plugin.CONFIG, name=name)
-                plugin.configure(master=self)
-                plugin.setup(master=self)
+                plugin.configure()
+                plugin.setup()
 
             except Exception as e:  # pylint: disable=broad-except
                 msg = "Failed to configure plugin '{n}': {t}: {e}".format(
@@ -289,3 +289,17 @@ class Lumina(object):
                 } for k, v in self.config.items()],
             'starttime' : self.starttime.isoformat()+'Z',
         }
+
+
+# Export 'master' as the global instance to the Lumina class
+master = None  # pylint: disable=C0103
+
+
+def initLumina(*args, **kw):
+    ''' Create the global Lumina object found in 'master' '''
+    global master  # pylint: disable=W0603,C0103
+    if master is None:
+        master = Lumina(*args, **kw)
+        return master
+    else:
+        raise RuntimeError("Lumina has already been created")

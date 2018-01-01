@@ -8,6 +8,7 @@ from twisted.internet.task import LoopingCall
 from lumina.plugin import Plugin
 from lumina.message import MsgCommand
 from lumina.exceptions import ConfigException
+from lumina.lumina import master
 
 
 # To test this plugin, use config
@@ -20,8 +21,8 @@ from lumina.exceptions import ConfigException
 class ServerCommand(Plugin):
     """ (TEST) A plugin for generating server commands as direct requests """
 
-    def setup(self, master):
-        Plugin.setup(self, master)
+    def setup(self):
+        Plugin.setup(self)
         self.status.set_GREEN()
 
         cmds = (
