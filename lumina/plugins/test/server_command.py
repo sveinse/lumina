@@ -6,7 +6,7 @@ from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
-from lumina.message import MsgCommand
+from lumina.message import Message
 from lumina.exceptions import ConfigException
 from lumina.lumina import master
 
@@ -43,7 +43,7 @@ class ServerCommand(Plugin):
 
     def send_cmd(self, cmd, *args):
         self.log.info("-----------------------------------------------")
-        m = MsgCommand(cmd, *args)
+        m = Message.create('command', cmd, *args)
         self.log.info('COMMAND: {m}', m=m)
         d = self.master_server.run_command(m)
         self.log.info("  1) RESULT : {d}", d=d)

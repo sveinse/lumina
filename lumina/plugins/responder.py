@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from twisted.internet.defer import Deferred, maybeDeferred
 
-from lumina.message import MsgCommand
+from lumina.message import Message
 from lumina.plugin import Plugin
 from lumina.exceptions import CommandParseException, ConfigException, CommandRunException
 from lumina.lumina import master
@@ -63,8 +63,8 @@ class Responder(Plugin):
             self.log.info("Ignoring event '{e}'", e=message)
             return None
 
-        # Make a action object and its parse args and run it
-        command = MsgCommand().load_str(action, parse_event=message)
+        # Make a command and parse its args and run it
+        command = Message.create('command').load_str(action, parse_event=message)
         self.log.info("Event '{e}' -> '{c}'", e=message, c=command)
         return self.run_command(command)
 
@@ -100,7 +100,7 @@ class Responder(Plugin):
 
             # Convert the string group-element to Event() object
             try:
-                message = MsgCommand().load_str(cmd, parse_event=command)
+                message = Message.create('command').load_str(cmd, parse_event=command)
             except Exception as e:
                 raise CommandParseException("Command parsing failed: %s" %(e))
             #ev.system = command.system   # To override log system

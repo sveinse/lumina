@@ -120,7 +120,7 @@ class LuminaProtocol(LineReceiver):
 
         # -- Parse the incoming message
         try:
-            message = Message.load_json(data)
+            message = Message.create_from_json(data)
             self.log.debug('', cmdin=message)
 
         except (SyntaxError, ValueError) as e:
@@ -305,7 +305,7 @@ class LuminaProtocol(LineReceiver):
             utils.add_defer_timeout(defer, self.remote_timeout, send_timeout, message)
 
             # -- Generate new requestid for message, save message in request list
-            self.requests[message.gen_requestid()] = message
+            self.requests[message.get_requestid()] = message
 
         # -- Encode and send the command
         self.log.debug('', cmdout=message)

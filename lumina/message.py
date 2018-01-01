@@ -16,7 +16,8 @@ MAX_ELEMENTS = (5,5)
 class MessageEncoder(json.JSONEncoder):
     def default(self, obj):    # pylint: disable=E0202
         if isinstance(obj, Message):
-            obj = obj.json_encoder()
+            # Transform our message into a dict, which the JSON encoder can handle
+            obj = obj.dump_dict()
         else:
             obj = super(MessageEncoder, self).default(obj)
         return obj
@@ -75,67 +76,107 @@ class Message(object):
 
 
     def copy(self):
-        ''' Return new copy of this object.  '''
+        ''' Return new copy of this object '''
         return type(self)(self.name, *self.args)
+
+
+    def is_type(self, msgtype):
+        ''' Return boolean if this object is of type msgtype '''
+        return self.type == msgtype
+
+
+    #----- REQUEST ID NUMBERS ------
+
+    # Sequence number stored as class attribute
+    __sequence = 0
+
+    def get_requestid(self):
+        Message.__sequence += 1
+        requestid = self.requestid = Message.__sequence
+        return requestid
+
+
+    #----- EXECUTION ------
+
+    def set_success(self, result):
+        ''' Set message command to succeess '''
+        self.response = True
+        self.args = None
+        if isinstance(result, Message):
+            self.result = result.result
+        else:
+            self.result = result
+        return self
+
+
+    def set_fail(self, exc):
+        ''' Set message command state to failed '''
+        # If this is run in the scope of an errback, exc will be a Failure object which
+        # contains the actual exception in exc.value
+        if isinstance(exc, Failure):
+            (failure, exc) = (exc, exc.value)  # pylint: disable=unused-variable
+        self.response = False
+        self.args = None
+        self.result = (exc.__class__.__name__, str(exc.message))
+        return self
 
 
     #----- IMPORT and EXPORT functions ------
 
-    def json_encoder(self, jdict=None):
-        ''' JSON encoder for Message objects '''
-        if not jdict:
-            jdict = {}
-        jdict.update({
-            'type': self.type,
-            'name': self.name,
-        })
-        if self.args is not None:
-            jdict.update({
-                'args': self.args,
-            })
-        if self.requestid is not None:
-            jdict.update({
-                'requestid': self.requestid,
-            })
-        if self.response is not None:
-            jdict.update({
-                'response': self.response,
-                'result': self.result,
-            })
-        return jdict
+    def load_json(self, other):
+        ''' Load the instance data from json '''
+        jdict = json.loads(other, encoding='ascii')
+        return self.load_dict(jdict)
 
 
-    # -- dict import/export
-
-    def load_dict(self, other):
-        ''' Load the data from a dict '''
-        self.name = other.get('name')
-        if self.name is None:
-            raise ValueError("Missing message name")
-
-        self.args = other.get('args', tuple())
-
-        self.requestid = other.get('requestid')
-
-        self.response = other.get('response')
-        self.result = other.get('result')
-
+    def load_json_args(self, other):
+        ''' Load args only from a json string '''
+        if other:
+            self.args = json.loads(other, encoding='ascii')
+        else:
+            self.args = tuple()
         return self
 
-
-    # -- JSON import/export
 
     def dump_json(self):
         ''' Return a json representation of the instance data '''
         return json.dumps(self, cls=MessageEncoder)
 
-    def load_json_args(self, string):
-        ''' Load args only from a json string '''
-        if string:
-            self.args = json.loads(string, encoding='ascii')
-        else:
-            self.args = tuple()
+
+    def load_dict(self, other):
+        ''' Load the instance data from a dict '''
+        self.name = other.get('name')
+        if self.name is None:
+            raise ValueError("Missing message name")
+        self.args = other.get('args', tuple())
+        self.requestid = other.get('requestid')
+        self.response = other.get('response')
+        self.result = other.get('result')
         return self
+
+
+    def dump_dict(self, other=None):
+        ''' Dict encoder for Message objects '''
+        if not other:
+            other = {}
+        other.update({
+            'type': self.type,
+            'name': self.name,
+        })
+        if self.args is not None:
+            other.update({
+                'args': self.args,
+            })
+        if self.requestid is not None:
+            other.update({
+                'requestid': self.requestid,
+            })
+        if self.response is not None:
+            other.update({
+                'response': self.response,
+                'result': self.result,
+            })
+        return other
 
 
     # -- String import/export
@@ -198,58 +239,29 @@ class Message(object):
         return self
 
 
-    #----- REQUEST ID NUMBERS ------
-
-    # Sequence number stored as class attribute
-    __sequence = 0
-
-    def gen_requestid(self):
-        Message.__sequence += 1
-        requestid = self.requestid = Message.__sequence
-        return requestid
-
-
-    #----- EXECUTION ------
-
-    def set_success(self, result):
-        ''' Set message command to succeess '''
-        self.response = True
-        self.args = None
-        if isinstance(result, Message):
-            self.result = result.result
-        else:
-            self.result = result
-        return self
-
-
-    def set_fail(self, exc):
-        ''' Set message command state to failed '''
-        # If this is run in the scope of an errback, exc will be a Failure object which
-        # contains the actual exception in exc.value
-        if isinstance(exc, Failure):
-            (failure, exc) = (exc, exc.value)  # pylint: disable=unused-variable
-        self.response = False
-        self.args = None
-        self.result = (exc.__class__.__name__, str(exc.message))
-        return self
-
-
-
-    #----- STATIC METHODS ------
+    #----- FACTORY METHODS ------
 
     @staticmethod
-    def load_json(string):
-        ''' Create a new Message() object from a json string '''
-        jdict = json.loads(string, encoding='ascii')
+    def create(msgtype, *args, **kw):
+        ''' Create a new Message() object '''
 
+        for cls in Message.__subclasses__():
+            if cls.type == msgtype:
+                return cls(*args, **kw)
+        raise ValueError("Uknown message type '%s'" %(msgtype))
+
+
+    @staticmethod
+    def create_from_json(other):
+        ''' Create a new Message() object from a json string '''
+
+        jdict = json.loads(other, encoding='ascii')
         msgtype = jdict.get('type')
         if msgtype is None:
-            raise ValueError("Missing message type")
+            raise ValueError("Missing message type in json")
 
-        for cls in MSGTYPES:
-            if cls.type == msgtype:
-                return cls().load_dict(jdict)
-        raise ValueError("Uknown message type '%s'" %(msgtype))
+        return Message.create(msgtype).load_dict(jdict)
+
 
 
 class MsgEvent(Message):
@@ -262,10 +274,3 @@ class MsgCommand(Message):
     ''' Command message '''
     type = 'command'
     want_response = True
-
-
-# List of all message types
-MSGTYPES = (
-    MsgEvent,
-    MsgCommand,
-)

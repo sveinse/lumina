@@ -6,7 +6,6 @@ from datetime import datetime
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 from twisted.internet.task import LoopingCall
-from twisted.internet.defer import Deferred
 
 from lumina.plugin import Plugin
 from lumina.exceptions import (NodeConfigException, UnknownCommandException,
@@ -14,7 +13,7 @@ from lumina.exceptions import (NodeConfigException, UnknownCommandException,
 from lumina.log import Logger
 from lumina.protocol import LuminaProtocol
 from lumina.state import ColorState
-from lumina.message import MsgCommand, MsgEvent
+from lumina.message import Message
 from lumina.lumina import master
 
 
@@ -95,11 +94,10 @@ class ServerProtocol(LuminaProtocol):
         ''' Handle messages from nodes '''
 
         cmd = message.name
-        ctype = message.type
 
 
         # -- Command type
-        if ctype == MsgCommand.type:
+        if message.is_type('command'):
 
             # -- Register node name
             if cmd == 'register':
@@ -131,7 +129,7 @@ class ServerProtocol(LuminaProtocol):
 
 
         # -- Event type
-        elif ctype == MsgEvent.type:
+        elif message.is_type('event'):
 
             prefix = self.name + '/'
 

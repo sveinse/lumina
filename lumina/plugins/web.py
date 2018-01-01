@@ -13,7 +13,7 @@ from twisted.web.util import Redirect
 from twisted.internet.defer import maybeDeferred
 
 from lumina.plugin import Plugin
-from lumina.message import MsgCommand
+from lumina.message import Message
 from lumina import utils
 from lumina.exceptions import TimeoutException
 from lumina.lumina import master
@@ -106,7 +106,7 @@ class RestCommand(LuminaResource):
         #self.log.debug('HEADERS: {h}', h=request.requestHeaders)
         content = request.content.read()
         #self.log.debug("CONTENT: {l} '{c}'", l=len(content), c=content)
-        command = MsgCommand(path).load_json_args(content)
+        command = Message.create('command', path).load_json_args(content)
         return self.web_command(request, command)
 
 
@@ -119,13 +119,11 @@ class RestInfo(LuminaResource):
 
         if path == '':
             path = '_info'
-        if path in ('_info', '_server'):
-            command = MsgCommand(path)
-        else:
-            # All others refer to remote nodes
-            command=MsgCommand(path + '/_info')
+        # All others refer to remote nodes
+        if path not in ('_info', '_server'):
+            path = path + '/_info'
 
-        return self.web_command(request, command)
+        return self.web_command(request, Message.create('command'. path))
 
 
 

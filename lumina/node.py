@@ -11,7 +11,7 @@ from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
-from lumina.message import MsgCommand, MsgEvent
+from lumina.message import Message
 from lumina.exceptions import (UnknownCommandException, UnknownMessageException)
 from lumina.protocol import LuminaProtocol
 from lumina.lumina import master
@@ -61,7 +61,7 @@ class NodeProtocol(LuminaProtocol):
                       n_e=len(self.parent.events),
                       n_c=len(self.parent.commands),
                       **data)
-        defer = self.send(MsgCommand('register', data))
+        defer = self.send(Message.create('command', 'register', data))
         defer.addCallback(self.registered)
         defer.addErrback(self.registerError)
 
@@ -90,8 +90,10 @@ class NodeProtocol(LuminaProtocol):
         # reconnect, a new update must be pushed
         # Equal value on state and old state indicates a refresh, not
         # new value.
-        self.send(MsgCommand('status', self.parent.status.state,
-                             self.parent.status.state, self.parent.status.why))
+        self.send(Message.create('command', 'status',
+                                 self.parent.status.state,
+                                 self.parent.status.state,
+                                 self.parent.status.why))
 
         # -- Enable sending of events from the parent class
         self.parent.node_connected = True
@@ -116,10 +118,9 @@ class NodeProtocol(LuminaProtocol):
         # Remove the plugin prefix from the name
         prefix = self.name + '/'
         cmd = message.name.replace(prefix, '')
-        ctype = message.type
 
         # -- Command type
-        if ctype == MsgCommand.type:
+        if message.is_type('command'):
 
             # -- Handle the internal commands
             if cmd == '_info':
@@ -201,7 +202,8 @@ class Node(Plugin):
         def send_status(status):
             ''' Status update callback. Only send updates if connected '''
             if self.node_connected:
-                self.send(MsgCommand('status', status.state, status.old, status.why))
+                self.send(Message.create('command', 'status', status.state,
+                                         status.old, status.why))
         self.status.add_callback(send_status)
 
         self.node_factory = NodeFactory(parent=self)
@@ -269,4 +271,4 @@ class Node(Plugin):
         ''' Send event to server. '''
         # The events must be prefixed by its node name before being
         # dispatched to the server
-        return self.send(MsgEvent(self.name + '/' + name, *args))
+        return self.send(Message.create('event', self.name + '/' + name, *args))
