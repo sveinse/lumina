@@ -34,17 +34,17 @@ class LuminaResource(Resource):
     command_timeout = COMMAND_TIMEOUT
 
 
-    def __init__(self, main, log):
+    def __init__(self, master, log):
         Resource.__init__(self)
         self.log = log
-        self.main = main
-        self.main_server = main.get_plugin_by_module('server')
+        self.master = master
+        self.master_server = master.get_plugin_by_module('server')
 
 
     def run_command(self, command):
         self.log.info('', cmdout=command)
 
-        defer = maybeDeferred(self.main_server.run_command, command)
+        defer = maybeDeferred(self.master_server.run_command, command)
 
         def cmd_ok(result):
             command.set_success(result)
@@ -141,12 +141,12 @@ class Web(Plugin):
 
     DEPENDS = ['server', 'responder']
 
-    def setup(self, main):
-        Plugin.setup(self, main)
+    def setup(self, master):
+        Plugin.setup(self, master)
 
-        self.port = main.config.get('port', name=self.name)
-        self.webroot = main.config.get('root', name=self.name)
-        self.logpath = main.config.get('log', name=self.name)
+        self.port = master.config.get('port', name=self.name)
+        self.webroot = master.config.get('root', name=self.name)
+        self.logpath = master.config.get('log', name=self.name)
 
         # Creste the root object
         root = File(self.webroot)
@@ -154,8 +154,8 @@ class Web(Plugin):
         root.putChild('', Redirect('lumina.html'))
 
         # List of resources that we want added
-        resources = {'rest/command': RestCommand(main, self.log),
-                     'rest/info': RestInfo(main, self.log),
+        resources = {'rest/command': RestCommand(master, self.log),
+                     'rest/info': RestInfo(master, self.log),
                     }
 
         # Traverse all resources and add them to the tree. Add empty

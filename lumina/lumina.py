@@ -192,7 +192,7 @@ class Lumina(object):
         plugin.log = Logger(namespace=plugin.name)
         plugin.status = ColorState(log=plugin.log, name=plugin.name)
 
-        # Update main status
+        # Update master status
         plugin.status.add_callback(self.update_status, run_now=True)
 
         # Register plugin
@@ -223,8 +223,8 @@ class Lumina(object):
                 self.log.info("===  Setting up plugin {n}", n=name)
                 self.config.add_templates(plugin.GLOBAL_CONFIG)
                 self.config.add_templates(plugin.CONFIG, name=name)
-                plugin.configure(main=self)
-                plugin.setup(main=self)
+                plugin.configure(master=self)
+                plugin.setup(master=self)
 
             except Exception as e:  # pylint: disable=broad-except
                 msg = "Failed to configure plugin '{n}': {t}: {e}".format(

@@ -14,15 +14,15 @@ class Plugin(object):
     # List of plugin dependencies
     DEPENDS = []
 
-    def __init__(self, main):
+    def __init__(self, master):
         pass
 
-    def configure(self, main):
+    def configure(self, master):
         ''' Configure the plugin. This method will be called before setup()
             and expects to setup any internal attributes.
         '''
 
-    def setup(self, main):
+    def setup(self, master):
         ''' Setup and start the services this plugin provides.
         '''
 

@@ -11,14 +11,14 @@ class Logger(Node):
     """ (TEST) A plugin for a simple log command """
 
     # --- Interfaces
-    def configure(self, main):
+    def configure(self, master):
 
         self.commands = {
             'log':      lambda a: self.log.info("Logging: {l}", l=a),
         }
 
-    def setup(self, main):
-        Node.setup(self, main)
+    def setup(self, master):
+        Node.setup(self, master)
         self.status.set_GREEN()
 
 

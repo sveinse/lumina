@@ -82,7 +82,7 @@ class Lirc(Plugin):
 
 
     # --- Interfaces
-    def configure(self, main):
+    def configure(self, master):
 
         self.events = [
         ]
@@ -92,10 +92,10 @@ class Lirc(Plugin):
 
 
     # --- Initialization
-    def setup(self, main):
-        Plugin.setup(self, main)
+    def setup(self, master):
+        Plugin.setup(self, master)
 
-        self.port = main.config.get('port', name=self.name)
+        self.port = master.config.get('port', name=self.name)
         self.status.set_OFF()
 
 
@@ -111,5 +111,5 @@ class Lirc(Plugin):
         #return d
 
 
-# Main plugin object class
+
 PLUGIN = Lirc

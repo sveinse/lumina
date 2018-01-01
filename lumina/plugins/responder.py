@@ -23,12 +23,12 @@ class Responder(Plugin):
     DEPENDS = ['server']
 
 
-    def setup(self, main):
-        Plugin.setup(self, main)
+    def setup(self, master):
+        Plugin.setup(self, master)
 
-        self.groups = main.config.get('groups', name=self.name).copy()
-        self.actions = main.config.get('actions', name=self.name).copy()
-        self.max_depth = main.config.get('max_depth', name=self.name)
+        self.groups = master.config.get('groups', name=self.name).copy()
+        self.actions = master.config.get('actions', name=self.name).copy()
+        self.max_depth = master.config.get('max_depth', name=self.name)
 
         # If any items in the actions list contains a list, make it into
         # a group with name '__<name>'
@@ -39,7 +39,7 @@ class Responder(Plugin):
             self.groups[n] = v
             self.actions[k] = n
 
-        self.server = server = main.get_plugin_by_module('server')
+        self.server = server = master.get_plugin_by_module('server')
         if not server:
             raise ConfigException('No server plugin found. Missing server in config?')
 

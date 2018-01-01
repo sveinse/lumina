@@ -20,13 +20,8 @@ from lumina.exceptions import ConfigException
 class ServerCommand(Plugin):
     """ (TEST) A plugin for generating server commands as direct requests """
 
-    # --- Interfaces
-    def configure(self, main):
-        pass
-
-
-    def setup(self, main):
-        Plugin.setup(self, main)
+    def setup(self, master):
+        Plugin.setup(self, master)
         self.status.set_GREEN()
 
         cmds = (
@@ -41,8 +36,8 @@ class ServerCommand(Plugin):
             reactor.callLater( i*2, self.send_cmd, *c)
         #reactor.callLater(len(cmds)*2, reactor.stop)
 
-        self.main_server = main.get_plugin_by_module('server')
-        if not self.main_server:
+        self.master_server = master.get_plugin_by_module('server')
+        if not self.master_server:
             raise ConfigException("Not running on the server")
 
 
@@ -50,7 +45,7 @@ class ServerCommand(Plugin):
         self.log.info("-----------------------------------------------")
         m = MsgCommand(cmd, *args)
         self.log.info('COMMAND: {m}', m=m)
-        d = self.main_server.run_command(m)
+        d = self.master_server.run_command(m)
         self.log.info("  1) RESULT : {d}", d=d)
         self.log.info('  1) MESSAGE: {m}', m=m)
         if isinstance(d, Deferred):

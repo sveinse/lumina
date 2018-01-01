@@ -14,7 +14,7 @@ class Rxv757(Node):
     DEPENDS = ['lirc']
 
     # --- Interfaces
-    def configure(self, main):
+    def configure(self, master):
 
         self.events = [
         ]
@@ -28,10 +28,10 @@ class Rxv757(Node):
 
 
     # --- Initialization
-    def setup(self, main):
-        Node.setup(self, main)
+    def setup(self, master):
+        Node.setup(self, master)
 
-        self.lirc = main.get_plugin_by_name('lirc')
+        self.lirc = master.get_plugin_by_name('lirc')
         self.status.set_GREEN()
 
 
@@ -39,5 +39,5 @@ class Rxv757(Node):
         return self.lirc.command('SEND_ONCE', name, key)
 
 
-# Main plugin object class
+
 PLUGIN = Rxv757

@@ -415,7 +415,7 @@ class Yamaha(Node):
     }
 
     # --- Interfaces
-    def configure(self, main):
+    def configure(self, master):
 
         self.events = [
             #'avr/starting',      # Created avr object
@@ -456,13 +456,13 @@ class Yamaha(Node):
 
 
     # --- Initialization
-    def setup(self, main):
-        Node.setup(self, main)
+    def setup(self, master):
+        Node.setup(self, master)
 
-        self.host = main.config.get('host', name=self.name)
-        self.port = main.config.get('port', name=self.name)
-        self.ssdp_host = main.config.get('ssdp', name=self.name)
-        self.ssdp_port = main.config.get('ssdp_port', name=self.name)
+        self.host = master.config.get('host', name=self.name)
+        self.port = master.config.get('port', name=self.name)
+        self.ssdp_host = master.config.get('ssdp', name=self.name)
+        self.ssdp_port = master.config.get('ssdp_port', name=self.name)
 
         self.protocol = YamahaProtocol(self, self.host, self.port)
         self.ssdp = YamahaSSDP(self, self.host, self.ssdp_host)
@@ -498,5 +498,4 @@ class Yamaha(Node):
 
 
 
-# Main plugin object class
 PLUGIN = Yamaha

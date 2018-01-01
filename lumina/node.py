@@ -122,7 +122,7 @@ class NodeProtocol(LuminaProtocol):
 
             # -- Handle the internal commands
             if cmd == '_info':
-                return self.parent.main.get_info()
+                return self.parent.master.get_info()
 
             # -- All other requests to nodes are commands handled by
             #    the Node parent
@@ -182,14 +182,14 @@ class Node(Plugin):
     }
 
 
-    def setup(self, main):
-        Plugin.setup(self, main)
+    def setup(self, master):
+        Plugin.setup(self, master)
 
-        self.main = main    # The _info command requires access to main
-        self.serverhost = main.config.get('server')
-        self.serverport = main.config.get('port')
-        self.hostname = main.hostname
-        self.hostid = main.hostid
+        self.master = master    # The _info command requires access to master
+        self.serverhost = master.config.get('server')
+        self.serverport = master.config.get('port')
+        self.hostname = master.hostname
+        self.hostid = master.hostid
         self.nodeid = hexlify(os.urandom(3))
 
         self.node_protocol = None

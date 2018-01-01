@@ -19,7 +19,7 @@ class Led(Node):
     }
 
     # --- Interfaces
-    def configure(self, main):
+    def configure(self, master):
 
         self.events = [
         ]
@@ -30,10 +30,10 @@ class Led(Node):
 
 
     # --- Initialization
-    def setup(self, main):
-        Node.setup(self, main)
+    def setup(self, master):
+        Node.setup(self, master)
 
-        self.universe = main.config.get('universe', name=self.name)
+        self.universe = master.config.get('universe', name=self.name)
         self.status.set_GREEN()
 
 
@@ -48,5 +48,5 @@ class Led(Node):
         self.dmx.SendDmx(self.universe, data, None)
 
 
-# Main plugin object class
+
 PLUGIN = Led

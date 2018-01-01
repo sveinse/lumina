@@ -374,10 +374,10 @@ class Telldus(Node):
 
 
     # --- Initialization
-    def setup(self, main):
-        Node.setup(self, main)
+    def setup(self, master):
+        Node.setup(self, master)
 
-        self.doubleprotect = main.config.get('double_protect', name=self.name)
+        self.doubleprotect = master.config.get('double_protect', name=self.name)
         self.emitted = {}
 
         self.inport = TelldusIn(self)
@@ -525,7 +525,7 @@ class Telldus(Node):
 
 
     # --- Interfaces
-    def configure(self, main):
+    def configure(self, master):
 
         # Baseline commands and events
         self.commands = {}
@@ -593,7 +593,7 @@ class Telldus(Node):
 
 
         # -- Traverse list for equipment and add to either self.commands or self.events
-        telldus_config = main.config.get('config', name=self.name)
+        telldus_config = master.config.get('config', name=self.name)
         for i, rconfig in enumerate(telldus_config):
             # Everything must be str
             eq = {k:str(v) for k, v in rconfig.items()}
@@ -627,5 +627,5 @@ class Telldus(Node):
 # FIXME: Implement ability to generate tellstick.conf from telldus_config
 
 
-# Main plugin object class
+
 PLUGIN = Telldus

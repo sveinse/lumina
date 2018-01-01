@@ -188,20 +188,20 @@ class Server(Plugin):
     }
 
 
-    def configure(self, main):
+    def configure(self, master):
 
         self.server_commands = {
-            '_info': lambda a: main.get_info(),
+            '_info': lambda a: master.get_info(),
             '_server': lambda a: self.get_info(),
         }
 
 
-    def setup(self, main):
-        Plugin.setup(self, main)
+    def setup(self, master):
+        Plugin.setup(self, master)
 
         # -- Config options
-        self.port = main.config.get('port')
-        self.nodelist = main.config.get('nodes', name=self.name)
+        self.port = master.config.get('port')
+        self.nodelist = master.config.get('nodes', name=self.name)
 
         # -- List of server commands and events
         self.events = []
@@ -395,5 +395,7 @@ class Server(Plugin):
             'node_status' : str(self.node_status),
             'node_status_why' : str(self.node_status.why),
         }
+
+
 
 PLUGIN = Server

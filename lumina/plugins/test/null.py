@@ -7,8 +7,8 @@ from lumina.node import Node
 class Null(Node):
     """ (TEST) A minimal do-nothing plugin """
 
-    def setup(self, main):
-        Node.setup(self, main)
+    def setup(self, master):
+        Node.setup(self, master)
         self.status.set_GREEN()
 
 

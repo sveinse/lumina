@@ -18,12 +18,12 @@ angular.module('LuminaApp')
         
         var on_page_load = function() {
 
-            // Get the main master info
+            // Get the maste info
             LuminaComm.get_host_info()
                 .then(function(data) {
 
-                    // Set the main info and set the host info for this host
-                    $scope.main = data;
+                    // Set the master info and set the host info for this host
+                    $scope.master = data;
                     data.hostclass = 'serverhost';
                     $scope.hosts[data.hostid] = data;
                     $scope.hostslength = Object.keys($scope.hosts).length;

@@ -450,12 +450,12 @@ class Hw50(Node):
 
 
     # --- Initialization
-    def __init__(self, main):  # pylint: disable=W0231
+    def __init__(self, master):  # pylint: disable=W0231
         self.sp = None
 
 
     # --- Interfaces
-    def configure(self, main):
+    def configure(self, master):
 
         self.events = [
         ]
@@ -478,10 +478,10 @@ class Hw50(Node):
 
 
     # --- Initialization
-    def setup(self, main):
-        Node.setup(self, main)
+    def setup(self, master):
+        Node.setup(self, master)
 
-        self.port = main.config.get('port', name=self.name)
+        self.port = master.config.get('port', name=self.name)
         self.protocol = HW50Protocol(self)
         self.sp = Hw50SerialPort(self.protocol, self.port,
                                  baudrate=38400,
@@ -505,5 +505,4 @@ class Hw50(Node):
 
 
 
-# Main plugin object class
 PLUGIN = Hw50
