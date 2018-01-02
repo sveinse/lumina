@@ -1,4 +1,5 @@
 #-*- python -*-
+""" Functionality for storing states """
 from __future__ import absolute_import
 
 from lumina.log import Logger

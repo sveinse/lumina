@@ -1,8 +1,10 @@
 # -*- python -*-
+""" Base class for plugins """
 from __future__ import absolute_import
 
 
 class Plugin(object):
+    """ Base object class for plugins """
 
     # Plugin configurations, both local and global
     CONFIG = {}

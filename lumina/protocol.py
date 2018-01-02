@@ -1,4 +1,5 @@
 # -*- python -*-
+""" Lumina communication protocol """
 from __future__ import absolute_import
 
 from datetime import datetime
@@ -50,7 +51,7 @@ COMMAND_TIMEOUT = 10
 
 
 # Exception types that will not result in a local traceback
-validNodeExceptions = (
+VALID_NODE_EXCEPTIONS = (
     NodeException,
     NoConnectionException,
     TimeoutException
@@ -58,6 +59,7 @@ validNodeExceptions = (
 
 
 class LuminaProtocol(LineReceiver):
+    ''' Lumina communication protocol '''
     noisy = False
     delimiter = '\n'
     remote_timeout = REMOTE_TIMEOUT
@@ -159,7 +161,7 @@ class LuminaProtocol(LineReceiver):
             message.set_fail(failure)
 
             # Accept the exception if listed in validNodeExceptions.
-            for exc in validNodeExceptions:
+            for exc in VALID_NODE_EXCEPTIONS:
                 if failure.check(exc):
                     return None
 
@@ -196,7 +198,8 @@ class LuminaProtocol(LineReceiver):
         # Not much to do if we are not expecting a reply. I.e. the deferred
         # has already fired.
         if message.requestid not in self.requests:
-            self.log.error("Dropping unexpeced response. Late reply from a previous timed out request?")
+            self.log.error("Dropping unexpeced response. "
+                           "Late reply from a previous timed out request?")
             return
 
         # Get orginial request and delete it from the queue.
@@ -226,7 +229,7 @@ class LuminaProtocol(LineReceiver):
 
                 # Been back and forth between sending 'request' or
                 # 'request.result' back to the caller. When run_command() is
-                # called, if the command returns immediately an immediate result 
+                # called, if the command returns immediately an immediate result
                 # is returned. If run_command() returns a Deferred(), the object
                 # sent back from here will be the object the caller receives.
                 # If the 'request' object is sent back, the caller receives the

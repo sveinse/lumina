@@ -1,4 +1,5 @@
 # -*- python -*-
+""" A event test generator plugin that issues undeclared events """
 from __future__ import absolute_import
 
 from twisted.internet.task import LoopingCall

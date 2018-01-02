@@ -1,4 +1,5 @@
 # -*- python -*-
+""" Master engine of lumina """
 from __future__ import absolute_import
 
 import re
@@ -25,6 +26,7 @@ class FailedPlugin(Plugin):
 
 
 class Lumina(object):
+    ''' Main Lumina master engine '''
 
     # The plugin= syntax in the configuration file
     RE_PLUGIN_SYNTAX = re.compile(r'^([\w.]+)(\(([\w.]+)\))?$')
@@ -65,6 +67,7 @@ class Lumina(object):
 
 
     def setup(self):
+        ''' Setup the engine by loading plugins '''
 
         self.log.info("Starting plugins...")
 
@@ -149,11 +152,13 @@ class Lumina(object):
 
 
     def close(self):
+        ''' Close the main engine '''
         pass
 
 
     #==
     def load_plugin(self, module, name=None):
+        ''' Load the given module. Handle any failures that might occur. '''
 
         if name is None:
             name = module
@@ -208,6 +213,7 @@ class Lumina(object):
 
 
     def configure_plugin(self, name):
+        ''' Configure the loaded plugin '''
 
         plugin = self.plugins[name]
 
@@ -246,7 +252,8 @@ class Lumina(object):
 
 
     #== INTERNAL FUNCTIONS
-    def update_status(self, status):  # pylint: disable=unused-variable
+    def update_status(self, status):  # pylint: disable=W0613
+        ''' Callback updating the status from all plugins '''
         (state, why) = ColorState.combine(*[plugin.status for plugin in self.plugins.itervalues()])
         self.status.set(state, why)
 

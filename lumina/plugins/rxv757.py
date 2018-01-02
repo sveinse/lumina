@@ -1,4 +1,5 @@
 # -*-python-*-
+""" Legacy Yamaha AV Receiver IR interface plugin """
 from __future__ import absolute_import
 
 from lumina.node import Node

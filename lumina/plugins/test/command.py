@@ -1,4 +1,5 @@
 # -*- python -*-
+""" A command test plugin """
 from __future__ import absolute_import
 
 from twisted.internet import reactor

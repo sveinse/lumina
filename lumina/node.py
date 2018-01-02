@@ -1,4 +1,5 @@
 #-*- python -*-
+""" Base class for node plugins. Client-side communication functions. """
 from __future__ import absolute_import
 
 import os
@@ -23,6 +24,7 @@ KEEPALIVE_INTERVAL = 60
 
 
 class NodeProtocol(LuminaProtocol):
+    ''' Node communication protocol '''
     keepalive_interval = KEEPALIVE_INTERVAL
 
 
@@ -148,6 +150,9 @@ class NodeProtocol(LuminaProtocol):
 
 
 class NodeFactory(ReconnectingClientFactory):
+    ''' Factory generator for the NodeProtocol. Uses reconnection to ensure
+        that the Node always retries connection until a connection is made.
+    '''
     noisy = False
     maxDelay = 10
     factor = 1.6180339887498948

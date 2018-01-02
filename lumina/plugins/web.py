@@ -1,4 +1,5 @@
 # -*-python-*-
+""" Lumina web server and rest interface plugin """
 from __future__ import absolute_import
 
 import os
@@ -30,6 +31,7 @@ def getPath(request):
 
 
 class LuminaResource(Resource):
+    ''' Helper class for bridging lumina interface from the web interface '''
     isLeaf = True
     noisy = False
     command_timeout = COMMAND_TIMEOUT
@@ -66,7 +68,7 @@ class LuminaResource(Resource):
         # -- Setup a timeout, and add a timeout err handler making sure the
         #    message data failure is properly set
         utils.add_defer_timeout(defer, self.command_timeout, cmd_timeout, command)
-        
+
         defer.addCallback(cmd_ok)
         defer.addErrback(cmd_error)
         return defer
@@ -94,6 +96,7 @@ class LuminaResource(Resource):
 
 
 class RestCommand(LuminaResource):
+    ''' Lumina command interface '''
     def render_POST(self, request):
         request.setHeader(b'Content-Type', b'application/json')
         request.setHeader(b'Cache-Control', b'no-cache, no-store, must-revalidate')
@@ -112,6 +115,7 @@ class RestCommand(LuminaResource):
 
 
 class RestInfo(LuminaResource):
+    ''' REST interface resource '''
     def render_GET(self, request):
         request.setHeader(b'Content-Type', b'application/json')
         request.setHeader(b'Cache-Control', b'no-cache, no-store, must-revalidate')

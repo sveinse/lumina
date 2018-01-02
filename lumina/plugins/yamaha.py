@@ -1,4 +1,5 @@
 # -*-python-*-
+""" Yamaha Aventage AV Receiver interface plugin """
 from __future__ import absolute_import
 
 import re
@@ -52,13 +53,13 @@ SPEAKER_PEQ2 = ('System', 'Speaker_Preout', 'Pattern_2', 'PEQ', 'Manual_Data')
 
 
 def dB(value):
-    return { 'Val': int(float(value)*10),
-             'Exp': 1,
-             'Unit': 'dB' }
+    return {'Val': int(float(value)*10),
+            'Exp': 1,
+            'Unit': 'dB'}
 def dB_t(text):
-    return { 'Val': text,
-             'Exp': '',
-             'Unit': '' }
+    return {'Val': text,
+            'Exp': '',
+            'Unit': ''}
 def parse_dB(xml):
     # <Val>20</Val><Exp>1</Exp><Unit>dB</Unit>
     return float(xml.find('Val').text) * 10 ** (-float(xml.find('Exp').text))
@@ -67,9 +68,9 @@ def parse_val(xml):
     return float(xml.find('Val').text) * 10 ** (-float(xml.find('Exp').text))
 
 def meter(value):
-    return { 'Val': int(float(value)*100),
-             'Exp': 2,
-             'Unit': 'm' }
+    return {'Val': int(float(value)*100),
+            'Exp': 2,
+            'Unit': 'm'}
 
 def parse_levels(xml):
     # <YAMAHA_AV rsp="GET" RC="0"><System><Speaker_Preout><Pattern_1><Lvl>
@@ -94,10 +95,10 @@ def parse_peq(xml):
     #   <Band_1><Freq>125.0 Hz</Freq><Gain><Val>20</Val><Exp>1</Exp><Unit>dB</Unit></Gain><Q>0.630</Q></Band_1>
     bands = []
     for band in xml:
-        bands.append( { 'freq': band.find('Freq').text,
-                        'gain': parse_val(band.find('Gain')),
-                        'q': float(band.find('Q').text),
-                    } )
+        bands.append({'freq': band.find('Freq').text,
+                      'gain': parse_val(band.find('Gain')),
+                      'q': float(band.find('Q').text),
+                     })
     return bands
 
 def t(xml):

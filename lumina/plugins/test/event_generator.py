@@ -1,4 +1,5 @@
 # -*- python -*-
+""" A simple timer based event generator plugin """
 from __future__ import absolute_import
 
 from twisted.internet.task import LoopingCall

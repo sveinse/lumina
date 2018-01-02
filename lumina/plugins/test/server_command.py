@@ -1,9 +1,9 @@
 # -*- python -*-
+""" Test plugin for testing commands sent directly to the server """
 from __future__ import absolute_import
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
-from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
 from lumina.message import Message
@@ -13,7 +13,7 @@ from lumina.lumina import master
 
 # To test this plugin, use config
 #    "plugins": [ "server", "responder", "dir(test.server_command)", "cmd(test.command)" ],
-#    "responder.groups": { 
+#    "responder.groups": {
 #        "group/123" : [ "cmd/1", "cmd/2", "cmd/3" ],
 #        "group/fail" : [ "cmd/1", "cmd/2", "cmd/fail" ]
 #     }
@@ -32,8 +32,8 @@ class ServerCommand(Plugin):
             ('group/123', 43),
             ('group/fail', 44),
         )
-        for i,c in enumerate(cmds):
-            reactor.callLater( i*2, self.send_cmd, *c)
+        for i, c in enumerate(cmds):
+            reactor.callLater(i*2, self.send_cmd, *c)
         #reactor.callLater(len(cmds)*2, reactor.stop)
 
         self.master_server = master.get_plugin_by_module('server')
@@ -42,6 +42,7 @@ class ServerCommand(Plugin):
 
 
     def send_cmd(self, cmd, *args):
+        ''' Send command to server and print the response '''
         self.log.info("-----------------------------------------------")
         m = Message.create('command', cmd, *args)
         self.log.info('COMMAND: {m}', m=m)

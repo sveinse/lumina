@@ -1,4 +1,5 @@
 # -*- python -*-
+""" Lumina network message object """
 from __future__ import absolute_import
 
 import re
@@ -9,11 +10,12 @@ from lumina.utils import str_object
 
 
 DEBUG = False
-MAX_ELEMENTS = (5,5)
-#MAX_ELEMENTS = (5,5,3)   # Useful in debug
+MAX_ELEMENTS = (5, 5)
+#MAX_ELEMENTS = (5, 5, 3)   # Useful in debug
 
 
 class MessageEncoder(json.JSONEncoder):
+    ''' Wrapper for JSON encoding of Message '''
     def default(self, obj):    # pylint: disable=E0202
         if isinstance(obj, Message):
             # Transform our message into a dict, which the JSON encoder can handle
@@ -24,16 +26,7 @@ class MessageEncoder(json.JSONEncoder):
 
 
 class Message(object):
-    ''' Message object.
-           message = Message(name,*args)
-
-        Message name text syntax:
-           'foo'
-           'bar{1,2}'
-           'nul{arg1=foo,arg2=bar}'
-           'nul{arg1=foo,arg2=bar,5}'
-    '''
-
+    """ Base class for all lumina network messages """
     type = 'message'
     want_response = False
 
@@ -68,7 +61,7 @@ class Message(object):
             alist.append('d=%s' %(str(self.defer),))
         if self.args is not None:
             alist += list(self.args)
-        return "%s:%s{%s}" %(tdict.get(self.type,'?'),
+        return "%s:%s{%s}" %(tdict.get(self.type, '?'),
                              self.name,
                              str_object(alist,
                                         max_elements=MAX_ELEMENTS,
@@ -91,6 +84,7 @@ class Message(object):
     __sequence = 0
 
     def get_requestid(self):
+        ''' Set a new unique request id in current object and return it '''
         Message.__sequence += 1
         requestid = self.requestid = Message.__sequence
         return requestid
@@ -186,7 +180,12 @@ class Message(object):
 
 
     def load_str(self, string, parse_event=None, shell=False):
-        ''' Load the data from a string '''
+        """ Load the data from a string. Message name text syntax:
+           'foo'
+           'bar{1,2}'
+           'nul{arg1=foo,arg2=bar}'
+           'nul{arg1=foo,arg2=bar,5}'
+        """
         string = string.encode('ascii')
 
         # Support shell-like command parsing
@@ -198,15 +197,15 @@ class Message(object):
             self.args = args[1:]
             return self
 
-        m = self.RE_LOAD_STR.match(string)
-        if not m:
+        match = self.RE_LOAD_STR.match(string)
+        if not match:
             raise SyntaxError("Invalid syntax '%s'" %(string))
-        opts = m.group(3)
+        opts = match.group(3)
         args = []
         if opts:
             args = opts.split(',')
 
-        self.name = m.group(1)
+        self.name = match.group(1)
         self.args = tuple(args)
 
         # If '$' agruments is encountered, replace with positional argument

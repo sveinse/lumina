@@ -1,4 +1,5 @@
 # -*-python-*-
+""" Linux IR controller interface plugin """
 from __future__ import absolute_import
 
 #from twisted.internet import reactor

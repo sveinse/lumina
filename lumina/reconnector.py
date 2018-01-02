@@ -1,4 +1,5 @@
 # -*- python -*-
+""" Generic implementation of a reconnecting class """
 from __future__ import absolute_import
 
 import random
@@ -11,7 +12,9 @@ from lumina.log import Logger
 # Inspired by twisted ReconnectingClientFactory,
 # http://twistedmatrix.com/documents/current/api/twisted.internet.protocol.ReconnectingClientFactory.html
 class Reconnector(object):
-
+    ''' A class for attempting reconnects, handling exponential timeout delays
+        when the connection fails.
+    '''
     noisy = True
     log = Logger()
 
@@ -28,17 +31,10 @@ class Reconnector(object):
 
 
     def connect(self):
+        """
+        Called by reconnector when a new connection should be attempted.
+        """
         pass
-
-
-    def connectionFailed(self, unused_reason):  # pylint: disable=unused-variable
-        if self.continueTrying:
-            self.retry()
-
-
-    def connectionLost(self, unused_reason):  # pylint: disable=unused-variable
-        if self.continueTrying:
-            self.retry()
 
 
     def retry(self):

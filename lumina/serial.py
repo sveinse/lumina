@@ -1,4 +1,5 @@
 # -*- python -*-
+""" Serial port functionality """
 from __future__ import absolute_import
 
 from twisted.internet import reactor
@@ -10,35 +11,39 @@ from lumina.reconnector import Reconnector
 
 
 class ReconnectingSerialPort(Reconnector):
+    """ A class for serial port connection that will retry the connection
+        if the connection fails
+    """
 
     def __init__(self, protocol, port, *args, **kwargs):
         self.protocol = protocol
         self.port = port
         self.args = args
         self.kwargs = kwargs
-        self.sp = None
+        self.serialport = None
 
 
     def connect(self):
         try:
-            self.sp = SerialPort(self.protocol, self.port, reactor,
-                                 *self.args, **self.kwargs)
+            self.serialport = SerialPort(self.protocol, self.port, reactor,
+                                         *self.args, **self.kwargs)
             self.resetDelay()
         except SerialException:
             self.connectionFailed(Failure())
 
 
     def connectionLost(self, reason):
-        self.sp = None
-        Reconnector.connectionLost(self, reason)
+        self.serialport = None
+        self.retry()
 
 
     def connectionFailed(self, reason):
-        self.sp = None
-        Reconnector.connectionFailed(self, reason)
+        self.serialport = None
+        self.retry()
 
 
     def loseConnection(self, *args, **kwargs):
-        Reconnector.stopTrying(self)
-        if self.sp:
-            self.sp.loseConnection(*args, **kwargs)
+        ''' Lose connection to the serial port '''
+        self.stopTrying()
+        if self.serialport:
+            self.serialport.loseConnection(*args, **kwargs)

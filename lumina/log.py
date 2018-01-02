@@ -1,4 +1,8 @@
 #-*- python -*-
+""" 
+Log function. Import 'Logger' and make an instance of it to do proper
+logging.
+"""
 import sys
 import traceback
 from zope.interface import implementer
@@ -15,15 +19,9 @@ from twisted.python.compat import ioType, unicode
 __all__ = ["start", "Logger"]
 
 
-
-class LuminaSyslogObserver(SyslogObserver):    #pylint: disable=R0903
-    def __call__(self, event):
-        return self.emit(event)
-
-
-
 @implementer(ILogObserver)
 class LuminaLogObserver(object):
+    ''' Logging observer for Lumina '''
 
     def __init__(self, syslog=None, syslog_prefix=''):
 
@@ -36,10 +34,16 @@ class LuminaLogObserver(object):
             self._encoding = None
 
         if syslog:
+            class LuminaSyslogObserver(SyslogObserver):    #pylint: disable=R0903
+                ''' Wrapper for legacy syslogs '''
+                def __call__(self, event):
+                    return self.emit(event)
+
             self.syslog = LegacyLogObserverWrapper(LuminaSyslogObserver(prefix=syslog_prefix))
 
 
     def __call__(self, event):
+        ''' Main dispatcher for log-events '''
 
         try:
             # Check if the message should be printed or suppressed
@@ -76,6 +80,7 @@ class LuminaLogObserver(object):
 
 
     def format_logtext(self, event):
+        ''' Custom format the log output '''
 
         # == TIMESTAMP
         event['l_timestamp'] = formatTime(event.get("log_time", None))
@@ -127,8 +132,8 @@ class LuminaLogObserver(object):
         event['message'] = eventtext
 
 
-
     def add_custom_logtext(self, event):
+        ''' Add the custom Lumina log formats '''
 
         fmt = event['log_format']
 
@@ -156,6 +161,9 @@ class LuminaLogObserver(object):
 
 
     def filter_logtext(self, event):
+        ''' Filter logevents to remove. Returns True if the message should
+            be logged and False if not
+        '''
 
         # FIXME: Implement a configurable filter engine
 
@@ -178,6 +186,7 @@ class LuminaLogObserver(object):
 
 
 def start(syslog, syslog_prefix):
+    ''' Start the custom logger '''
 
     # This logger will take over the system and will not give any feedback
     # if the logger is failing

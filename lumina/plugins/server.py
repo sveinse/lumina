@@ -1,4 +1,5 @@
 # -*- python -*-
+""" Lumina node server plugin """
 from __future__ import absolute_import
 
 from datetime import datetime
@@ -13,7 +14,6 @@ from lumina.exceptions import (NodeConfigException, UnknownCommandException,
 from lumina.log import Logger
 from lumina.protocol import LuminaProtocol
 from lumina.state import ColorState
-from lumina.message import Message
 from lumina.lumina import master
 
 
@@ -29,6 +29,7 @@ NODE_TIMEOUT = 180
 
 
 class ServerProtocol(LuminaProtocol):
+    ''' Server communication protocol '''
     node_timeout = NODE_TIMEOUT
 
 
@@ -86,6 +87,7 @@ class ServerProtocol(LuminaProtocol):
 
 
     def connectionTimeout(self):
+        ''' Communication timeout handler '''
         self.log.info("Communication timeout from '{n}' ({ip})", n=self.name, ip=self.peer)
         self.transport.loseConnection()
 
@@ -138,7 +140,7 @@ class ServerProtocol(LuminaProtocol):
                 self.log.error("Ignoring undeclared event '{m}'", m=message)
                 return None
 
-            cmd = cmd.replace(prefix,'')
+            cmd = cmd.replace(prefix, '')
             if cmd not in self.parent.events:
                 self.log.error("Ignoring undeclared event '{m}'", m=message)
                 return None
@@ -156,6 +158,7 @@ class ServerProtocol(LuminaProtocol):
 
 
 class ServerFactory(Factory):
+    ''' Factory generator for node connections/protocols '''
     noisy = False
 
     def __init__(self, parent):
@@ -233,6 +236,7 @@ class Server(Plugin):
         ''' Run a command and return reply or a deferred object for later reply '''
 
         def unknown_command(message):
+            ''' Handle unknown commands gracefully '''
             exc = UnknownCommandException(message.name)
             message.set_fail(exc)
             if fail_on_unknown:
@@ -245,7 +249,8 @@ class Server(Plugin):
 
 
     # --- INTERNAL COMMANDS
-    def update_status(self, status):  # pylint: disable=unused-variable
+    def update_status(self, status):  # pylint: disable=W0613
+        ''' Status update callback '''
         l = [node.status for node in self.nodes.itervalues()]
         l += [node.link for node in self.nodes.itervalues()]
         (state, why) = ColorState.combine(*l)

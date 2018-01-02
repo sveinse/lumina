@@ -1,4 +1,5 @@
 # -*-python-*-
+""" LED-strip control via DMX over Open Lighting Architecture plugin """
 from __future__ import absolute_import
 
 import array

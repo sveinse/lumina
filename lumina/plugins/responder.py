@@ -1,4 +1,5 @@
 # -*- python -*-
+""" Main execution plugin for responding to events and logic """
 from __future__ import absolute_import
 
 from twisted.internet.defer import Deferred, maybeDeferred
@@ -173,7 +174,7 @@ class Responder(Plugin):
 
                     # Have been back and forth if the result list should be a
                     # list of the results or the actual command objects. The
-                    # former fails to work when a command fails and the 
+                    # former fails to work when a command fails and the
                     # commands have only succeeded partially.
                     #request.result = [ c.result for c in self.commandlist ]
                     request.result = self.commandlist
@@ -185,7 +186,7 @@ class Responder(Plugin):
                         # Likewise, if request.result is sent back, the list
                         # is sent without the request.response containing the
                         # number of successful commands.
-                        
+
                         self.defer.callback(request.result)
                         #self.defer.callback(request)
 

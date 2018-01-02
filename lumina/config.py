@@ -1,4 +1,5 @@
 # -*- python -*-
+""" Configuration module """
 from __future__ import absolute_import
 
 import re
@@ -22,11 +23,15 @@ def verify_type(key, obj, otype):
 
     tobj = type(obj)
 
+    equivalents = (
+        (unicode, str),
+        (str, unicode),
+        (tuple, list),
+        (list, tuple),
+    )
     if tobj is not otype:
-        if ((tobj is unicode and otype is str)           # unicode and str is equivalent
-                or (tobj is str and otype is unicode)    # str and unicode is equivalent
-                or (tobj is tuple and otype is list)     # tuple and list is equivalent
-                or (tobj is list and otype is tuple)):   # list and tuple is equivalent
+        comps = [tobj is a and otype is b for a, b in equivalents]
+        if any(comps):
             return
         else:
             raise ConfigException("Config '%s' is type '%s', expecting '%s'" %(
@@ -138,6 +143,7 @@ class Config(object):
 
 
     def items(self):
+        ''' Get all config items retured as a dict '''
         return self.config.items()
 
 

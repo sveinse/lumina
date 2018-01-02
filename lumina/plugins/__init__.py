@@ -1,0 +1,2 @@
+# -*- python -*-
+""" Lumina plugins """

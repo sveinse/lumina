@@ -1,4 +1,5 @@
 # -*- python -*-
+""" Lumina exceptions """
 from __future__ import absolute_import
 
 

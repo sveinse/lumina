@@ -1,4 +1,5 @@
 # -*- python -*-
+""" Utility and helper functions """
 from __future__ import absolute_import
 
 from twisted.internet import reactor
@@ -86,6 +87,7 @@ def connectEndpoint(protocol, endpoint, *args, **kw):
         creates the endpoint(*args, **kw) and sets up a non-noisy factory.
     '''
     class OneShotFactory(Factory):  # pylint: disable=W0232
+        ''' Small run-once factory '''
         noisy = False
         def buildProtocol(self, addr):
             return protocol
