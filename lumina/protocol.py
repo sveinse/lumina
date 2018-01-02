@@ -154,7 +154,7 @@ class LuminaProtocol(LineReceiver):
         # -- Setup filling in the message data from the result
         def msg_ok(result):
             message.set_success(result)
-            self.log.info('', cmdok=message)
+            self.log.debug('', cmdok=message)
             return result
 
         def msg_error(failure):
@@ -224,7 +224,7 @@ class LuminaProtocol(LineReceiver):
         if message.response:
 
             # Send successful result back
-            self.log.info('', cmdok=request)
+            self.log.debug('', cmdok=request)
             if not defer.called:
 
                 # Been back and forth between sending 'request' or

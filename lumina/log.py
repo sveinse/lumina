@@ -12,8 +12,14 @@ from twisted.logger import formatTime
 from twisted.logger import formatEvent
 from twisted.logger import globalLogBeginner, LegacyLogObserverWrapper
 #from twisted.logger import globalLogPublisher
-from twisted.python.syslog import SyslogObserver
 from twisted.python.compat import ioType, unicode
+
+# Some architectures does not support syslog
+IMPORT_FAILED = False
+try:
+    from twisted.python.syslog import SyslogObserver
+except ImportError:
+    IMPORT_FAILED = True
 
 
 __all__ = ["start", "Logger"]
@@ -33,7 +39,8 @@ class LuminaLogObserver(object):
         else:
             self._encoding = None
 
-        if syslog:
+        if syslog and not IMPORT_FAILED:
+
             class LuminaSyslogObserver(SyslogObserver):    #pylint: disable=R0903
                 ''' Wrapper for legacy syslogs '''
                 def __call__(self, event):

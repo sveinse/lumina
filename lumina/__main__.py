@@ -73,7 +73,7 @@ def main(args=None):    # pylint: disable=W0613
     ap = argparse.ArgumentParser()
     ap.add_argument('-c', '--config', default=None, metavar='CONFIG',
                     help='Read configuration file')
-    if os.name != 'nt':
+    if sys.platform != 'win32':
         ap.add_argument('--pidfile', default='/var/run/lumid.pid', metavar='FILENAME',
                         help='Set the pidfile')
         ap.add_argument('--daemon', action='store_true',
@@ -87,12 +87,12 @@ def main(args=None):    # pylint: disable=W0613
     setproctitle.setproctitle('lumina')
 
     #==  DAEMONIZE
-    if os.name != 'nt' and opts.daemon:
+    if sys.platform != 'win32' and opts.daemon:
         daemonize(pidfile=opts.pidfile)
         opts.syslog = True
 
     #==  LOGGING
-    log.start(syslog=(os.name != 'nt' and opts.syslog), syslog_prefix='Lumina')
+    log.start(syslog=(sys.platform != 'win32' and opts.syslog), syslog_prefix='Lumina')
 
     #==  MAIN
     lumina = initLumina(conffile=opts.config)
