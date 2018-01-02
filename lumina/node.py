@@ -188,8 +188,8 @@ class Node(Plugin):
         'server': dict(default='localhost', help='Lumina server to connect to'),
     }
 
-    # Override the init methods from the Plugin
-    INIT_METHODS = ('configure', 'node_setup', 'setup')
+    # Override the list of configure methods from the Plugin
+    CONFIGURE_METHODS = ('configure', 'node_setup', 'setup')
 
 
     def node_setup(self):

@@ -230,8 +230,8 @@ class Lumina(object):
                 self.config.add_templates(plugin.GLOBAL_CONFIG)
                 self.config.add_templates(plugin.CONFIG, name=name)
 
-                # Call the specified init methods
-                for method in plugin.INIT_METHODS:
+                # Call the specified configuration methods
+                for method in plugin.CONFIGURE_METHODS:
                     getattr(plugin, method)()
 
             except Exception as e:  # pylint: disable=broad-except

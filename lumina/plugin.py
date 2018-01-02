@@ -13,8 +13,8 @@ class Plugin(object):
     # List of plugin dependencies
     DEPENDS = ()
 
-    # List of function names to initialize when starting the class
-    INIT_METHODS = ('configure', 'setup')
+    # List of function names to run when configuring the class
+    CONFIGURE_METHODS = ('configure', 'setup')
 
 
     def configure(self):
