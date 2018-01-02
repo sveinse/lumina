@@ -1,6 +1,6 @@
 /**
  * @license Lumina v0.1
- * (c) 2014-2017 Svein Seldal
+ * (c) 2014-2018 Svein Seldal
  * License: GPL3
 */
 angular.module('LuminaApp')

@@ -1,7 +1,7 @@
 #!/usr/bin/make
 #
 # Convenience makefile for helping build and packaging of Lumina
-# Copyright (C) 2010-2017 Svein Seldal <sveinse@seldal.com>
+# Copyright (C) 2010-2018 Svein Seldal <sveinse@seldal.com>
 #
 
 # Default builddir directory and output directory

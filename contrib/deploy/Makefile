@@ -1,7 +1,7 @@
 #!/usr/bin/make
 #
 # Convenience makefile for helping deploy Lumina
-# Copyright (C) 2010-2017 Svein Seldal <sveinse@seldal.com>
+# Copyright (C) 2010-2018 Svein Seldal <sveinse@seldal.com>
 #
 
 # Project root directory

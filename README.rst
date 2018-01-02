@@ -29,7 +29,7 @@ a work in progress.
 License
 =======
 
-| Copyright 2010-2017, Svein Seldal <<sveinse@seldal.com>>
+| Copyright 2010-2018, Svein Seldal <<sveinse@seldal.com>>
 
 This application is licensed under GNU GPL version 3
 <http://gnu.org/licenses/gpl.html>. This is free software:
