@@ -118,12 +118,12 @@ class LuminaProtocol(LineReceiver):
         if not len(data):
             return
 
-        self.log.debug('', rawin=data)
+        self.log.debug('{_rawin}', rawin=data)
 
         # -- Parse the incoming message
         try:
             message = Message.create_from_json(data)
-            self.log.debug('', cmdin=message)
+            self.log.debug('{_cmdin}', cmdin=message)
 
         except (SyntaxError, ValueError) as e:
             # Raised if the load_json didn't succeed
@@ -154,7 +154,7 @@ class LuminaProtocol(LineReceiver):
         # -- Setup filling in the message data from the result
         def msg_ok(result):
             message.set_success(result)
-            self.log.debug('', cmdok=message)
+            self.log.debug('{_cmdok}', cmdok=message)
             return result
 
         def msg_error(failure):
@@ -224,7 +224,7 @@ class LuminaProtocol(LineReceiver):
         if message.response:
 
             # Send successful result back
-            self.log.debug('', cmdok=request)
+            self.log.debug('{_cmdok}', cmdok=request)
             if not defer.called:
 
                 # Been back and forth between sending 'request' or
@@ -266,7 +266,7 @@ class LuminaProtocol(LineReceiver):
 
             # Send an error back
             exc = NodeException(*request.result)
-            self.log.error('', cmderr=request)
+            self.log.error('{_cmderr}', cmderr=request)
             if not defer.called:
                 defer.errback(exc)
             else:
@@ -311,9 +311,9 @@ class LuminaProtocol(LineReceiver):
             self.requests[message.get_requestid()] = message
 
         # -- Encode and send the command
-        self.log.debug('', cmdout=message)
+        self.log.debug('{_cmdout}', cmdout=message)
         data = message.dump_json()
-        self.log.debug('', rawout=data)
+        self.log.debug('{_rawout}', rawout=data)
         self.transport.write(data+'\n')
 
         return defer

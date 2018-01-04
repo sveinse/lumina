@@ -265,11 +265,13 @@ class Lumina(object):
             if inst.module == module:
                 return inst
 
+
     def get_plugin_by_name(self, name):
         ''' Return the instance for a plugin given by the name '''
         for inst in self.plugins.itervalues():
             if inst.name == name:
                 return inst
+
 
     def get_info(self):
         ''' Return a dict of info about this server '''

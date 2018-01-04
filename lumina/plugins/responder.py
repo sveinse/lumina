@@ -181,7 +181,7 @@ class Responder(Plugin):
 
                     # Success is when all sub-jobs succeeds
                     if self.success == len(self.commandlist):
-                        self.log.info('', cmdok=request)
+                        self.log.info('{_cmdok}', cmdok=request)
 
                         # Likewise, if request.result is sent back, the list
                         # is sent without the request.response containing the

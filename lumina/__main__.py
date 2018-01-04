@@ -9,14 +9,18 @@ import argparse
 import setproctitle
 from twisted.internet import reactor
 
+import lumina
 from lumina import log
 from lumina.lumina import initLumina
+from lumina.client import Client
+from lumina.message import Message
 
 
-#===  Become DAEMON
-def daemonize(pidfile):
-    ''' Make the running process into a daemon process by disconnecting its file
-        in/out and by forking. '''
+
+#===  Detach DAEMON
+def detach(pidfile):
+    ''' Make the running process into a detached process by disconnecting its
+        file in/out and by forking. '''
 
     try:
         with file(pidfile, 'r') as pidf:
@@ -64,40 +68,112 @@ def daemonize(pidfile):
     file(pidfile, 'w+').write(str(os.getpid()) + '\n')
 
 
+#===  COMMANDS
+
+def client(parser, opts):
+
+    log.start(syslog=False, redirect_stdio=False, loglevel=log.LogLevel.warn)
+    cli = Client(host='127.0.0.1',port=5326)
+    result = [ 0 ]
+
+    def client_ok(result):
+        # FIXME
+        print 'OK'
+        cli.protocol.transport.loseConnection()
+    def client_err(failure):
+        result[0] = 1
+        cli.log.critical('{f}',f=failure.getErrorMessage())
+
+    d = cli.send(Message.create('command', '_info'))
+    d.addCallback(client_ok)
+    d.addErrback(client_err)
+    #d.addBoth(lambda a: reactor.stop())
+    reactor.run()
+    return result[0]
+
+
+def print_help(parser, opts):
+    ''' Print command help '''
+    help = HelpAction(None, None, None)
+    help(parser, None, None)
+
+
+def server(parser, opts):
+    ''' Run the Lumina server '''
+
+    # Detach servre
+    if sys.platform != 'win32' and opts.detach:
+        detach(pidfile=opts.pidfile)
+        opts.syslog = True
+
+    # Logging
+    log.start(syslog=(sys.platform != 'win32' and opts.syslog), loglevel=log.LogLevel.debug)
+
+    # Initiate Lumina server
+    master = initLumina(conffile=opts.config)
+    reactor.callLater(0, master.setup)
+
+    # Start Twisted
+    master.log.info("Starting reactor")
+    reactor.run()
+    return 0
+
+
+COMMANDS = {
+    'client': client,
+    'help': print_help,
+    'server': server,
+}
+
+
+class HelpAction(argparse.Action):
+    ''' Custom help printer '''
+    def __call__(self, parser, namespace, values, option_string=None):
+        parser.print_help()
+        print("\nLumina commands:")
+        for command in COMMANDS:
+            print("  %-16s     %s" %(command, COMMANDS[command].__doc__))
+        parser.exit()
+
 
 #===  MAIN function
 def main(args=None):    # pylint: disable=W0613
     ''' Lumina main function '''
 
-    #==  PARSE ARGS
-    ap = argparse.ArgumentParser()
-    ap.add_argument('-c', '--config', default=None, metavar='CONFIG',
-                    help='Read configuration file')
+    # Parse args
+    parser = argparse.ArgumentParser(description=lumina.__doc__, add_help=False)
+    parser.add_argument('--help', action=HelpAction, nargs=0,
+                        help='show this help message and exit')
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s ' + lumina.__version__ +
+                        ' build ' + lumina.__build__)
+    parser.add_argument('-c', '--config', default=None, metavar='CONFIG',
+                        help='Read configuration file')
+    #parser.add_argument('--server', action='store_true',
+    #                    help='Run Lumina server. Any commands given will be ignored')
     if sys.platform != 'win32':
-        ap.add_argument('--pidfile', default='/var/run/lumid.pid', metavar='FILENAME',
-                        help='Set the pidfile')
-        ap.add_argument('--daemon', action='store_true',
-                        help='Daemonize application')
-        ap.add_argument('--syslog', action='store_true', default=False,
-                        help='Enable syslog logging')
-    opts = ap.parse_args()
+        parser.add_argument('--pidfile', default='/var/run/lumid.pid',
+                            metavar='FILENAME',
+                            help='(Server only) set the pidfile')
+        parser.add_argument('--detach', action='store_true',
+                            help='(Server only) detach application')
+        parser.add_argument('--syslog', action='store_true', default=False,
+                            help='(Server only) Enable syslog logging')
+    parser.add_argument('command', default=None, nargs='?',
+                        help='Command to run (ignored if --server)')
 
+    opts = parser.parse_args()
 
-    #==  SET PROC TITLE
+    # Set proc title
     setproctitle.setproctitle('lumina')
 
-    #==  DAEMONIZE
-    if sys.platform != 'win32' and opts.daemon:
-        daemonize(pidfile=opts.pidfile)
-        opts.syslog = True
+    # Handle command
+    cmd = opts.command
+    if cmd is None:
+        parser.error('Missing required command')
 
-    #==  LOGGING
-    log.start(syslog=(sys.platform != 'win32' and opts.syslog), syslog_prefix='Lumina')
+    elif cmd in COMMANDS:
+        return COMMANDS[cmd](parser, opts)
 
-    #==  MAIN
-    lumina = initLumina(conffile=opts.config)
-    reactor.callLater(0, lumina.setup)
-
-    #==  START TWISTED
-    lumina.log.info("Starting reactor")
-    reactor.run()
+    else:
+        parser.error('Unknown command: ' + cmd)

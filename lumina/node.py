@@ -135,7 +135,7 @@ class NodeProtocol(LuminaProtocol):
                 ''' Placeholder fn for unknown commands '''
                 exc = UnknownCommandException(message.name)
                 message.set_fail(exc)
-                self.log.error('NODE', cmderr=message)
+                self.log.error('NODE {_cmderr}', cmderr=message)
                 raise exc
 
             # -- Run the named fn from the commands dict

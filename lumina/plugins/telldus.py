@@ -198,7 +198,7 @@ class TelldusIn(Protocol):
 
 
     def dataReceived(self, data):
-        self.log.debug('', rawin=data)
+        self.log.debug('{_rawin}', rawin=data)
 
         if self.timer.running:
             self.timer.reset()
@@ -220,7 +220,7 @@ class TelldusIn(Protocol):
 
         # Iterate over the received events
         for event in events:
-            self.log.debug('', datain=event)
+            self.log.debug('{_datain}', datain=event)
             self.parent.parse_event(event)
 
 
@@ -317,7 +317,7 @@ class TelldusOut(Protocol):
 
     def dataReceived(self, data):
         self.status.set_GREEN()
-        self.log.debug('', rawin=data)
+        self.log.debug('{_rawin}', rawin=data)
         (elements, data) = parsestream(data)
 
         # FIXME: Is it correct to send element to the callback? ....yes
@@ -339,7 +339,7 @@ class TelldusOut(Protocol):
 
 
     def send(self):
-        self.log.debug('', dataout=self.data)
+        self.log.debug('{_dataout}', dataout=self.data)
         self.transport.write(self.data)
 
 

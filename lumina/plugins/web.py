@@ -44,18 +44,18 @@ class LuminaResource(Resource):
 
 
     def run_command(self, command):
-        self.log.debug('', cmdout=command)
+        self.log.debug('{_cmdout}', cmdout=command)
 
         defer = maybeDeferred(self.master_server.run_command, command)
 
         def cmd_ok(result):
             command.set_success(result)
-            self.log.debug('', cmdin=command)
+            self.log.debug('{_cmdin}', cmdin=command)
             return result
 
         def cmd_error(failure):
             command.set_fail(failure)
-            self.log.info('', cmderr=command)
+            self.log.info('{_cmderr}', cmderr=command)
             return failure
 
         def cmd_timeout():

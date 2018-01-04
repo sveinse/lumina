@@ -71,7 +71,7 @@ remotetargets=push run start stop logs build install deploy
 define remotecmds
 #--------------------------------------
 # Common settings
-$(eval $(1)-RUN:=-c contrib/deploy/test_$(1).json)
+$(eval $(1)-RUN:=server -c contrib/deploy/test_$(1).json)
 $(eval $(1)-DEBS:=dist-$($(1)-TYPE)/*.deb)
 $(eval $(1)-DEPLOY:=contrib/deploy/deploy-$(1))
 
@@ -139,8 +139,8 @@ $(foreach b,$(builders),$(eval $(call buildcmds,$(b))))
 # LOCAL TARGETS
 # =============
 local-run:
-	cd ../../ && python bin/lumina.py -c contrib/deploy/test_local.json
+	cd ../../ && python bin/lumina.py server -c contrib/deploy/test_local.json
 local-run2:
-	cd ../../ && python bin/lumina.py -c contrib/deploy/test_local2.json
+	cd ../../ && python bin/lumina.py server -c contrib/deploy/test_local2.json
 local-run3:
-	cd ../../ && python bin/lumina.py -c contrib/deploy/test_local3.json
+	cd ../../ && python bin/lumina.py server -c contrib/deploy/test_local3.json

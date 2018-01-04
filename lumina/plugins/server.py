@@ -240,7 +240,7 @@ class Server(Plugin):
             exc = UnknownCommandException(message.name)
             message.set_fail(exc)
             if fail_on_unknown:
-                self.log.error('', cmderr=message)
+                self.log.error('{_cmderr}', cmderr=message)
                 raise exc
             self.log.warn("Ignoring unknown command: '{n}'", n=message.name)
 

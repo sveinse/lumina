@@ -315,7 +315,7 @@ class HW50Protocol(Protocol):
 
 
     def dataReceived(self, data):
-        self.log.debug('', rawin=data)
+        self.log.debug('{_rawin}', rawin=data)
         msg = bytearray(data)
         self.rxbuffer += msg
 

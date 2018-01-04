@@ -3,7 +3,7 @@ Description=Home Theater Controller
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/lumina --syslog --config /etc/default/lumina
+ExecStart=/usr/bin/lumina server --syslog --config /etc/default/lumina
 Restart=on-failure
 
 [Install]
