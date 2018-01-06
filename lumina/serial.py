@@ -15,7 +15,7 @@ class ReconnectingSerialPort(Reconnector):
     """
 
     def __init__(self, reactor, protocol, port, *args, **kwargs):
-        Reconnector.__init__(reactor)
+        Reconnector.__init__(self, reactor)
         self.protocol = protocol
         self.port = port
         self.args = args

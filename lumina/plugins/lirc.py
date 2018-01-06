@@ -45,7 +45,7 @@ class LircProtocol(LineReceiver):
         self.defer = Deferred()
 
         endpoint = UNIXClientEndpoint(self.master.reactor, self.port)
-        connectProtocol(self, endpoint)
+        connectProtocol(endpoint, self)
 
 
     def connectionMade(self):

@@ -266,6 +266,7 @@ class TelldusOut(Protocol):
     def __init__(self, parent):
         self.log = Logger(namespace=parent.name+'/out')
         self.parent = parent
+        self.master = parent.master
         self.status = ColorState(log=self.log, state_format={0:0})  # <-- a hack to avoid color
         self.status.add_callback(self.parent.update_status)
         self.connected = False

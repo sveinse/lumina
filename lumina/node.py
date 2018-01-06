@@ -210,6 +210,8 @@ class Node(Plugin):
         self.status.add_callback(send_status)
 
         self.node_factory = NodeFactory(parent=self)
+        self.log.info("Connecting to server on {h}:{p}", h=self.serverhost,
+                      p=self.serverport)
         self.master.reactor.connectTCP(self.serverhost,
                                        self.serverport,
                                        self.node_factory)

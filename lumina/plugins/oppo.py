@@ -285,7 +285,8 @@ class Oppo(Node):
 
     def close(self):
         Node.close(self)
-        self.sp.loseConnection()
+        if self.sp:
+            self.sp.loseConnection()
 
 
     # --- Convenience
