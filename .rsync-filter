@@ -1,6 +1,7 @@
 # File types we don't bother syncing
 - *.pyc
 - *~
+- __*/
 
 # Don't want the potentially large contrib dir
 + /contrib/
@@ -18,4 +19,5 @@
 - /tags
 - /.vscode
 - /tmp
-- /venv
+- /venv*/
+- access-lumina.log*
