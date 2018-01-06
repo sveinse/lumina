@@ -6,7 +6,6 @@ import os
 from Queue import Queue, Empty
 from binascii import hexlify
 
-from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.task import LoopingCall
@@ -15,7 +14,6 @@ from lumina.plugin import Plugin
 from lumina.message import Message
 from lumina.exceptions import (UnknownCommandException, UnknownMessageException)
 from lumina.protocol import LuminaProtocol
-from lumina.lumina import master
 
 # FIXME: Add this as a config statement
 
@@ -51,8 +49,8 @@ class NodeProtocol(LuminaProtocol):
         # -- Register device
         data = dict(node=self.parent.name,
                     nodeid=self.parent.nodeid,
-                    hostname=master.hostname,
-                    hostid=master.hostid,
+                    hostname=self.master.hostname,
+                    hostid=self.master.hostid,
                     module=self.parent.module,
                     events=self.parent.events,
                     commands=commands,
@@ -126,7 +124,7 @@ class NodeProtocol(LuminaProtocol):
 
             # -- Handle the internal commands
             if cmd == '_info':
-                return master.get_info()
+                return self.master.get_info()
 
             # -- All other requests to nodes are commands handled by
             #    the Node parent
@@ -195,8 +193,8 @@ class Node(Plugin):
     def node_setup(self):
         ''' Setup the node '''
 
-        self.serverhost = master.config.get('server')
-        self.serverport = master.config.get('port')
+        self.serverhost = self.master.config.get('server')
+        self.serverport = self.master.config.get('port')
         self.nodeid = hexlify(os.urandom(3))
 
         self.node_protocol = None
@@ -212,7 +210,9 @@ class Node(Plugin):
         self.status.add_callback(send_status)
 
         self.node_factory = NodeFactory(parent=self)
-        reactor.connectTCP(self.serverhost, self.serverport, self.node_factory)
+        self.master.reactor.connectTCP(self.serverhost,
+                                       self.serverport,
+                                       self.node_factory)
 
 
     def close(self):

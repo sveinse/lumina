@@ -2,7 +2,6 @@
 """ Serial port functionality """
 from __future__ import absolute_import
 
-from twisted.internet import reactor
 from twisted.internet.serialport import SerialPort
 from twisted.python.failure import Failure
 from serial.serialutil import SerialException
@@ -15,7 +14,8 @@ class ReconnectingSerialPort(Reconnector):
         if the connection fails
     """
 
-    def __init__(self, protocol, port, *args, **kwargs):
+    def __init__(self, reactor, protocol, port, *args, **kwargs):
+        Reconnector.__init__(reactor)
         self.protocol = protocol
         self.port = port
         self.args = args
@@ -25,7 +25,7 @@ class ReconnectingSerialPort(Reconnector):
 
     def connect(self):
         try:
-            self.serialport = SerialPort(self.protocol, self.port, reactor,
+            self.serialport = SerialPort(self.protocol, self.port, self.reactor,
                                          *self.args, **self.kwargs)
             self.resetDelay()
         except SerialException:

@@ -115,7 +115,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'lumina=lumina.__main__:main',
+            'lumina=lumina.main:main',
         ],
     },
 

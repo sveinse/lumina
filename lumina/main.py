@@ -11,9 +11,8 @@ from twisted.internet import reactor
 
 import lumina
 from lumina import log
-from lumina.lumina import initLumina
-from lumina.client import Client
-from lumina.message import Message
+from lumina.lumina import Lumina, LuminaClient
+from lumina.config import Config
 
 
 
@@ -70,38 +69,39 @@ def detach(pidfile):
 
 #===  COMMANDS
 
-def client(parser, opts):
+def client(parser, opts, cmd):
+    ''' Client command '''
 
-    log.start(syslog=False, redirect_stdio=False, loglevel=log.LogLevel.warn)
-    cli = Client(host='127.0.0.1',port=5326)
-    result = [ 0 ]
+    # Logging
+    log.start(syslog=False, redirect_stdio=False, loglevel=log.LogLevel.debug)
 
-    def client_ok(result):
-        # FIXME
-        print 'OK'
-        cli.protocol.transport.loseConnection()
-    def client_err(failure):
-        result[0] = 1
-        cli.log.critical('{f}',f=failure.getErrorMessage())
+    # Load configuration
+    config = Config()
+    config['plugins'] = ['client']
+    if opts.config:
+        config.readconfig(opts.config)
+        config['conffile'] = opts.config
 
-    d = cli.send(Message.create('command', '_info'))
-    d.addCallback(client_ok)
-    d.addErrback(client_err)
-    #d.addBoth(lambda a: reactor.stop())
+    # Initiate Lumina client engine, select reactor here
+    master = LuminaClient(reactor, config=config)
+    reactor.callLater(0, master.run, cmd)
+
+    # Start Twisted reactor
+    master.log.info("Starting reactor")
     reactor.run()
-    return result[0]
+    return master.return_value
 
 
-def print_help(parser, opts):
+def print_help(parser, opts, cmd):
     ''' Print command help '''
     help = HelpAction(None, None, None)
     help(parser, None, None)
 
 
-def server(parser, opts):
+def server(parser, opts, cmd):
     ''' Run the Lumina server '''
 
-    # Detach servre
+    # Detach server
     if sys.platform != 'win32' and opts.detach:
         detach(pidfile=opts.pidfile)
         opts.syslog = True
@@ -109,14 +109,20 @@ def server(parser, opts):
     # Logging
     log.start(syslog=(sys.platform != 'win32' and opts.syslog), loglevel=log.LogLevel.debug)
 
-    # Initiate Lumina server
-    master = initLumina(conffile=opts.config)
-    reactor.callLater(0, master.setup)
+    # Load configuration
+    config = Config()
+    if opts.config:
+        config.readconfig(opts.config)
+        config['conffile'] = opts.config
 
-    # Start Twisted
+    # Initiate Lumina engine, select reactor here
+    master = Lumina(reactor, config=config)
+    reactor.callLater(0, master.run)
+
+    # Start Twisted reactor
     master.log.info("Starting reactor")
     reactor.run()
-    return 0
+    return master.return_value
 
 
 COMMANDS = {
@@ -173,7 +179,7 @@ def main(args=None):    # pylint: disable=W0613
         parser.error('Missing required command')
 
     elif cmd in COMMANDS:
-        return COMMANDS[cmd](parser, opts)
+        return COMMANDS[cmd](parser, opts, cmd)
 
     else:
         parser.error('Unknown command: ' + cmd)

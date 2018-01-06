@@ -3,7 +3,6 @@
 from __future__ import absolute_import
 
 from lumina.node import Node
-from lumina.lumina import master
 
 
 
@@ -32,7 +31,7 @@ class Rxv757(Node):
     # --- Initialization
     def setup(self):
 
-        self.lirc = master.get_plugin_by_name('lirc')
+        self.lirc = self.master.get_plugin_by_name('lirc')
         self.status.set_GREEN()
 
 

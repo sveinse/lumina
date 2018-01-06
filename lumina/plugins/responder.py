@@ -7,7 +7,6 @@ from twisted.internet.defer import Deferred, maybeDeferred
 from lumina.message import Message
 from lumina.plugin import Plugin
 from lumina.exceptions import CommandParseException, ConfigException, CommandRunException
-from lumina.lumina import master
 
 
 
@@ -27,9 +26,9 @@ class Responder(Plugin):
 
     def setup(self):
 
-        self.groups = master.config.get('groups', name=self.name).copy()
-        self.actions = master.config.get('actions', name=self.name).copy()
-        self.max_depth = master.config.get('max_depth', name=self.name)
+        self.groups = self.master.config.get('groups', name=self.name).copy()
+        self.actions = self.master.config.get('actions', name=self.name).copy()
+        self.max_depth = self.master.config.get('max_depth', name=self.name)
 
         # If any items in the actions list contains a list, make it into
         # a group with name '__<name>'
@@ -40,7 +39,7 @@ class Responder(Plugin):
             self.groups[n] = v
             self.actions[k] = n
 
-        self.server = server = master.get_plugin_by_module('server')
+        self.server = server = self.master.get_plugin_by_module('server')
         if not server:
             raise ConfigException('No server plugin found. Missing server in config?')
 

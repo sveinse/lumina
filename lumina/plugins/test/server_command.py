@@ -2,13 +2,11 @@
 """ Test plugin for testing commands sent directly to the server """
 from __future__ import absolute_import
 
-from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 
 from lumina.plugin import Plugin
 from lumina.message import Message
 from lumina.exceptions import ConfigException
-from lumina.lumina import master
 
 
 # To test this plugin, use config
@@ -33,10 +31,10 @@ class ServerCommand(Plugin):
             ('group/fail', 44),
         )
         for i, c in enumerate(cmds):
-            reactor.callLater(i*2, self.send_cmd, *c)
-        #reactor.callLater(len(cmds)*2, reactor.stop)
+            self.master.reactor.callLater(i*2, self.send_cmd, *c)
+        #self.master.reactor.callLater(len(cmds)*2, self.master.reactor.stop)
 
-        self.master_server = master.get_plugin_by_module('server')
+        self.master_server = self.master.get_plugin_by_module('server')
         if not self.master_server:
             raise ConfigException("Not running on the server")
 

@@ -2,11 +2,10 @@
 """ Utility and helper functions """
 from __future__ import absolute_import
 
-from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 
 
-def add_defer_timeout(defer, timeout, callback, *args, **kw):
+def add_defer_timeout(reactor, defer, timeout, callback, *args, **kw):
     ''' Add a timeout to the defer object and return the timer. It will call callback(*args,**kw)
         on timeout. The timer will be cleaned up automatically, both if the timer times out, or
         if the deferred object is fired by other cases.

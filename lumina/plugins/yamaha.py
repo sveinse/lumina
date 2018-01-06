@@ -7,7 +7,6 @@ from Queue import Queue
 import xml.etree.ElementTree as ET
 import socket
 
-from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import DatagramProtocol, ClientFactory, Protocol
 #from twisted.web.client import Agent
@@ -16,7 +15,6 @@ from twisted.internet.protocol import DatagramProtocol, ClientFactory, Protocol
 from lumina.node import Node
 from lumina.log import Logger
 from lumina.exceptions import LuminaException, CommandRunException, TimeoutException
-from lumina.lumina import master
 
 
 class SSDPException(LuminaException):
@@ -197,6 +195,7 @@ class YamahaProtocol(Protocol):
     def __init__(self, parent, host, port):
         self.log = Logger(namespace=parent.name+'/main')
         self.parent = parent
+        self.master = parent.master
         self.status = parent.status
         self.host = host
         self.port = port
@@ -385,14 +384,14 @@ Connection: keep-alive\r
             (defer, command, chain, body) = self.queue.get(False)
 
             # Send the command
-            reactor.connectTCP(self.host, self.port, self.factory)
+            self.master.reactor.connectTCP(self.host, self.port, self.factory)
 
             # Expect reply
             self.lastcommand = command
             self.lastchain = chain
             self.lastbody = body
             self.defer = defer
-            self.timer = reactor.callLater(self.timeout, self.timedout)
+            self.timer = self.master.reactor.callLater(self.timeout, self.timedout)
             return
 
 
@@ -460,15 +459,15 @@ class Yamaha(Node):
     # --- Initialization
     def setup(self):
 
-        self.host = master.config.get('host', name=self.name)
-        self.port = master.config.get('port', name=self.name)
-        self.ssdp_host = master.config.get('ssdp', name=self.name)
-        self.ssdp_port = master.config.get('ssdp_port', name=self.name)
+        self.host = self.master.config.get('host', name=self.name)
+        self.port = self.master.config.get('port', name=self.name)
+        self.ssdp_host = self.master.config.get('ssdp', name=self.name)
+        self.ssdp_port = self.master.config.get('ssdp_port', name=self.name)
 
         self.protocol = YamahaProtocol(self, self.host, self.port)
         self.ssdp = YamahaSSDP(self, self.host, self.ssdp_host)
 
-        reactor.listenMulticast(self.ssdp_port, self.ssdp, listenMultiple=True)
+        self.master.reactor.listenMulticast(self.ssdp_port, self.ssdp, listenMultiple=True)
 
         # Send a dummy command to force connection to the device. This will
         # put it in GREEN or RED mode.

@@ -4,7 +4,6 @@ from __future__ import absolute_import
 
 from datetime import datetime
 
-from twisted.internet import reactor
 from twisted.internet.protocol import Factory
 from twisted.internet.task import LoopingCall
 
@@ -14,7 +13,6 @@ from lumina.exceptions import (NodeConfigException, UnknownCommandException,
 from lumina.log import Logger
 from lumina.protocol import LuminaProtocol
 from lumina.state import ColorState
-from lumina.lumina import master
 
 
 # FIXME: Add this as a config statement
@@ -193,7 +191,7 @@ class Server(Plugin):
     def configure(self):
 
         self.server_commands = {
-            '_info': lambda a: master.get_info(),
+            '_info': lambda a: self.master.get_info(),
             '_server': lambda a: self.get_info(),
         }
 
@@ -201,8 +199,8 @@ class Server(Plugin):
     def setup(self):
 
         # -- Config options
-        self.port = master.config.get('port')
-        self.nodelist = master.config.get('nodes', name=self.name)
+        self.port = self.master.config.get('port')
+        self.nodelist = self.master.config.get('nodes', name=self.name)
 
         # -- List of server commands and events
         self.events = []
@@ -229,7 +227,7 @@ class Server(Plugin):
         self.handle_event = lambda a: self.log.info("Ignoring event '{a}'", a=a)
 
         self.factory = ServerFactory(parent=self)
-        reactor.listenTCP(self.port, self.factory)
+        self.master.reactor.listenTCP(self.port, self.factory)
 
 
     def run_command(self, message, fail_on_unknown=True):

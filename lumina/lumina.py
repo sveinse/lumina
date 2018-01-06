@@ -9,19 +9,12 @@ from binascii import hexlify
 from importlib import import_module
 from datetime import datetime
 
-from twisted.internet import reactor
-
-from lumina.config import Config
+import lumina
 from lumina.log import Logger
 from lumina.state import ColorState
 from lumina.plugin import Plugin
 from lumina.utils import topolgical_sort
-
-
-
-class FailedPlugin(Plugin):
-    ''' Plugin failed to load. '''
-    name = "FAILED"
+from lumina.message import Message
 
 
 
@@ -38,22 +31,24 @@ class Lumina(object):
         'hostid'     : dict(default=socket.gethostname(), help='Unique id for this host'),
     }
 
+    # Default return value
+    return_value = 0
+
 
     # Setup Lumina. This is run before the reactpr has been started
-    def __init__(self, conffile=None):
+    def __init__(self, reactor, config=None):
+
+        # Store reactor
+        self.reactor = reactor
+
         self.log = Logger(namespace='-')
         self.status = ColorState(log=self.log)
 
-        #== CONFIGUATION
-        self.config = config = Config()
+        # Configuration
+        self.config = config
         config.add_templates(self.GLOBAL_CONFIG)
 
-        # Load new configuration
-        if conffile:
-            self.config.readconfig(conffile)
-            self.config['conffile'] = conffile
-
-        #== GENERAL INFORMATION
+        # General info
         self.hostname = socket.gethostname()
         # Use hostname as host ID rather than making a random ID. Random ID
         # does is not static across reboots
@@ -66,12 +61,12 @@ class Lumina(object):
                       host=self.hostname, hostid=self.hostid, pid=self.pid)
 
 
-    def setup(self):
-        ''' Setup the engine by loading plugins '''
+    def run(self):
+        ''' Run the engine by loading plugins '''
 
         self.log.info("Starting plugins...")
 
-        #== PLUGINS
+        # Handle plugins
         self.plugins = {}
         self.plugin_count = 0
         self.plugin_deps = {}
@@ -103,8 +98,7 @@ class Lumina(object):
             # Load the plugin
             self.load_plugin(module, name)
 
-
-        #== Load any additional dependencies
+        # Load any additional plugin dependencies
         while True:
 
             loaded = set()
@@ -123,8 +117,7 @@ class Lumina(object):
                 # Load the dependency
                 self.load_plugin(module)
 
-
-        #== Sort the sequence
+        # Sort the sequence of plugins
         try:
             sequence = topolgical_sort(self.plugin_deps)
             self.log.info("Setup sequence: {l}", l=", ".join(sequence))
@@ -133,17 +126,12 @@ class Lumina(object):
             self.log.critical("Dependencies: {d}", d=self.plugin_deps)
             raise SystemExit(1)
 
-
-        #== Configure the plugins
+        # Configure the plugins in the sorted order
         for name in sequence:
             try:
                 self.configure_plugin(name)
             except:
                 raise
-
-
-        #== Register own shutdown
-        reactor.addSystemEventTrigger('before', 'shutdown', self.close)
 
         # No plugins?
         if not self.plugins:
@@ -151,12 +139,6 @@ class Lumina(object):
             self.log.warn("No plugins have been configured. Doing nothing.")
 
 
-    def close(self):
-        ''' Close the main engine '''
-        pass
-
-
-    #==
     def load_plugin(self, module, name=None):
         ''' Load the given module. Handle any failures that might occur. '''
 
@@ -165,10 +147,9 @@ class Lumina(object):
 
         self.plugin_count += 1
 
+        # Import the plugin
         try:
             self.log.info("Loading plugin {m}...", m=module)
-
-            # LOAD the plugin
             plugin = import_module('lumina.plugins.' + module).PLUGIN()
             plugin.failed = None
 
@@ -182,8 +163,8 @@ class Lumina(object):
             self.log.failure("{m}", m=msg)
 
             # Put in a empty failed placeholder
-            plugin = FailedPlugin()
-            module = FailedPlugin.name
+            module = 'FAILED'
+            plugin = Plugin()
             plugin.failed = "%s: %s" %(type(e).__name__, e.message)
 
             #plugin.status = ColorState('RED', log=self.log, why=msg, name=module)
@@ -196,6 +177,9 @@ class Lumina(object):
 
         plugin.log = Logger(namespace=plugin.name)
         plugin.status = ColorState(log=plugin.log, name=plugin.name)
+
+        # Give reference to us (FIXME, shouldn't inject references like this)
+        plugin.master = self
 
         # Update status
         plugin.status.add_callback(self.update_status, run_now=True)
@@ -219,7 +203,6 @@ class Lumina(object):
 
         dep_status = [self.plugins[dep].failed for dep in self.plugin_deps[name]]
         if any(dep_status):
-            #deps = ', '.join(self.plugin_deps[name])
             plugin.failed = "DependencyError: One of the depending plugins has failed to load"
 
         # Setup plugin
@@ -248,7 +231,7 @@ class Lumina(object):
             plugin.status.set_RED(plugin.failed)
 
          # Setup for closing the plugin on close
-        reactor.addSystemEventTrigger('before', 'shutdown', plugin.close)
+        self.reactor.addSystemEventTrigger('before', 'shutdown', plugin.close)
 
 
     #== INTERNAL FUNCTIONS
@@ -302,15 +285,32 @@ class Lumina(object):
         }
 
 
-# Export 'master' as the global instance to the Lumina class
-master = None  # pylint: disable=C0103
+
+class LuminaClient(Lumina):
+    ''' Client Lumina master client engine '''
+
+    # Overall (default) global config options
+    GLOBAL_CONFIG = {
+        'conffile'   : dict(default='lumina.json', help='Configuration file'),
+        'port'  : dict(default=5326, help='Lumina port to connect to', type=int),
+        'server': dict(default='localhost', help='Lumina server to connect to'),
+    }
 
 
-def initLumina(*args, **kw):
-    ''' Create the global Lumina object found in 'master' '''
-    global master  # pylint: disable=W0603,C0103
-    if master is None:
-        master = Lumina(*args, **kw)
-        return master
-    else:
-        raise RuntimeError("Lumina has already been created")
+    def run(self, command):
+        Lumina.run(self)
+
+        client = self.get_plugin_by_module('client')
+
+        def client_ok(result):
+            # FIXME
+            print 'OK'
+            client.protocol.transport.loseConnection()
+        def client_err(failure):
+            self.return_value = 1
+            client.log.critical('{f}',f=failure.getErrorMessage())
+        
+        d = client.send(Message.create('command', '_info'))
+        d.addCallback(client_ok)
+        d.addErrback(client_err)
+        d.addBoth(lambda a: self.reactor.stop())

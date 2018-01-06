@@ -8,7 +8,7 @@ from twisted.protocols.basic import LineReceiver
 from twisted.internet.defer import Deferred, maybeDeferred
 
 from lumina.message import Message
-from lumina import utils
+from lumina.utils import add_defer_timeout
 from lumina.exceptions import (NodeException, NoConnectionException,
                                TimeoutException, UnknownMessageException)
 from lumina.state import ColorState
@@ -69,6 +69,7 @@ class LuminaProtocol(LineReceiver):
     def __init__(self, parent):
         self.parent = parent
         self.log = parent.log
+        self.master = parent.master
 
         # Setup support for a keepalive timer, but dont create it. This must
         # be done in inheriting classes
@@ -180,7 +181,7 @@ class LuminaProtocol(LineReceiver):
 
         # -- Setup a timeout, and add a timeout err handler making sure the
         #    message data failure is properly set
-        utils.add_defer_timeout(defer, self.command_timeout, msg_timeout)
+        add_defer_timeout(self.master.reactor, defer, self.command_timeout, msg_timeout)
 
         defer.addCallback(msg_ok)
         defer.addErrback(msg_error)
@@ -305,7 +306,8 @@ class LuminaProtocol(LineReceiver):
 
             # -- Setup a timeout, and add a timeout err handler making sure the
             #    message data failure is properly set
-            utils.add_defer_timeout(defer, self.remote_timeout, send_timeout, message)
+            add_defer_timeout(self.master.reactor, defer, self.remote_timeout,
+                              send_timeout, message)
 
             # -- Generate new requestid for message, save message in request list
             self.requests[message.get_requestid()] = message

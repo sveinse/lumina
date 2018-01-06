@@ -4,9 +4,8 @@ from __future__ import absolute_import
 
 import random
 
-from twisted.internet import reactor
-
 from lumina.log import Logger
+
 
 
 # Inspired by twisted ReconnectingClientFactory,
@@ -28,6 +27,10 @@ class Reconnector(object):
     maxRetries = None
     _callID = None
     continueTrying = 1
+
+
+    def __init__(self, reactor):
+        self.reactor = reactor
 
 
     def connect(self):
@@ -65,7 +68,7 @@ class Reconnector(object):
         def reconnector():
             self._callID = None
             self.connect()
-        self._callID = reactor.callLater(self.delay, reconnector)
+        self._callID = self.reactor.callLater(self.delay, reconnector)
 
 
     def stopTrying(self):

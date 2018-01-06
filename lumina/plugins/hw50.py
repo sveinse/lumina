@@ -4,7 +4,6 @@ from __future__ import absolute_import
 
 from Queue import Queue
 
-from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import Protocol
 from twisted.internet.serialport import EIGHTBITS, PARITY_EVEN, STOPBITS_ONE
@@ -13,7 +12,6 @@ from twisted.internet.task import LoopingCall
 from lumina.node import Node
 from lumina.exceptions import LuminaException, TimeoutException, CommandRunException
 from lumina.serial import ReconnectingSerialPort
-from lumina.lumina import master
 
 
 class FrameException(LuminaException):
@@ -286,6 +284,7 @@ class HW50Protocol(Protocol):
 
     def __init__(self, parent):
         self.parent = parent
+        self.master = parent.master
         self.log = parent.log
         self.status = parent.status
         self.rxbuffer = bytearray()
@@ -408,7 +407,7 @@ class HW50Protocol(Protocol):
             # Expect reply, setup timer and return
             self.lastmsg = msg
             self.defer = defer
-            self.timer = reactor.callLater(self.timeout, self.timedout)
+            self.timer = self.master.reactor.callLater(self.timeout, self.timedout)
             return
 
 
@@ -483,9 +482,9 @@ class Hw50(Node):
     # --- Initialization
     def setup(self):
 
-        self.port = master.config.get('port', name=self.name)
+        self.port = self.master.config.get('port', name=self.name)
         self.protocol = HW50Protocol(self)
-        self.sp = Hw50SerialPort(self.protocol, self.port,
+        self.sp = Hw50SerialPort(self.master.reactor, self.protocol, self.port,
                                  baudrate=38400,
                                  bytesize=EIGHTBITS,
                                  parity=PARITY_EVEN,

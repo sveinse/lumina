@@ -2,7 +2,6 @@
 """ A command test plugin """
 from __future__ import absolute_import
 
-from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 
 from lumina.node import Node
@@ -40,13 +39,13 @@ class Command(Node):
         defer = Deferred()
         def delay_done(value):
             defer.callback(value)
-        reactor.callLater(int(time), delay_done, value)
+        self.master.reactor.callLater(int(time), delay_done, value)
         return defer
 
     def delay_event(self, time, value):
         def delay_done(value):
             self.sendEvent('event', value)
-        reactor.callLater(int(time), delay_done, value)
+        self.master.reactor.callLater(int(time), delay_done, value)
         return True
 
     def exc(self):

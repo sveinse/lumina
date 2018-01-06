@@ -8,16 +8,14 @@ import json
 from twisted.web.resource import Resource, ErrorPage
 from twisted.web.server import Site, NOT_DONE_YET
 import twisted.web.http as http
-from twisted.internet import reactor
 from twisted.web.static import File
 from twisted.web.util import Redirect
 from twisted.internet.defer import maybeDeferred
 
 from lumina.plugin import Plugin
 from lumina.message import Message
-from lumina import utils
+from lumina.utils import add_defer_timeout
 from lumina.exceptions import TimeoutException
-from lumina.lumina import master
 
 
 COMMAND_TIMEOUT = 10
@@ -37,10 +35,11 @@ class LuminaResource(Resource):
     command_timeout = COMMAND_TIMEOUT
 
 
-    def __init__(self, log):
+    def __init__(self, parent):
         Resource.__init__(self)
-        self.log = log
-        self.master_server = master.get_plugin_by_module('server')
+        self.log = parent.log
+        self.master = parent.master
+        self.master_server = self.master.get_plugin_by_module('server')
 
 
     def run_command(self, command):
@@ -67,7 +66,7 @@ class LuminaResource(Resource):
 
         # -- Setup a timeout, and add a timeout err handler making sure the
         #    message data failure is properly set
-        utils.add_defer_timeout(defer, self.command_timeout, cmd_timeout, command)
+        add_defer_timeout(self.master.reactor, defer, self.command_timeout, cmd_timeout, command)
 
         defer.addCallback(cmd_ok)
         defer.addErrback(cmd_error)
@@ -145,9 +144,9 @@ class Web(Plugin):
 
     def setup(self):
 
-        self.port = master.config.get('port', name=self.name)
-        self.webroot = master.config.get('root', name=self.name)
-        self.logpath = master.config.get('log', name=self.name)
+        self.port = self.master.config.get('port', name=self.name)
+        self.webroot = self.master.config.get('root', name=self.name)
+        self.logpath = self.master.config.get('log', name=self.name)
 
         # Creste the root object
         root = File(self.webroot)
@@ -155,8 +154,8 @@ class Web(Plugin):
         root.putChild('', Redirect('lumina.html'))
 
         # List of resources that we want added
-        resources = {'rest/command': RestCommand(self.log),
-                     'rest/info': RestInfo(self.log),
+        resources = {'rest/command': RestCommand(self),
+                     'rest/info': RestInfo(self),
                     }
 
         # Traverse all resources and add them to the tree. Add empty
@@ -182,7 +181,7 @@ class Web(Plugin):
         self.site = Site(root, logPath=self.logpath)
         self.site.noisy = False
 
-        reactor.listenTCP(self.port, self.site)
+        self.master.reactor.listenTCP(self.port, self.site)
 
         self.log.info("Logging access in {p}", p=self.logpath)
 

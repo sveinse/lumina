@@ -2,7 +2,6 @@
 """ Telldus lighting interface plugin """
 from __future__ import absolute_import
 
-from twisted.internet import reactor
 from twisted.internet.protocol import ClientFactory, Protocol, ReconnectingClientFactory
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
@@ -11,8 +10,7 @@ from lumina.node import Node
 from lumina.state import ColorState
 from lumina.log import Logger
 from lumina.exceptions import NoConnectionException, TimeoutException, ConfigException
-from lumina import utils
-from lumina.lumina import master
+from lumina.utils import add_defer_timeout, cmp_dict
 
 
 
@@ -163,6 +161,7 @@ class TelldusIn(Protocol):
     def __init__(self, parent):
         self.log = Logger(namespace=parent.name+'/in')
         self.parent = parent
+        self.master = parent.master
         self.status = ColorState(log=self.log, state_format={0:0}) # <-- a hack to avoid color
         self.status.add_callback(self.parent.update_status)
         self.connected = False
@@ -171,7 +170,7 @@ class TelldusIn(Protocol):
 
     def connect(self):
         self.status.set_OFF()
-        reactor.connectUNIX(self.path, self.factory)
+        self.master.reactor.connectUNIX(self.path, self.factory)
 
 
     def connectionMade(self):
@@ -331,7 +330,7 @@ class TelldusOut(Protocol):
     def command(self, cmd):
         defer = Deferred()
         self.queue.append((defer, cmd, generate(cmd)))
-        utils.add_defer_timeout(defer, self.timeout, self.timedout, defer)
+        add_defer_timeout(self.master.reactor, defer, self.timeout, self.timedout, defer)
 
         # Send the next package
         self.send_next()
@@ -352,7 +351,7 @@ class TelldusOut(Protocol):
             (self.defer, self.active, self.data) = self.queue.pop(0)
 
             # Next will be connectionMade() or clientConnectionFailed()
-            reactor.connectUNIX(self.path, self.factory)
+            self.master.reactor.connectUNIX(self.path, self.factory)
 
 
     def timedout(self, defer):
@@ -378,7 +377,7 @@ class Telldus(Node):
     # --- Initialization
     def setup(self):
 
-        self.doubleprotect = master.config.get('double_protect', name=self.name)
+        self.doubleprotect = self.master.config.get('double_protect', name=self.name)
         self.emitted = {}
 
         self.inport = TelldusIn(self)
@@ -454,7 +453,7 @@ class Telldus(Node):
                         continue
 
                     # Compare the following attributes
-                    if not utils.cmp_dict(args, d, ('house', 'group', 'unit', 'method')):
+                    if not cmp_dict(args, d, ('house', 'group', 'unit', 'method')):
                         continue
 
                     # Match found, process it as an event
@@ -472,7 +471,7 @@ class Telldus(Node):
                         continue
 
                     # Compare the following attributes
-                    if not utils.cmp_dict(args, d, ('code', )):
+                    if not cmp_dict(args, d, ('code', )):
                         continue
 
                     # Match found, process it as an event
@@ -490,7 +489,7 @@ class Telldus(Node):
                         continue
 
                     # Compare the following attributes
-                    if not utils.cmp_dict(args, d, ('id', )):
+                    if not cmp_dict(args, d, ('id', )):
                         continue
 
                     # Match found, process it as an event
@@ -521,7 +520,7 @@ class Telldus(Node):
         def del_protect(event):
             del self.emitted[event]
         self.emitted[event] = True
-        reactor.callLater(self.doubleprotect, del_protect, event)
+        self.master.reactor.callLater(self.doubleprotect, del_protect, event)
         Node.sendEvent(self, event, *args)
 
 
@@ -594,7 +593,7 @@ class Telldus(Node):
 
 
         # -- Traverse list for equipment and add to either self.commands or self.events
-        telldus_config = master.config.get('config', name=self.name)
+        telldus_config = self.master.config.get('config', name=self.name)
         for i, rconfig in enumerate(telldus_config):
             # Everything must be str
             eq = {k:str(v) for k, v in rconfig.items()}

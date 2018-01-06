@@ -2,7 +2,6 @@
 """ Linux IR controller interface plugin """
 from __future__ import absolute_import
 
-from twisted.internet import reactor
 #from twisted.internet.protocol import Protocol
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.endpoints import UNIXClientEndpoint
@@ -11,7 +10,6 @@ from twisted.internet.defer import Deferred
 from lumina.plugin import Plugin
 from lumina.utils import connectProtocol
 from lumina.exceptions import CommandRunException #, TimeoutException
-from lumina.lumina import master
 
 # Protocol response:
 #   BEGIN
@@ -39,13 +37,14 @@ class LircProtocol(LineReceiver):
     # FIXME: Add proper timeout handling
 
     def __init__(self, parent, command, port):
+        self.master = parent.master
         self.log = parent.log
         self.status = parent.status
         self.command = command
         self.port = port
         self.defer = Deferred()
 
-        endpoint = UNIXClientEndpoint(reactor, self.port)
+        endpoint = UNIXClientEndpoint(self.master.reactor, self.port)
         connectProtocol(self, endpoint)
 
 
@@ -97,7 +96,7 @@ class Lirc(Plugin):
     # --- Initialization
     def setup(self):
 
-        self.port = master.config.get('port', name=self.name)
+        self.port = self.master.config.get('port', name=self.name)
         self.status.set_OFF()
 
 

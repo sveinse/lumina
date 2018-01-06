@@ -71,6 +71,7 @@ class Config(object):
         for (k, template) in templates.items():
             if name:
                 k = name + '.' + k
+            LOG.debug("  + {k}", k=k)
 
             e = self.config.get(k, {})
             e.update(template)

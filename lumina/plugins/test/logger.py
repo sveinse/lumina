@@ -2,7 +2,6 @@
 """ A simple logger test plugin """
 from __future__ import absolute_import
 
-from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 
 from lumina.node import Node
