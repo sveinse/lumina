@@ -1,6 +1,6 @@
 # -*-python-*-
 """ Oppo BDP-103 Media Player interface plugin """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 from Queue import Queue
 

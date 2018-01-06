@@ -1,6 +1,6 @@
 # -*- python -*-
 """ Main execution plugin for responding to events and logic """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 from twisted.internet.defer import Deferred, maybeDeferred
 

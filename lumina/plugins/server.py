@@ -1,6 +1,6 @@
 # -*- python -*-
 """ Lumina node server plugin """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 from datetime import datetime
 
@@ -13,6 +13,7 @@ from lumina.exceptions import (NodeConfigException, UnknownCommandException,
 from lumina.log import Logger
 from lumina.protocol import LuminaProtocol
 from lumina.state import ColorState
+from lumina.compat import compat_itervalues
 
 
 # FIXME: Add this as a config statement
@@ -249,8 +250,8 @@ class Server(Plugin):
     # --- INTERNAL COMMANDS
     def update_status(self, status):  # pylint: disable=W0613
         ''' Status update callback '''
-        l = [node.status for node in self.nodes.itervalues()]
-        l += [node.link for node in self.nodes.itervalues()]
+        l = [node.status for node in compat_itervalues(self.nodes)]
+        l += [node.link for node in compat_itervalues(self.nodes)]
         (state, why) = ColorState.combine(*l)
         self.node_status.set(state, why)
 
@@ -388,7 +389,7 @@ class Server(Plugin):
                 'events'       : node.events,
                 'connected'    : node.connected,
                 'lastactivity' : node.lastactivity.isoformat()+'Z',
-            } for node in self.nodes.itervalues()],
+            } for node in compat_itervalues(self.nodes)],
             'n_commands'  : len(self.commands),
             'n_events'    : len(self.events),
             'status'      : str(self.status),

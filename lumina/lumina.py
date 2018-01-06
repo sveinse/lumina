@@ -1,6 +1,6 @@
 # -*- python -*-
 """ Master engine of lumina """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 import re
 import os
@@ -15,6 +15,7 @@ from lumina.state import ColorState
 from lumina.plugin import Plugin
 from lumina.utils import topolgical_sort
 from lumina.message import Message
+from lumina.compat import compat_itervalues
 
 
 
@@ -188,7 +189,7 @@ class Lumina(object):
         self.plugins[name] = plugin
 
         # Copy the plugin dependencies
-        deps = [unicode(d) for d in plugin.DEPENDS]
+        deps = plugin.DEPENDS
         self.plugin_deps[name] = deps
         if deps:
             self.log.info("   depends on {d}", d=', '.join(deps))
@@ -237,21 +238,21 @@ class Lumina(object):
     #== INTERNAL FUNCTIONS
     def update_status(self, status):  # pylint: disable=W0613
         ''' Callback updating the status from all plugins '''
-        (state, why) = ColorState.combine(*[plugin.status for plugin in self.plugins.itervalues()])
+        (state, why) = ColorState.combine(*[plugin.status for plugin in compat_itervalues(self.plugins)])
         self.status.set(state, why)
 
 
     #== SERVICE FUNCTIONS
     def get_plugin_by_module(self, module):
         ''' Return the instance for plugin given by the module argument '''
-        for inst in self.plugins.itervalues():
+        for inst in compat_itervalues(self.plugins):
             if inst.module == module:
                 return inst
 
 
     def get_plugin_by_name(self, name):
         ''' Return the instance for a plugin given by the name '''
-        for inst in self.plugins.itervalues():
+        for inst in compat_itervalues(self.plugins):
             if inst.name == name:
                 return inst
 
@@ -270,7 +271,7 @@ class Lumina(object):
                     'doc'       : plugin.__doc__,
                     'status'    : str(plugin.status),
                     'status_why': plugin.status.why,
-                } for plugin in self.plugins.itervalues()],
+                } for plugin in compat_itervalues(self.plugins)],
             'status'     : str(self.status),
             'status_why' : self.status.why,
             'config'     : [
@@ -304,7 +305,7 @@ class LuminaClient(Lumina):
 
         def client_ok(result):
             # FIXME
-            print 'OK'
+            print('OK')
             client.protocol.transport.loseConnection()
         def client_err(failure):
             self.return_value = 1

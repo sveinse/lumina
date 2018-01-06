@@ -1,2 +1,2 @@
 # -*- python -*-
-""" Lumina plugins for testing """
+""" Lumina testing plugins """

@@ -172,7 +172,9 @@ function-rgx=[a-z_][a-zA-Z0-9_]{2,30}$
 function-name-hint=[a-z_][a-z0-9_]{2,30}$
 
 # Regular expression matching correct variable names
-variable-rgx=[a-z_][a-z0-9_]{2,30}$
+# lumina:
+#variable-rgx=[a-z_][a-z0-9_]{2,30}$
+variable-rgx=[a-z_][a-zA-Z0-9_]{2,30}$
 
 # Naming hint for variable names
 variable-name-hint=[a-z_][a-z0-9_]{2,30}$

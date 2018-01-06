@@ -11,7 +11,7 @@ __ditch/
 /dist/
 /dist-*/
 /lumina.egg-info/
-/venv/
+/venv*/
 
 # Exclude contrib
 /contrib/*

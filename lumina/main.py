@@ -1,6 +1,6 @@
 # -*- python -*-
 """ Main dispatcher for Lumina """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 import os
 import sys
@@ -22,7 +22,7 @@ def detach(pidfile):
         file in/out and by forking. '''
 
     try:
-        with file(pidfile, 'r') as pidf:
+        with open(pidfile, 'r') as pidf:
             pid = int(pidf.read().strip())
     except IOError:
         pid = None
@@ -48,9 +48,9 @@ def detach(pidfile):
     # Redirect stdout
     sys.stdout.flush()
     sys.stderr.flush()
-    stdin = file('/dev/null', 'r')
-    stdout = file('/dev/null', 'a+')
-    stderr = file('/dev/null', 'a+', 0)
+    stdin = open('/dev/null', 'r')
+    stdout = open('/dev/null', 'a+')
+    stderr = open('/dev/null', 'a+', 0)
     os.dup2(stdin.fileno(), sys.stdin.fileno())
     os.dup2(stdout.fileno(), sys.stdout.fileno())
     os.dup2(stderr.fileno(), sys.stderr.fileno())
@@ -64,7 +64,7 @@ def detach(pidfile):
             pass
 
     atexit.register(delpid)
-    file(pidfile, 'w+').write(str(os.getpid()) + '\n')
+    open(pidfile, 'w+').write(str(os.getpid()) + '\n')
 
 
 #===  COMMANDS

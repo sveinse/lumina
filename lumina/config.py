@@ -1,12 +1,13 @@
 # -*- python -*-
 """ Configuration module """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 import re
 import json
 
 from lumina.log import Logger
 from lumina.exceptions import ConfigException
+from lumina.compat import STRTYPE
 
 
 LOG = Logger(namespace='config')
@@ -24,14 +25,13 @@ def verify_type(key, obj, otype):
     tobj = type(obj)
 
     equivalents = (
-        (unicode, str),
-        (str, unicode),
-        (tuple, list),
-        (list, tuple),
+        [STRTYPE, str],
+        [tuple, list],
     )
     if tobj is not otype:
-        comps = [tobj is a and otype is b for a, b in equivalents]
-        if any(comps):
+        if any([tobj is a and otype is b for a, b in equivalents]):
+            return
+        elif any([tobj is b and otype is a for a, b in equivalents]):
             return
         else:
             raise ConfigException("Config '%s' is type '%s', expecting '%s'" %(

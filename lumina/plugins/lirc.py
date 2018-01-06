@@ -1,6 +1,6 @@
 # -*-python-*-
 """ Linux IR controller interface plugin """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 #from twisted.internet.protocol import Protocol
 from twisted.protocols.basic import LineReceiver

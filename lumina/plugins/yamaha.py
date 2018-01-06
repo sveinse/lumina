@@ -1,6 +1,6 @@
 # -*-python-*-
 """ Yamaha Aventage AV Receiver interface plugin """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 import re
 from Queue import Queue

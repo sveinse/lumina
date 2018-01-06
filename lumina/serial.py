@@ -1,6 +1,6 @@
 # -*- python -*-
 """ Serial port functionality """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 from twisted.internet.serialport import SerialPort
 from twisted.python.failure import Failure

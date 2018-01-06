@@ -1,6 +1,6 @@
 # -*-python-*-
 """ Lumina web server and rest interface plugin """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 import os
 import json

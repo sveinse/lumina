@@ -3,7 +3,7 @@
 Log function. Import 'Logger' and make an instance of it to do proper
 logging.
 """
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 
 import sys
 
@@ -20,7 +20,9 @@ from twisted.logger import LogLevelFilterPredicate
 from twisted.logger import LogLevel
 from twisted.logger import ILogFilterPredicate
 from twisted.logger import PredicateResult
-from twisted.python.compat import unicode
+
+from lumina.compat import STRTYPE
+
 
 # Some architectures does not support syslog
 SYSLOG_IMPORTED = True
@@ -88,7 +90,7 @@ class LuminaLogFormatter(object):
             system = event.get("log_namespace", u"-")
         else:
             try:
-                system = unicode(system)
+                system = STRTYPE(system)
             except Exception:
                 system = u"UNFORMATTABLE"
         event['log_system'] = system
