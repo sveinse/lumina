@@ -26,3 +26,7 @@ __ditch/
 /.vscode/
 /access-lumina.log*
 /tags
+
+# Coverage ignores
+/coverage*
+.coverage

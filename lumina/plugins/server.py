@@ -380,7 +380,7 @@ class Server(Plugin):
                 'hostname'     : node.hostname,
                 'hostid'       : node.hostid,
                 'module'       : node.module,
-                'seqence'      : node.sequence,
+                'sequence'     : node.sequence,
                 'status'       : node.status.state,
                 'status_why'   : node.status.why,
                 'link'         : node.link.state,

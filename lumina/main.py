@@ -147,7 +147,8 @@ def main(args=None):    # pylint: disable=W0613
     ''' Lumina main function '''
 
     # Parse args
-    parser = argparse.ArgumentParser(description=lumina.__doc__, add_help=False)
+    parser = argparse.ArgumentParser(description=lumina.__doc__, add_help=False,
+                                     prog='lumina')
     parser.add_argument('--help', action=HelpAction, nargs=0,
                         help='show this help message and exit')
     parser.add_argument('--version', action='version',
