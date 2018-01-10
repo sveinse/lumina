@@ -167,7 +167,7 @@ class YamahaSSDP(DatagramProtocol):
                 self.parent.notification(notifications)
 
         except (ET.ParseError, SSDPException) as e:
-            self.log.info("Malformed notification XML, {m}. XML='{b}'", m=e.message, b=body)
+            self.log.info("Malformed notification XML, {m}. XML='{b}'", m=str(e), b=body)
             return
 
 
@@ -342,7 +342,7 @@ Connection: keep-alive\r
                 self.defer.callback(xmle)
 
         except (ET.ParseError, CommandRunException) as e:
-            self.log.info("Command failed. {m}.", m=e.message)
+            self.log.info("Command failed. {m}.", m=str(e)
             self.defer.errback(e)
 
         # Process next command

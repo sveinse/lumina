@@ -7,143 +7,29 @@ from Queue import Queue, Empty
 from binascii import hexlify
 
 from twisted.internet.defer import Deferred
+from twisted.internet.defer import inlineCallbacks
 from twisted.internet.protocol import ReconnectingClientFactory
-from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
 from lumina.message import Message
 from lumina.exceptions import (UnknownCommandException, UnknownMessageException)
 from lumina.protocol import LuminaProtocol
 
-# FIXME: Add this as a config statement
-
-# The interval to send empty messages to server to keep the link alive
-KEEPALIVE_INTERVAL = 60
 
 
 class NodeProtocol(LuminaProtocol):
     ''' Node communication protocol '''
-    keepalive_interval = KEEPALIVE_INTERVAL
-
 
     def connectionMade(self):
         LuminaProtocol.connectionMade(self)
-        self.log.info("Connected to {ip}", ip=self.peer)
-
-        # -- Update protocol variables
-        self.name = self.parent.name
-
-        # -- Link this protocol to the parent
-        self.parent.node_protocol = self
-        self.parent.node_connected = False
-
-        # -- Setup a keepalive timer (not yet activated)
-        #    LuminaProtocol will handle resetting and stopping it on data
-        #    reception and disconnect.
-        self.keepalive = LoopingCall(self.transport.write, '\n')
-
-        # -- List of commands plus additional internal commands
-        commands = self.parent.commands.keys()
-        commands += ['_info']
-
-        # -- Register device
-        data = dict(node=self.parent.name,
-                    nodeid=self.parent.nodeid,
-                    hostname=self.master.hostname,
-                    hostid=self.master.hostid,
-                    module=self.parent.module,
-                    events=self.parent.events,
-                    commands=commands,
-                   )
-        self.log.info("Registering node {node} [{nodeid}], "
-                      "type {module}, host {hostname} [{hostid}], "
-                      "{n_e} events, {n_c} commands",
-                      n_e=len(self.parent.events),
-                      n_c=len(self.parent.commands),
-                      **data)
-        defer = self.send(Message.create('command', 'register', data))
-        defer.addCallback(self.registered)
-        defer.addErrback(self.registerError)
-
-
-    def registerError(self, failure):
-        ''' Handle server-side registration error. The server has issued
-            an exception at this point.
-        '''
-        self.log.error("Node registration FAILED: {f}", f=failure)
-        self.transport.loseConnection()
-
-        # FIXME: Should we give up the retry connect mechanism?
-        #self.parent.node_factory.stopTrying()
-
-
-    def registered(self, result):  # pylint: disable=W0613
-        ''' Handle registration response '''
-
-        self.log.info("Node registration SUCCESS")
-
-        # -- Start the keepalive pings
-        self.keepalive.start(self.keepalive_interval, False)
-
-        # -- Send status
-        # The parent class will send update on changes, but in case of
-        # reconnect, a new update must be pushed
-        # Equal value on state and old state indicates a refresh, not
-        # new value.
-        self.send(Message.create('command', 'status',
-                                 self.parent.status.state,
-                                 self.parent.status.state,
-                                 self.parent.status.why))
-
-        # -- Enable sending of events from the parent class
-        self.parent.node_connected = True
-
-        # -- Flush any queue that might have been accumulated before
-        #    connecting to the controller
-        self.parent.sendQueue()
-
+        self.parent.connectionMade(self)
 
     def connectionLost(self, reason):
-        self.log.info("Lost node server connection to {ip}", ip=self.peer)
         LuminaProtocol.connectionLost(self, reason)
-
-        # This will cause the parent to queue new commands
-        self.parent.node_connected = False
-        self.parent.node_protocol = None
-
+        self.parent.connectionLost(self, reason)
 
     def messageReceived(self, message):
-        ''' Handle message from server '''
-
-        # Remove the plugin prefix from the name
-        prefix = self.name + '/'
-        cmd = message.name.replace(prefix, '')
-
-        # -- Command type
-        if message.is_type('command'):
-
-            # -- Handle the internal commands
-            if cmd == '_info':
-                return self.master.get_info()
-
-            # -- All other requests to nodes are commands handled by
-            #    the Node parent
-
-            def unknown_command(message):
-                ''' Placeholder fn for unknown commands '''
-                exc = UnknownCommandException(message.name)
-                message.set_fail(exc)
-                self.log.error('NODE {_cmderr}', cmderr=message)
-                raise exc
-
-            # -- Run the named fn from the commands dict
-            return self.parent.commands.get(cmd, unknown_command)(message)
-
-
-        # -- Unknown message type
-        else:
-            self.log.error("Unexpectedly received message {m}", m=message)
-            raise UnknownMessageException("Unknown message type: '%s'" %(message.type,))
+        return self.parent.messageReceived(self, message)
 
 
 
@@ -158,13 +44,15 @@ class NodeFactory(ReconnectingClientFactory):
     def __init__(self, parent):
         self.parent = parent
         self.log = parent.log
+        self.sequence = 1
 
     def buildProtocol(self, addr):
         self.resetDelay()
-        return NodeProtocol(parent=self.parent)
+        protocol = NodeProtocol(parent=self.parent, sequence=self.sequence)
+        self.sequence += 1
+        return protocol
 
     def clientConnectionLost(self, connector, reason):
-        #self.log.info(reason.getErrorMessage())
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
@@ -187,7 +75,17 @@ class Node(Plugin):
     }
 
     # Override the list of configure methods from the Plugin
-    CONFIGURE_METHODS = ('configure', 'node_setup', 'setup')
+    CONFIGURE_METHODS = ('configure', 'node_configure', 'node_setup', 'setup')
+
+
+    def node_configure(self):
+        ''' Configure the node '''
+
+        self.node_commands = {
+            '_info': lambda a: self.master.get_info(),
+        }
+
+        self.commands.update(self.node_commands)
 
 
     def node_setup(self):
@@ -198,17 +96,10 @@ class Node(Plugin):
         self.nodeid = hexlify(os.urandom(3))
 
         self.node_protocol = None
-        self.node_connected = False
+        self.node_active = False
         self.node_queue = Queue()
 
-        # Subscribe to the change of state by sending status back to server
-        def send_status(status):
-            ''' Status update callback. Only send updates if connected '''
-            if self.node_connected:
-                self.send(Message.create('command', 'status', status.state,
-                                         status.old, status.why))
-        self.status.add_callback(send_status)
-
+        # -- Connect to the server
         self.node_factory = NodeFactory(parent=self)
         self.log.info("Connecting to server on {h}:{p}", h=self.serverhost,
                       p=self.serverport)
@@ -218,10 +109,94 @@ class Node(Plugin):
 
 
     def close(self):
+        ''' Close the connection '''
         Plugin.close(self)
         if self.node_protocol:
             self.node_protocol.transport.loseConnection()
 
+
+    @inlineCallbacks
+    def connectionMade(self, node):
+        ''' Handle connection event from node '''
+        self.log.info("Connected to {ip}", ip=node.peer)
+
+        # -- Set name and node
+        node.name = self.name
+        self.node_protocol = node
+        self.node_active = False
+
+        # -- Register device
+        data = dict(node=self.name,
+                    nodeid=self.nodeid,
+                    hostname=self.master.hostname,
+                    hostid=self.master.hostid,
+                    module=self.module,
+                    events=self.events,
+                    commands=self.commands.keys(),
+                   )
+        self.log.info("Registering node {node} [{nodeid}], "
+                      "type {module}, host {hostname} [{hostid}], "
+                      "{n_e} events, {n_c} commands",
+                      n_e=len(self.events),
+                      n_c=len(self.commands),
+                      **data)
+        try:
+            yield node.send(Message.create('command', 'register', data))
+        except Exception as failure:
+            self.log.error("Node registration FAILED: {f}", f=failure)
+            node.transport.loseConnection()
+            return
+
+        self.log.info("Node registration SUCCESS")
+
+        # -- Enable sending of events from the parent class
+        self.node_active = True
+
+        # -- Subscribe to the change of state by sending status back to server
+        #    Send the update now
+        def send_status(status):
+            ''' Status update callback. Only send updates if connected '''
+            if self.node_active:
+                self.send(Message.create('command', 'status', status.state,
+                                         status.old, status.why))
+        self.status.add_callback(send_status, run_now=True)
+
+        # -- Flush any queue that might have been accumulated before
+        #    connecting to the controller
+        self.sendQueue()
+        
+
+    def connectionLost(self, node, reason):
+        self.log.info("Lost node server connection to {ip}: {r}",
+            ip=node.peer, r=reason)
+
+        # This will cause queuing of commands
+        self.node_active = False
+        self.node_protocol = None
+
+
+    def messageReceived(self, node, message):
+        ''' Handle message from server '''
+        
+        # Remove the plugin prefix from the name
+        prefix = node.name + '/'
+        cmd = message.name.replace(prefix, '')
+
+        # -- Command type
+        if message.is_type('command'):
+
+            def unknown_command(message):
+                ''' Placeholder fn for unknown commands '''
+                raise UnknownCommandException(message.name)
+
+            # -- Run the named fn from the commands dict
+            return self.commands.get(cmd, unknown_command)(message)
+
+        # -- Unknown message type
+        else:
+            self.log.error("Unexpectedly received message {m}", m=message)
+            raise UnknownMessageException("Unknown message type: '%s'" %(message.type,))
+ 
 
     # -- Commands to communicate with server
     def send(self, message):
@@ -233,7 +208,7 @@ class Node(Plugin):
         # pylint: disable=unnecessary-lambda
         sendfn = lambda ev: self.node_protocol.send(ev)
 
-        if self.node_connected:
+        if self.node_active:
             # If the protocol is avaible, simply call the function
             # It will return a deferred for us.
             return sendfn(message)
@@ -253,7 +228,7 @@ class Node(Plugin):
         ''' (Attempt to) send the accumulated queue to the protocol. '''
 
         qsize = self.node_queue.qsize()
-        if not self.node_connected or not qsize:
+        if not self.node_active or not qsize:
             return
 
         self.log.info("Flushing queue of {n} items...", n=qsize)

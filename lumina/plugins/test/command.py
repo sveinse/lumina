@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, print_function
 from twisted.internet.defer import Deferred
 
 from lumina.node import Node
+from lumina.exceptions import TimeoutException
 
 
 class Command(Node):
@@ -30,6 +31,7 @@ class Command(Node):
             'exception': lambda a: self.exc(),
             'error':     lambda a: self.err(),
             'event':     lambda a: self.delay_event(2, 43),
+            'timeout':   lambda a: self.delay_timeout(1.5),
         }
 
     def setup(self):
@@ -47,6 +49,13 @@ class Command(Node):
             self.sendEvent('event', value)
         self.master.reactor.callLater(int(time), delay_done, value)
         return True
+
+    def delay_timeout(self, time):
+        defer = Deferred()
+        def delay_timeout():
+            defer.errback(TimeoutException())
+        self.master.reactor.callLater(int(time), delay_timeout)
+        return defer
 
     def exc(self):
         raise Exception("Test Exception")

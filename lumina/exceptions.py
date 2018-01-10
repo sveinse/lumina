@@ -28,6 +28,9 @@ class NodeException(LuminaException):
 class NodeConfigException(LuminaException):
     ''' Error from configuring a node '''
 
+class NodeRegistrationException(LuminaException):
+    ''' Error registering a node '''
+
 class ConfigException(LuminaException):
     ''' Errors related to configuration '''
 

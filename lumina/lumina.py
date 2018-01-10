@@ -160,13 +160,13 @@ class Lumina(object):
 
         except Exception as e:    # pylint: disable=broad-except
             msg = "Failed to load plugin '{m}': {t}: {e}".format(
-                m=module, t=type(e).__name__, e=e.message)
+                m=module, t=type(e).__name__, e=str(e))
             self.log.failure("{m}", m=msg)
 
             # Put in a empty failed placeholder
             module = 'FAILED'
             plugin = Plugin()
-            plugin.failed = "%s: %s" %(type(e).__name__, e.message)
+            plugin.failed = "%s: %s" %(type(e).__name__, str(e))
 
             #plugin.status = ColorState('RED', log=self.log, why=msg, name=module)
 
@@ -220,9 +220,9 @@ class Lumina(object):
 
             except Exception as e:  # pylint: disable=broad-except
                 msg = "Failed to configure plugin '{n}': {t}: {e}".format(
-                    n=name, t=type(e).__name__, e=e.message)
+                    n=name, t=type(e).__name__, e=str(e))
                 self.log.failure("{m}", m=msg)
-                plugin.failed = "%s: %s" %(type(e).__name__, e.message)
+                plugin.failed = "%s: %s" %(type(e).__name__, str(e))
 
                 # FIXME: What happens when the module failed?
                 plugin.close()
@@ -262,6 +262,7 @@ class Lumina(object):
         return {
             'hostname'   : self.hostname,
             'hostid'     : self.hostid,
+            'pid'        : self.pid,
             'plugins'    : [
                 {
                     'name'      : plugin.name,

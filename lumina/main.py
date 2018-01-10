@@ -7,7 +7,9 @@ import sys
 import atexit
 import argparse
 import setproctitle
+
 from twisted.internet import reactor
+from twisted.logger import LogLevel
 
 import lumina
 from lumina import log
@@ -73,7 +75,10 @@ def client(parser, opts, cmd):
     ''' Client command '''
 
     # Logging
-    log.start(syslog=False, redirect_stdio=False, loglevel=log.LogLevel.debug)
+    loglevel = opts.loglevel or 'error'
+    log.start(syslog=False,
+              redirect_stdio=False,
+              loglevel=LogLevel.levelWithName(loglevel))
 
     # Load configuration
     config = Config()
@@ -92,12 +97,6 @@ def client(parser, opts, cmd):
     return master.return_value
 
 
-def print_help(parser, opts, cmd):
-    ''' Print command help '''
-    help = HelpAction(None, None, None)
-    help(parser, None, None)
-
-
 def server(parser, opts, cmd):
     ''' Run the Lumina server '''
 
@@ -107,7 +106,10 @@ def server(parser, opts, cmd):
         opts.syslog = True
 
     # Logging
-    log.start(syslog=(sys.platform != 'win32' and opts.syslog), loglevel=log.LogLevel.debug)
+    loglevel = opts.loglevel or 'debug'
+    log.start(syslog=(sys.platform != 'win32' and opts.syslog),
+              redirect_stdio=True,
+              loglevel=LogLevel.levelWithName(loglevel))
 
     # Load configuration
     config = Config()
@@ -123,6 +125,12 @@ def server(parser, opts, cmd):
     master.log.info("Starting reactor")
     reactor.run()
     return master.return_value
+
+
+def print_help(parser, opts, cmd):
+    ''' Print command help '''
+    help = HelpAction(None, None, None)
+    help(parser, None, None)
 
 
 COMMANDS = {
@@ -156,6 +164,8 @@ def main(args=None):    # pylint: disable=W0613
                         ' build ' + lumina.__build__)
     parser.add_argument('-c', '--config', default=None, metavar='CONFIG',
                         help='Read configuration file')
+    parser.add_argument('--loglevel', default=None, metavar='LOGLEVEL',
+                        help='Set loglevel')
     #parser.add_argument('--server', action='store_true',
     #                    help='Run Lumina server. Any commands given will be ignored')
     if sys.platform != 'win32':

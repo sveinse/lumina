@@ -5,8 +5,11 @@ from __future__ import absolute_import, division, print_function
 import re
 import json
 import shlex
+
 from twisted.python.failure import Failure
+
 from lumina.utils import str_object
+from lumina.exceptions import NodeException
 
 
 DEBUG = False
@@ -104,14 +107,21 @@ class Message(object):
 
 
     def set_fail(self, exc):
-        ''' Set message command state to failed '''
-        # If this is run in the scope of an errback, exc will be a Failure object which
-        # contains the actual exception in exc.value
+        ''' Set message command state to failed. exc can either be an exception
+            or a Failure() object.
+        '''
+        # If this is run in the scope of an errback, exc will be a Failure
+        # object which contains the actual exception in exc.value
         if isinstance(exc, Failure):
-            (failure, exc) = (exc, exc.value)  # pylint: disable=unused-variable
+            # Extract the exception from the Failure object
+            exc = exc.value
+
         self.response = False
         self.args = None
-        self.result = (exc.__class__.__name__, str(exc.message))
+        if isinstance(exc, NodeException):
+            self.result = exc.args
+        else:
+            self.result = (exc.__class__.__name__,) + exc.args
         return self
 
 

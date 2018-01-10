@@ -1,0 +1,9 @@
+{
+    "plugins": [ "server", "responder", "dir(test.server_command)", "cmd(test.command)" ],
+    "responder.groups": {
+        "group/123" : [ "cmd/1", "cmd/2", "cmd/3" ],
+        "group/fail" : [ "cmd/1", "cmd/2", "cmd/fail" ],
+        "group/nonexist" : [ "cmd/1", "cmd/2", "nonexist" ],
+        "group/local" : [ "_name", "_name" ]
+     }
+}

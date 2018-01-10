@@ -25,7 +25,7 @@ class State(object):
     '''
 
     def __init__(self, state=None, states=None, state_format=None,
-                 log=None, why=None, name=None, what=None):
+                 log=None, why=None, name=None, what=None, quiet=False):
         self.state = state or 'init'
         if log is None:
             self.log = Logger()
@@ -38,6 +38,7 @@ class State(object):
         self.old = None
         self.name = name
         self.what = what or 'STATE'
+        self.quiet = quiet
 
 
     def add_callback(self, callback, run_now=False):
@@ -56,8 +57,9 @@ class State(object):
             swhy = ' (%s)' %(why,)
         if state != old:
             self.old = old
-            pstate = self.state_format.get(state, state)
-            self.log.info('{w} change: {o} --> {n}{s}', w=self.what, o=old, n=pstate, s=swhy)
+            if not self.quiet:
+                pstate = self.state_format.get(state, state)
+                self.log.info('{w} change: {o} --> {n}{s}', w=self.what, o=old, n=pstate, s=swhy)
 
         if self.callbacks and (state != old or why != oldwhy):
             dummy = [callback(self) for callback in self.callbacks]

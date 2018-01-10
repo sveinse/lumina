@@ -9,7 +9,7 @@ from twisted.internet.task import LoopingCall
 
 from lumina.plugin import Plugin
 from lumina.exceptions import (NodeConfigException, UnknownCommandException,
-                               UnknownMessageException)
+                               UnknownMessageException, NodeRegistrationException)
 from lumina.log import Logger
 from lumina.protocol import LuminaProtocol
 from lumina.state import ColorState
@@ -23,36 +23,33 @@ from lumina.compat import compat_itervalues
 NODE_TIMEOUT = 180
 
 
-# To connect interactively to the server use:
-#    socat - TCP:127.0.0.1:8081
-
 
 class ServerProtocol(LuminaProtocol):
     ''' Server communication protocol '''
-    node_timeout = NODE_TIMEOUT
+    keepalive_interval = NODE_TIMEOUT
 
 
-    def __init__(self, parent):
-        LuminaProtocol.__init__(self, parent)
+    def __init__(self, parent, **kw):
+        LuminaProtocol.__init__(self, parent, **kw)
         self.servername = parent.name
 
         # Must have new logger as we change the namespace for it when
-        # clients register a node name
+        # clients register a node name (the default is to use parent.log)
         self.log = Logger(namespace=self.servername)
 
-        # Default node data
-        self.sequence = None
+        # Remote node data
         self.nodeid = None
         self.hostname = None
         self.hostid = None
         self.module = None
+        self.events = []
+        self.commands = []
+
+        # Remote node status
         self.status = ColorState(log=self.log)
         self.status.add_callback(self.parent.update_status, run_now=True)
+
         self.link.add_callback(self.parent.update_status, run_now=True)
-        self.commands = []
-        self.events = []
-        self.lastactivity = datetime.utcnow()
-        self.connected = False
 
 
     def connectionMade(self):
@@ -61,98 +58,35 @@ class ServerProtocol(LuminaProtocol):
         self.log.namespace = self.servername + ':' + self.peer
         self.log.info("Connect from {ip}", ip=self.peer, system=self.servername)
 
+        # Set default before registration
         self.hostname = self.peer
-        self.connected = True
-
-        # -- Setup a keepalive timer ensuring we have connection with the node
-        #    LuminaProtocol will handle resetting and stopping it on data
-        #    reception and disconnect.
-        self.keepalive = LoopingCall(self.connectionTimeout)
-        self.keepalive.start(self.node_timeout, False)
 
         # Register with parent class
-        self.parent.add_connection(self)
+        self.parent.connectionMade(self)
 
 
     def connectionLost(self, reason):
         self.log.info("Lost connection from '{n}' ({ip})", n=self.name, ip=self.peer)
         LuminaProtocol.connectionLost(self, reason)
 
-        self.connected = False
+        # Set remote note status to off when we lose connection
         self.status.set_OFF()
 
         # Unregister parent class
-        self.parent.remove_connection(self)
+        self.parent.connectionLost(self, reason)
 
 
-    def connectionTimeout(self):
-        ''' Communication timeout handler '''
+    def keepalivePing(self):
+        ''' Repurpose the keepalive to break the connection if it times out.
+         '''
         self.log.info("Communication timeout from '{n}' ({ip})", n=self.name, ip=self.peer)
         self.transport.loseConnection()
 
 
     def messageReceived(self, message):
         ''' Handle messages from nodes '''
+        return self.parent.messageReceived(self, message)
 
-        cmd = message.name
-
-
-        # -- Command type
-        if message.is_type('command'):
-
-            # -- Register node name
-            if cmd == 'register':
-
-                # Register with the server
-                result = self.parent.register_node(self, message.args[0])
-                if result:
-                    self.log.error('Node registration failed: {e}', e=result)
-                    return result
-
-                # Set logging name
-                self.log.namespace = self.servername + ':' + self.name
-
-                # Respond to the node if the node registration was successful
-                return None
-
-            # -- Handle status update
-            elif cmd == 'status':
-
-                # Not really interested in the old state in message.args[1]?
-                self.status.set(message.args[0], why=message.args[2])
-                return None
-
-            # -- General commands
-            #
-            # Note that this command will be called on non-existing commmands
-            # which is intended behaviour.
-            return self.parent.run_command(message)
-
-
-        # -- Event type
-        elif message.is_type('event'):
-
-            prefix = self.name + '/'
-
-            # -- Check that the event is valid and registred
-            if not cmd.startswith(prefix):
-                self.log.error("Ignoring undeclared event '{m}'", m=message)
-                return None
-
-            cmd = cmd.replace(prefix, '')
-            if cmd not in self.parent.events:
-                self.log.error("Ignoring undeclared event '{m}'", m=message)
-                return None
-
-            # -- A new incoming event. Plainly accept it without checking
-            #    self.parent.events
-            return self.parent.handle_event(message)
-
-
-        # -- Unknown message type
-        else:
-            self.log.error("Unexpectedly received message {m}", m=message)
-            raise UnknownMessageException("Unknown message type: '%s'" %(message.type,))
 
 
 
@@ -163,9 +97,12 @@ class ServerFactory(Factory):
     def __init__(self, parent):
         self.parent = parent
         self.name = parent.name
+        self.sequence = 1
 
     def buildProtocol(self, addr):
-        return ServerProtocol(parent=self.parent)
+        protocol = ServerProtocol(parent=self.parent, sequence=self.sequence)
+        self.sequence += 1
+        return protocol
 
     def doStart(self):
         self.parent.status.set_YELLOW('Waiting for connections')
@@ -193,6 +130,7 @@ class Server(Plugin):
 
         self.server_commands = {
             '_info': lambda a: self.master.get_info(),
+            '_name': lambda a: self.master.hostname,
             '_server': lambda a: self.get_info(),
         }
 
@@ -210,7 +148,7 @@ class Server(Plugin):
 
         # -- List of connections
         self.connections = []
-        self.sequence = 0
+        self.node_sequence = 0
 
         self.node_status = ColorState(log=self.log, state='OFF')
 
@@ -227,45 +165,25 @@ class Server(Plugin):
         # -- Setup default do-nothing handler for the incoming events
         self.handle_event = lambda a: self.log.info("Ignoring event '{a}'", a=a)
 
+        # -- Start the server
         self.factory = ServerFactory(parent=self)
         self.master.reactor.listenTCP(self.port, self.factory)
 
 
-    def run_command(self, message, fail_on_unknown=True):
-        ''' Run a command and return reply or a deferred object for later reply '''
-
-        def unknown_command(message):
-            ''' Handle unknown commands gracefully '''
-            exc = UnknownCommandException(message.name)
-            message.set_fail(exc)
-            if fail_on_unknown:
-                self.log.error('{_cmderr}', cmderr=message)
-                raise exc
-            self.log.warn("Ignoring unknown command: '{n}'", n=message.name)
-
-        # -- Run the named fn from the self.commands dict
-        return self.commands.get(message.name, unknown_command)(message)
+    def close(self):
+        for node in self.connections:
+            if node.connected:
+                node.transport.loseConnection()
 
 
-    # --- INTERNAL COMMANDS
-    def update_status(self, status):  # pylint: disable=W0613
-        ''' Status update callback '''
-        l = [node.status for node in compat_itervalues(self.nodes)]
-        l += [node.link for node in compat_itervalues(self.nodes)]
-        (state, why) = ColorState.combine(*l)
-        self.node_status.set(state, why)
-
-
-    def add_connection(self, node):
-        ''' Register the connected node '''
+    def connectionMade(self, node):
+        ''' Add the connected node client '''
         self.connections.append(node)
-        self.sequence += 1
-        node.sequence = self.sequence
         self.status.set_GREEN()
 
 
-    def remove_connection(self, node):
-        ''' Remove the disconnected node '''
+    def connectionLost(self, node, reason):
+        ''' Remove the disconnected node client '''
         self.connections.remove(node)
         if not self.connections:
             self.status.set_YELLOW('No nodes connected')
@@ -279,23 +197,86 @@ class Server(Plugin):
             node.commands = []
 
 
+    def messageReceived(self, node, message):
+        ''' Handle message from nodes '''
+
+        cmd = message.name
+
+        # -- Command type
+        if message.is_type('command'):
+
+            # -- Register node name
+            if cmd == 'register':
+
+                # Register with the server
+                result = self.register_node(node, message.args[0])
+                if result:
+                    node.log.error('Node registration failed: {e}', e=result)
+                    return result
+
+                # Set logging name
+                node.log.namespace = node.servername + ':' + node.name
+
+                # Respond to the node if the node registration was successful
+                return None
+
+            # -- Handle status update
+            elif cmd == 'status':
+
+                # Not really interested in the old state in message.args[1]?
+                node.status.set(message.args[0], why=message.args[2])
+                return None
+
+            # -- General commands
+            #
+            # Note that this command will be called on non-existing commmands
+            # which is intended behaviour.
+            return self.run_command(message)
+
+
+        # -- Event type
+        elif message.is_type('event'):
+
+            prefix = node.name + '/'
+
+            # -- Check that the event is valid and registred
+            if not cmd.startswith(prefix):
+                node.log.error("Ignoring undeclared event '{m}'", m=message)
+                return None
+
+            cmd = cmd.replace(prefix, '')
+            if cmd not in self.events:
+                node.log.error("Ignoring undeclared event '{m}'", m=message)
+                return None
+
+            # -- A new incoming event.
+            return self.handle_event(message)
+
+
+        # -- Unknown message type
+        else:
+            node.log.error("Unexpectedly received message {m}", m=message)
+            raise UnknownMessageException("Unknown message type: '%s'" %(message.type,))
+
+
     def register_node(self, node, params):
         ''' Check and register a node. '''
 
         # -- Transfer parameters to node
-        name = params.get('node')
-        node.name = name
-        node.status.name = name
-        node.link.name = name
+        node.name = name = params.get('node')
         node.nodeid = params.get('nodeid')
         node.hostname = params.get('hostname')
         node.hostid = params.get('hostid')
         node.module = params.get('module')
 
+        # -- Set logging names
+        node.status.name = node.name
+        node.link.name = node.name
+
         self.log.info("Registering node {name} [{nodeid}], "
                       "type {module}, host {hostname} [{hostid}], "
                       "{n_e} events, {n_c} commands from {ip}",
-                      name=name,
+                      name=node.name,
                       nodeid=node.nodeid,
                       hostname=node.hostname,
                       hostid=node.hostid,
@@ -311,18 +292,20 @@ class Server(Plugin):
             # The other node is still active, so refuse registration
             other = self.nodes[name]
             if other.connected:
-                return 'Node already taken by host %s [%s]' %(other.hostname, other.hostid)
+                raise NodeRegistrationException(
+                    'Node already taken by host %s [%s]' %(
+                        other.hostname, other.hostid))
 
         # -- Register the new node
         self.nodes[name] = node
 
         # -- Register node events
-        evlist = [node.name + '/' + e for e in params.get('events', [])]
+        evlist = [name + '/' + e for e in params.get('events', [])]
         node.events = tuple(evlist)
         self.add_events(evlist)
 
         # -- Register node commands
-        evlist = [node.name + '/' + e for e in params.get('commands', [])]
+        evlist = [name + '/' + e for e in params.get('commands', [])]
         node.commands = tuple(evlist)
 
         # Here is the magic for connecting the remote node commands to the
@@ -333,6 +316,27 @@ class Server(Plugin):
 
         # Return success
         return None
+
+
+    def update_status(self, status):  # pylint: disable=W0613
+        ''' Status update callback '''
+        l = [node.status for node in compat_itervalues(self.nodes)]
+        l += [node.link for node in compat_itervalues(self.nodes)]
+        (state, why) = ColorState.combine(*l)
+        self.node_status.set(state, why)
+
+
+    def run_command(self, message, fail_on_unknown=True):
+        ''' Run a command and return reply or a deferred object for later reply '''
+
+        def unknown_command(message):
+            ''' Handle unknown commands gracefully '''
+            if fail_on_unknown:
+                raise UnknownCommandException(message.name)
+            self.log.warn("Ignoring unknown command: '{n}'", n=message.name)
+
+        # -- Run the named fn from the self.commands dict
+        return self.commands.get(message.name, unknown_command)(message)
 
 
     def add_commands(self, commands):

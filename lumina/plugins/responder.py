@@ -146,6 +146,8 @@ class Responder(Plugin):
                     for cmd in self.commandlist:
 
                         # -- Attach callbacks to handle progress
+                        # FIXME: It is probable that the cmd_ok and cmd_err
+                        #        CBs needs to run set_success() or set_fail()
                         defer = maybeDeferred(server.run_command, cmd)
                         defer.addCallback(self.cmd_ok, cmd)
                         defer.addErrback(self.cmd_err, cmd)
@@ -156,10 +158,12 @@ class Responder(Plugin):
                 return self.defer
 
             def cmd_ok(self, result, cmd):  # pylint: disable=unused-variable
+                cmd.set_success(result)
                 self.success += 1
                 return result
 
             def cmd_err(self, failure, cmd):
+                cmd.set_fail(failure)
                 self.failed.append(cmd)
                 return failure
 
@@ -169,7 +173,11 @@ class Responder(Plugin):
                 if self.remain <= 0:
                     # Prepare the response
                     request = self.request
-                    request.response = self.success
+
+                    # FIXME: Take a look at how the response should be when
+                    #        using greoups. They current behave inconsistently
+                    #        with the rest of the commands. See the
+                    #        server_command.py test.
 
                     # Have been back and forth if the result list should be a
                     # list of the results or the actual command objects. The
@@ -177,6 +185,7 @@ class Responder(Plugin):
                     # commands have only succeeded partially.
                     #request.result = [ c.result for c in self.commandlist ]
                     request.result = self.commandlist
+                    request.response = self.success
 
                     # Success is when all sub-jobs succeeds
                     if self.success == len(self.commandlist):

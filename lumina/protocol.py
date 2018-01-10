@@ -6,11 +6,13 @@ from datetime import datetime
 
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.defer import Deferred, maybeDeferred
+from twisted.internet.task import LoopingCall
 
 from lumina.message import Message
 from lumina.utils import add_defer_timeout
 from lumina.exceptions import (NodeException, NoConnectionException,
-                               TimeoutException, UnknownMessageException)
+                               TimeoutException, UnknownMessageException,
+                               UnknownCommandException, NodeRegistrationException)
 from lumina.state import ColorState
 
 #
@@ -49,12 +51,17 @@ from lumina.state import ColorState
 REMOTE_TIMEOUT = 10
 COMMAND_TIMEOUT = 10
 
+# The interval to send empty messages to server to keep the link alive
+KEEPALIVE_INTERVAL = 60
+
 
 # Exception types that will not result in a local traceback
 VALID_NODE_EXCEPTIONS = (
     NodeException,
     NoConnectionException,
-    TimeoutException
+    TimeoutException,
+    UnknownCommandException,
+    NodeRegistrationException,
 )
 
 
@@ -64,35 +71,59 @@ class LuminaProtocol(LineReceiver):
     delimiter = '\n'
     remote_timeout = REMOTE_TIMEOUT
     command_timeout = COMMAND_TIMEOUT
+    keepalive_interval = KEEPALIVE_INTERVAL
 
 
-    def __init__(self, parent):
+    def __init__(self, parent, sequence=1):
         self.parent = parent
         self.log = parent.log
         self.master = parent.master
 
-        # Setup support for a keepalive timer, but dont create it. This must
-        # be done in inheriting classes
+        # -- Used by the servers to count number of client connections
+        self.sequence = sequence
+
+        # -- Setup support for a keepalive timer, but dont create it. This must
+        #    be done in inheriting classes
         self.keepalive = None
 
-        # Setup status for the link
+        # -- Setup status for the link
         self.link = ColorState(log=self.log, state='OFF', why='Not connected', what='LINK')
+
+        # -- Set the date object
+        self.lastactivity = datetime.utcnow()
+        self.connected = False
+
+        # -- Setup vars for later user
+        self.peer = ''
+        self.name = ''
+        self.requests = {}
 
 
     def connectionMade(self):
+        # -- Get address of connected peer
         self.peer = "%s:%s" %(self.transport.getPeer().host, self.transport.getPeer().port)
 
+        # -- Set our name to our peer (for now)
         self.name = self.peer
         self.link.name = self.name
-        self.lastactivity = datetime.utcnow()
 
+        self.lastactivity = datetime.utcnow()
+        self.connected = True
+
+        # Clear the dict of pending requests
         self.requests = {}
+
+        # -- Setup a keepalive timer
+        self.keepalive = LoopingCall(self.keepalivePing)
+        self.keepalive.start(self.keepalive_interval, False)
 
         self.link.set_YELLOW('Connecting')
 
 
     def connectionLost(self, reason):  # pylint: disable=W0222
         self.link.set_RED('Connection lost')
+
+        self.connected = False
 
         # -- Cancel timer
         if self.keepalive and self.keepalive.running:
@@ -109,14 +140,20 @@ class LuminaProtocol(LineReceiver):
                 request.defer.errback(exc)
 
 
-    def lineReceived(self, data):
+    def keepalivePing(self):
+        ''' Handle a keepalive event
+        '''
+        self.transport.write('\n')
+
+
+    def lineReceived(self, data):  # pylint: disable=W0221
 
         # -- Reset the timer
         if self.keepalive and self.keepalive.running:
             self.keepalive.reset()
 
         # -- Empty lines are simply ignored
-        if not len(data):
+        if not data:
             return
 
         self.log.debug('{_rawin}', rawin=data)
@@ -126,9 +163,9 @@ class LuminaProtocol(LineReceiver):
             message = Message.create_from_json(data)
             self.log.debug('{_cmdin}', cmdin=message)
 
-        except (SyntaxError, ValueError) as e:
+        except (SyntaxError, ValueError) as err:
             # Raised if the load_json didn't succeed
-            self.log.error("Protocol error on incoming message: {e}", e=e.message)
+            self.log.error("Protocol error on incoming message: {e}", e=str(err))
             return
 
         # -- Update the activity timer
@@ -144,7 +181,8 @@ class LuminaProtocol(LineReceiver):
 
         # -- Handle reply to a former request
         if message.response is not None:
-            return self.handleResponse(message)
+            self.handleResponse(message)
+            return
 
         # -- New incoming message:
         #
@@ -154,12 +192,16 @@ class LuminaProtocol(LineReceiver):
 
         # -- Setup filling in the message data from the result
         def msg_ok(result):
+            ''' Command ok handler '''
             message.set_success(result)
             self.log.debug('{_cmdok}', cmdok=message)
             return result
 
         def msg_error(failure):
+            ''' Command err handler '''
+            req = message.copy()
             message.set_fail(failure)
+            self.log.error('COMMAND FAILED {r} RETURNED {m}', r=req, m=message)
 
             # Accept the exception if listed in validNodeExceptions.
             for exc in VALID_NODE_EXCEPTIONS:
@@ -167,16 +209,16 @@ class LuminaProtocol(LineReceiver):
                     return None
 
             # Print the error and dump the traceback
-            self.log.error('REQUEST FAILED: {tb}', tb=failure.getTraceback())
+            self.log.error('{tb}', tb=failure.getTraceback())
 
             # Eat the error message
             return None
 
         def msg_timeout():
-            ''' Response if command suffers a timeout '''
+            ''' Command timeout handler '''
             exc = TimeoutException()
             message.set_fail(exc)
-            self.log.error('REQUEST TIMED OUT')
+            self.log.error('COMMAND TIMED OUT')
             defer.errback(exc)
 
         # -- Setup a timeout, and add a timeout err handler making sure the
@@ -209,8 +251,15 @@ class LuminaProtocol(LineReceiver):
 
         # Link the request with the response by copying the
         # received data into the request. Args isn't needed any more
-        request.response = message.response
-        request.result = message.result
+        #
+        # Setting these makes remote requests differ from local run_commands()
+        # since local commands does not set response and result. Calls to
+        # run_commands() doesn't tell if the comand is local or remote, so
+        # the caller will have to handle these regardless. Hence, it might be
+        # that the .response field is only in use for communication exchange,
+        # and not for the user.
+        #request.response = message.response
+        #request.result = message.result
 
         # Get the defer handler and remove it from the request to prevent
         # calling it twice. Delete other modification from the request object
@@ -225,11 +274,11 @@ class LuminaProtocol(LineReceiver):
         if message.response:
 
             # Send successful result back
-            self.log.debug('{_cmdok}', cmdok=request)
+            self.log.debug('{_cmdok}', cmdok=message)
             if not defer.called:
 
-                # Been back and forth between sending 'request' or
-                # 'request.result' back to the caller. When run_command() is
+                # Been back and forth between sending 'message' or
+                # 'message.result' back to the caller. When run_command() is
                 # called, if the command returns immediately an immediate result
                 # is returned. If run_command() returns a Deferred(), the object
                 # sent back from here will be the object the caller receives.
@@ -247,15 +296,17 @@ class LuminaProtocol(LineReceiver):
                 # The choice here is also linked to the response in
                 # Responder.run_commandlist()
                 #
-                defer.callback(request.result)
+                defer.callback(message.result)
                 #defer.callback(request)
             else:
-                self.log.error('Dropping callback as defer has already been called. Timeout?')
+                self.log.error('Dropping callback as defer has already been '
+                               'called. Timeout?')
 
         # -- Remote request failed
         else:
 
             def response_error(failure):  # pylint: disable=W0613
+                ''' Response error handler '''
                 # Print the error
                 #self.log.error('{tb}', tb=failure.getTraceback())
 
@@ -266,15 +317,16 @@ class LuminaProtocol(LineReceiver):
             defer.addErrback(response_error)
 
             # Send an error back
-            exc = NodeException(*request.result)
-            self.log.error('{_cmderr}', cmderr=request)
+            exc = NodeException(*message.result)
+            self.log.error('REMOTE FAILED: {r} RETURNED {m}', r=request, m=message)
             if not defer.called:
                 defer.errback(exc)
             else:
-                self.log.error('Dropping errback as defer has already been called. Timeout?')
+                self.log.error('Dropping errback as defer has already been '
+                               'called. Timeout?')
 
 
-    def messageReceived(self, message):
+    def messageReceived(self, message):  # pylint: disable=R0201
         ''' Process an incoming message. This method should return
             a Deferred() if results are not immediately available
         '''
