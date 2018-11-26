@@ -80,10 +80,10 @@ The sources comprise of the following files:
 `contrib/` contains a number of extra tools and utilities for implementing
 Lumina on embedded devices, such as Raspberry Pi.
 
- * `contrib/broot/` - Docker build image for setting up a compilation
+ * `contrib/docker/` - Docker build image for setting up a compilation
    environment for building Lumina and other supporting packages for
-   embedded hosts. 
-   [More information...](contrib/broot/README.md)
+   embedded hosts.
+   [More information...](contrib/docker/README.md)
  * `contrib/deploy/` - Deployment script for the authors implementation
    of Lumina. It can serve as an example in how to deploy Lumina to multiple
    devices.
@@ -147,7 +147,7 @@ a Docker container. See below.
 ### Cross building
 
 Lumina is made for running on embedded targets, e.g the Raspberry Pi or
-on Ubuntu for ARM. The `contrib/broot/` directory contains tools to setup a
+on Ubuntu for ARM. The `contrib/docker/` directory contains tools to setup a
 cross build environment to build Lumina using Docker and Qemu. It currently
 support Raspberry Pi, Ubuntu 16.04 ARM. It also support building native
 Ubuntu 16.04 packages. This allows building the packages without clobbering
@@ -155,8 +155,8 @@ the host system.
 
 To build Lumina do the following steps:
 
-1. **Setup**. Setup the docker build root. This will have to be done
-   once. Please see [Docker build root](contrib/broot/README.md) for
+1. **Setup**. Setup the docker build image. This will have to be done
+   once. Please see [Docker build image](contrib/docker/README.md) for
    instructions how to set it up.
 
 2. **Build**
@@ -165,8 +165,8 @@ To build Lumina do the following steps:
     make docker-debs t=<VARIANT>
     ```
 
-    This will call `contrib/broot/run-docker` to build the debian files under
-    Docker image `broot:<VARIANT>`. Example: `make docker-debs t=rpi` will
+    This will call `contrib/docker/run-docker` to build the debian files under
+    Docker image `lub:<VARIANT>`. Example: `make docker-debs t=rpi` will
     build Rasberry Pi packages. It will build in `build-rpi/` and place the
     output in `dist-rpi/`.
 

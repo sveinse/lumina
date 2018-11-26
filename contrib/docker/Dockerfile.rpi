@@ -5,10 +5,8 @@ ADD rootfs/ /
 
 ENV \
     DEBIAN_FRONTEND=noninteractive \
-    USER_UID=${UID} \
-    USER_GID=${GID} \
-    BROOT=1
+    DOCKER=1
 
-RUN /tmp/prepare-xu
+RUN /tmp/init-lub-rpi
 
 CMD ["/bin/bash"]

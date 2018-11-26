@@ -9,7 +9,7 @@ usage () {
 $ME -- Build XU (armhf Xenial) Image
 (C) 2016 Svein Seldal <sveinse@seldal.com>
 
-This tool builds a Ubuntu armhf Xenial (16.04) Docker image 'broot:xu' and sets
+This tool builds a Ubuntu armhf Xenial (16.04) Docker image 'lub:xu' and sets
 up a debian build environment.
 
 This tools requests sudo access to be able to generate the armhf boostrap image.
@@ -94,9 +94,9 @@ sudo qemu-debootstrap --arch=armhf --variant=minbase --foreign xenial "$r"
 
 sudo cp /usr/bin/qemu-arm-static $r/usr/bin/qemu-arm-static
 
-sudo cp "$base/prepare-xu" $r/tmp/prepare-xu
+sudo cp "$base/init-lub-xu" $r/tmp/init-lub-xu
 
-sudo docker build -t broot:xu $t
+sudo docker build -t lub:xu $t
 
 cleanup
 exit 0

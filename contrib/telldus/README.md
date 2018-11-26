@@ -18,7 +18,7 @@ The Telldus codebase can be found at:
 
   * http://developer.telldus.se/browser
   * https://github.com/telldus/telldus  (mirror)
-    
+
     `$ git clone https://github.com/telldus/telldus.git`
 
 Description for Debian based installations:
@@ -47,15 +47,15 @@ sources.
 The [`build`](build) script in this directory provides an easy method to
 build the telldus packages needed by Lumina.
 
- 1. Setup broot. See [`contrib/broot/README.md`](../broot/README.md)
+ 1. Setup docker builder. See [`contrib/docker/README.md`](../docker/README.md)
 
- 2. Run the compilation using the broot builder:
+ 2. Run the compilation using the docker builder:
 
     ```
-    $ ../broot/run-docker rpi -- ./build -b build-rpi
+    $ ../docker/run-docker rpi -- ./build -b build-rpi
     ```
 
-    The `rpi` argument indicates building using the Raspberry build root, and
+    The `rpi` argument indicates building using the Raspberry build image, and
     `build-rpi` denotes the directory where the output files will be
     placed.
 
@@ -115,6 +115,6 @@ See the `telldus-core_*.dsc` file for the hash-sums of the `telldus-core_2.1.2.o
 
 From what I can tell this repo is identical as commit 1f93cf in the upstream
 repos. Two noteable changes are interesting and have been included in below patch
-    
+
   * commit `ed3ce3` upstream
   * commit `4401b1` in https://github.com/telldus/telldus/pull/8/commits/4401b10551cff09469c93dbc77db7360c05a8f57

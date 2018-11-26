@@ -34,7 +34,7 @@ debs::
 
 docker-debs:
 	@test $${t:?"usage: make $@ t=<target>"}
-	$(call builddeb,$(build)-$(t),$(output)-$(t),$(base)/contrib/broot/run-docker $(t) --)
+	$(call builddeb,$(build)-$(t),$(output)-$(t),$(base)/contrib/docker/run-docker $(t) --)
 
 version:
 	@python bin/lumina-build.py version $(versionfile)
@@ -45,10 +45,8 @@ newversion:
 
 mk-venv:
 	virtualenv venv
-	. venv/bin/activate; \
-	   pip install -e .; \
-	   lumina --help; \
-	   deactivate
+	venv/bin/pip install -e .
+	venv/bin/lumina --help
 
 debian/changelog: debian/changelog.in
 	set -e; \
@@ -66,7 +64,7 @@ bdist:
 	python setup.py bdist
 
 clean::
-	rm -rf *.egg-info $(build) debian/changelog dist
+	rm -rf *.egg-info *.buildinfo $(build) debian/changelog dist
 
 distclean:: clean
 	rm -rf venv $(build) $(build)-* $(output) $(output)-* *.deb *.changes

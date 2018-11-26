@@ -105,7 +105,7 @@ if [[ ! -e "${N}_${V}.orig.tar.gz" ]]; then
 fi
 
 # Build depends (for Docker instances)
-if [[ "$BROOT" ]]; then
+if [[ "$DOCKER" ]]; then
     sudo apt install -y $build_deps
 fi
 

@@ -1,9 +1,9 @@
-# Docker Build Root
+# Docker Lumina Build
 
-This directory contains various scripts for setting up build environments, 
-called *broot*, using [Docker](https://www.docker.com/)
+This directory contains various scripts for setting up build environments
+in Docker containers, named *lub* (Lumina Build).
 
-Currently the supported build roots:
+Currently the supported build environments:
 
   * **xenial** - Ubuntu native Xenial (16.04)
   * **xu** - Ubuntu armhf Xenial (16.04)
@@ -12,7 +12,7 @@ Currently the supported build roots:
 (The name *xu* comes from a Odroid XU device which runs Ubuntu armhf.)
 
 **Note:** The author is running Ubuntu, so all these procedures and package
-names refer to Ubuntu package names. Your mileage might vary for other distros. 
+names refer to Ubuntu package names. Your mileage might vary for other distros.
 Contributions are very welcome.
 
 
@@ -35,22 +35,22 @@ Contributions are very welcome.
 3. **Create Docker image**
 
    Then chose one or more target machines that you'd like to create
-   build root image for. It will create Docker images named `broot:<VARIANT>`
+   build image for. It will create Docker images named `lub:<VARIANT>`
 
    ```
-   # Raspberry Pi Build root (broot:rpi)
-   ./setup-rpi <IMAGE.img>
+   # Raspberry Pi Build image (lub:rpi)
+   ./setup-docker-lub-rpi <IMAGE.img>
 
-   # Ubuntu armhf 16.04 Xenial build root (broot:xu)
-   ./setup-xu
+   # Ubuntu armhf 16.04 Xenial build image (lub:xu)
+   ./setup-docker-lub-xu
 
-   # Ubuntu native 16.04 Xenial build root (broot:xenial)
-   ./setup-xenial
+   # Ubuntu native 16.04 Xenial build image (lub:xenial)
+   ./setup-docker-lub-xenial
    ```
 
-   **Note:** The `setup-rpi` script will require sudo root access to be able to
-   read the files from the SD-Card image. Please inspect the script if you want to 
-   inspect the operations.
+   **Note:** The `setup-docker-lub-rpi` script will require sudo root access to
+   be able to read the files from the SD-Card image. Please cat the script if
+   you want to inspect the operations.
 
    The operation for the ARM variants does not install very fast, outright slow,
    as it runs ARM code under emulated QEmu environment. Sometimes this emulation
@@ -70,7 +70,7 @@ Usage:
 run-docker [OPTIONS] NAME [--] [COMMAND [ARGS]]
 ```
 
- * `NAME` - The `broot:NAME` docker image to run from
+ * `NAME` - The `lub:NAME` docker image to run from
  * `COMMAND` - The command to run. If omitted, a interactive shell will
    be used.
  * `ARGS` - Command arguments. Please use the `--` separator to separate
@@ -80,7 +80,7 @@ The most common use case is to use `run-docker` to call a build script under
 docker. E.g. telldus is build using
 
 ```
-../broot/run-docker rpi -- ./build -b build-rpi
+../docker/run-docker rpi -- ./build -b build-rpi
 ```
 
-This runs `./build -b build-rpi` under the `broot:rpi` docker container.
+This runs `./build -b build-rpi` under the `lub:rpi` docker container.

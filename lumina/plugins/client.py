@@ -30,7 +30,7 @@ class Client(Plugin):
             result.send(message).chainDeferred(defer)
         def err(failure):
             defer.errback(failure)
-            
+
         d.addCallback(ok)
         d.addErrback(err)
 

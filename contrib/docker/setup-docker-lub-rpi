@@ -9,7 +9,7 @@ usage () {
 $ME -- Build Raspberry Pi (Rasbian Jessie) Docker image
 (C) 2016 Svein Seldal <sveinse@seldal.com>
 
-This tool builds a Raspbian Jessie Docker image 'broot:rpi' and sets up
+This tool builds a Raspbian Jessie Docker image 'lub:rpi' and sets up
 a debian build environment. It copies the installation from the given
 SDCARD_IMAGE, which must be an uncompressed image, not zipped.
 
@@ -117,14 +117,14 @@ set -x
 lo="$(sudo losetup --show -f "$img")"
 sudo partprobe "$lo"
 
-t="$(mktemp -d)"
+t="$(mktemp -d -p .)"
 r="$t/rootfs"
 mkdir "$t/r"
 
 m2="$(sudo mount "${lo}p2" "$t/r" && echo 'y')"
 m1="$(sudo mount "${lo}p1" "$t/r/boot" && echo 'y')"
 
-sudo rsync -aHAX $t/r/ $r/
+sudo rsync -aHAX --exclude "/dev/*" $t/r/ $r/
 
 sudo umount -f "${lo}p1" && unset m1
 sudo umount -f "${lo}p2" && unset m2
@@ -137,9 +137,9 @@ sudo rm -f $r/etc/ld.so.preload
 
 cp -av "$base/Dockerfile.rpi" $t/Dockerfile
 
-sudo cp "$base/prepare-rpi" $r/tmp/prepare-rpi
+sudo cp "$base/init-lub-rpi" $r/tmp/init-lub-rpi
 
-sudo docker build -t broot:rpi $t
+sudo docker build -t lub:rpi $t
 
 cleanup
 exit 0

@@ -12,7 +12,7 @@ usage () {
 $ME -- Run docker image
 (C) 2016 Svein Seldal <sveinse@seldal.com>
 
-This tool runs the docker image 'broot:NAME' and executes the COMMAND and
+This tool runs the docker image 'lub:NAME' and executes the COMMAND and
 optional ARGS. -- can be used to separate the arguments from this tool to
 the COMMANDS arguments. If no COMMAND is given, a shell will be executed.
 
@@ -75,7 +75,7 @@ if [[ ${#args[@]} -lt 1 ]]; then
     exit 1
 fi
 
-distro="broot:${args[0]}"
+distro="lub:${args[0]}"
 unset 'args[0]'
 
 dir="$(pwd)"

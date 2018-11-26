@@ -9,7 +9,7 @@ usage () {
 $ME -- Build Ubuntu Xenial (16.04) Image
 (C) 2016 Svein Seldal <sveinse@seldal.com>
 
-This tool builds a Ubuntu Xenial (16.04) Docker image 'broot:xenial' and sets
+This tool builds a Ubuntu Xenial (16.04) Docker image 'lub:xenial' and sets
 up a debian build environment.
 
 Usage: $ME [OPTIONS]
@@ -82,9 +82,9 @@ cat "$base/Dockerfile.xenial" | sed \
     -e "s/\${GID}/$(id -g)/" \
     >$t/Dockerfile
 
-cp "$base/prepare-xenial" $t/prepare-xenial
+cp "$base/init-lub-xenial" $t/init-lub-xenial
 
-docker build -t broot:xenial $t
+docker build -t lub:xenial $t
 
 cleanup
 exit 0

@@ -3,6 +3,7 @@
 *~
 *.pid
 __ditch/
+__*
 
 # Exclude project output dirs
 /build/
@@ -12,10 +13,11 @@ __ditch/
 /dist-*/
 /lumina.egg-info/
 /venv*/
+/*.buildinfo
 
 # Exclude contrib
 /contrib/*
-!/contrib/broot/
+!/contrib/docker/
 !/contrib/deploy/
 !/contrib/ola/
 !/contrib/rpi/

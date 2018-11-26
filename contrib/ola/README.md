@@ -95,7 +95,7 @@ $ ola_dmxconsole        # Not present in older versions
 All plugins can be listed with:
 
 ```
-$ ola_plugin_info 
+$ ola_plugin_info
    Id	Plugin Name
 --------------------------------------
    ...
@@ -118,15 +118,15 @@ Using encoding plugin 12 - device 2 - output - port 0 = universe 0
 The [`build`](build) script in this directory provides an easy method to
 build ola.
 
- 1. Setup broot. See [`contrib/broot/README.md`](../broot/README.md)
+ 1. Setup docker image. See [`contrib/docker/README.md`](../docker/README.md)
 
- 2. Run the compilation using the broot builder:
+ 2. Run the compilation using the docker builder:
 
     ```
-    $ ../broot/run-docker rpi -- ./build -b build-rpi
+    $ ../docker/run-docker rpi -- ./build -b build-rpi
     ```
 
-    The `rpi` argument indicates building using the Raspberry build root, and
+    The `rpi` argument indicates building using the Raspberry build image, and
     `build-rpi` denotes the directory where the output files will be
     placed.
 

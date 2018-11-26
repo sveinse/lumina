@@ -1,0 +1,12 @@
+FROM ubuntu:16.04
+MAINTAINER Svein Seldal <sveinse@seldal.com>
+
+ENV \
+    DEBIAN_FRONTEND=noninteractive \
+    USER_UID=${UID} \
+    USER_GID=${GID} \
+    DOCKER=1
+
+COPY init-lub-xenial /tmp/init-lub-xenial
+
+RUN /tmp/init-lub-xenial
