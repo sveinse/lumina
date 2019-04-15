@@ -1,0 +1,17 @@
+#!/bin/sh -ex
+
+# In advance the Docker has been setup using:
+#
+# docker volume create lumina
+# docker network create webbride
+
+sudo cp contrib/deploy/lys.json /var/lib/docker/volumes/lumina/_data/lumina.json
+
+sudo docker stop lumina
+sudo docker rm lumina
+sudo docker run -d --name lumina \
+    --network webbridge \
+    -p 8326:8326 -p 5326:5326 \
+    --hostname lys \
+    -vlumina:/etc/lumina \
+    lumina:0.6.1

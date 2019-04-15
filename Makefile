@@ -15,6 +15,9 @@ versionfile=lumina/__init__.py
 this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 base := $(patsubst %/,%,$(dir $(this_file)))
 
+ifeq ($(lumina_version),)
+lumina_version:=$(shell python bin/lumina-build.py version $(versionfile))
+endif
 
 define builddeb
 mkdir -p $(1)
@@ -35,6 +38,12 @@ debs::
 docker-debs:
 	@test $${t:?"usage: make $@ t=<target>"}
 	$(call builddeb,$(build)-$(t),$(output)-$(t),$(base)/contrib/docker/run-docker $(t) --)
+
+docker-image:
+	docker build -t lumina:$(lumina_version) .
+
+httpd:
+	cd www && ../venv/bin/twistd -n web --listen=tcp:8888 --path .
 
 version:
 	@python bin/lumina-build.py version $(versionfile)

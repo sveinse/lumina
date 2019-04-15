@@ -1,0 +1,11 @@
+#!/bin/sh
+
+user=lumina
+group=lumina
+addgroup -g ${PGID:=1000} -S ${group}
+adduser -u ${PUID:=1000} -S ${user} -G ${group}
+
+#mkdir -p /builds /var/log/vsbuilder
+#chown ${user}:${group} /builds /var/log/vsbuilder
+
+exec "$@"

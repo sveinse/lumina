@@ -1,0 +1,87 @@
+{
+    "plugins": ["server", "responder", "web" ],
+    "server.nodes": [ "telldus", "led", "hw50", "avr", "amp2", "oppo" ],
+
+    "port": 5326,
+
+    "web.port": 8326,
+    "web.root": "/www",
+
+    "responder.actions": {
+
+        // Nexa remote
+        //"telldus/remote/1/on"    : "elec/on",
+        //"telldus/remote/1/off"   : "elec/off",
+        //"telldus/remote/2/on"    : "elec/on",
+        //"telldus/remote/2/off"   : "elec/off",
+        "telldus/remote/3/on"    : "telldus/light/dim{30}",
+        "telldus/remote/3/off"   : "telldus/light/off",
+        "telldus/remote/4/on"    : "led/white/dim{10}",
+        "telldus/remote/4/off"   : "led/off",
+
+        "telldus/remote/5/on"    : "led/set{0,0,0,255}",
+        "telldus/remote/5/off"   : "led/set{0,0,0,15}",
+        "telldus/remote/6/on"    : "led/set{0,0,100,0}",
+        "telldus/remote/6/off"   : "led/set{0,0,17,0}",
+        "telldus/remote/7/on"    : "led/set{143,0,0,0}",
+        "telldus/remote/7/off"   : "led/set{9,0,0,0}",
+        "telldus/remote/8/on"    : "led/set{122,0,29,0}",
+        "telldus/remote/8/off"   : "led/set{10,0,4,0}",
+
+        "telldus/remote/9/on"    : "telldus/ledpwr/on",
+        "telldus/remote/9/off"   : "telldus/ledpwr/off",
+        "telldus/remote/10/on"   : "telldus/light/table/on",
+        "telldus/remote/10/off"  : "telldus/light/table/off",
+        "telldus/remote/11/on"   : "telldus/light/roof/on",
+        "telldus/remote/11/off"  : "telldus/light/roof/off",
+        "telldus/remote/12/on"   : "telldus/light/on",
+        "telldus/remote/12/off"  : "telldus/light/off",
+
+        "telldus/remote/g/on"    : "light/normal",
+        "telldus/remote/g/off"   : "light/off",
+
+        "telldus/wallsw1/on"     : "light/normal",
+        "telldus/wallsw1/off"    : "light/off",
+        "telldus/wallsw2/on"     : "light/finder",
+        "telldus/wallsw2/off"    : "light/all-off"
+
+        // Oppo rules
+        //"oppo/connected"         : "oppo/verbose",
+        //"oppo/pause"             : "light/pause",
+        //"oppo/play"              : "light/off",
+        //"oppo/stop"              : "light/weak",
+    },
+
+    "responder.groups": {
+        "light/full"       : [ "telldus/light/on",      "telldus/ledpwr/on",  "led/white/on" ],
+        "light/normal"     : [ "telldus/light/on",      "telldus/ledpwr/on",  "led/blue/normal" ],
+        "light/weak"       : [ "telldus/light/dim{60}", "telldus/ledpwr/on",  "led/white/dim{25}" ],
+        "light/ambient"    : [ "telldus/light/dim{30}", "telldus/ledpwr/on",  "led/white/dim{10}" ],
+        "light/finder"     : [ "telldus/light/wall/on"                                  ],
+        "light/off"        : [ "telldus/light/off",                           "led/off" ],
+        "light/led-off"    : [                                                "led/off" ],
+        "light/spot-off"   : [ "telldus/light/off"                                      ],
+        "light/all-off"    : [ "telldus/light/off",     "telldus/ledpwr/off", "led/off" ],
+
+        "led/pwr/on"       : [ "telldus/ledpwr/on" ],
+        "led/pwr/off"      : [ "telldus/ledpwr/off" ],
+        "led/white/on"     : [ "led/set{0,0,0,255}" ],
+        "led/white/normal" : [ "led/set{0,0,0,100}" ],
+        "led/white/dim"    : [ "led/set{0,0,0,$1}" ],
+        "led/blue/normal"  : [ "led/set{0,0,100,0}" ],
+        "led/blue/dim"     : [ "led/set{0,0,$1,0}" ],
+        "led/off"          : [ "led/set{0,0,0,0}" ],
+
+        "amps/on"          : [ "avr/on", "amp1/on", "amp2/on", "amp1/pure_direct", "amp2/pure_direct" ],
+        "amps/off"         : [ "avr/off", "amp1/off", "amp2/off" ],
+
+        // Shows (on multimedia)
+        "show/elec-off"    : [ "hw50/off", "oppo/off", "amps/off" ],
+        "show/music"       : [                       "amps/on" ],
+        "show/netflix"     : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/netflix", "hw50/preset/tv"    ],
+        "show/youtube"     : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/youtube", "hw50/preset/tv"    ],
+        "show/chrome"      : [ "hw50/on",            "amps/on", "avr/input{AV2}",                 "hw50/preset/tv"    ],
+        "show/tv"          : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home",    "hw50/preset/tv"    ],
+        "show/movie"       : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home",    "hw50/preset/film1" ]
+    }
+}

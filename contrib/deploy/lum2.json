@@ -1,7 +1,7 @@
 {
     "plugins": ["led", "hw50"],
 
-    "server": "hus.local",
+    "server": "lys.sol",
     "port": 5326,
 
     "hw50.port": "/dev/ttyUSB0"

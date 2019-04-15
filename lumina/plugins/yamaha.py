@@ -342,7 +342,7 @@ Connection: keep-alive\r
                 self.defer.callback(xmle)
 
         except (ET.ParseError, CommandRunException) as e:
-            self.log.info("Command failed. {m}.", m=str(e)
+            self.log.info("Command failed. {m}.", m=str(e))
             self.defer.errback(e)
 
         # Process next command

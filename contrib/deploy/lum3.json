@@ -1,7 +1,7 @@
 {
     "plugins": ["telldus"],
 
-    "server": "hus.local",
+    "server": "lys.sol",
     "port": 5326,
 
     "telldus.config": [

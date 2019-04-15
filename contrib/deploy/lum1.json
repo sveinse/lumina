@@ -1,7 +1,7 @@
 {
-    "plugins": [ "oppo", "avr(yamaha)", "amp1(yamaha)", "amp2(rxv757)", "lirc" ],
+    "plugins": [ "oppo", "avr(yamaha)", "amp2(rxv757)", "lirc" ],
 
-    "server": "hus.local",
+    "server": "lys.sol",
     "port": 5326,
 
     "oppo.port": "/dev/ttyUSB0",
