@@ -1,5 +1,5 @@
 #!/bin/bash -ex
-# Target prepare-tools for XU
+# Target prepare-tools for xenial
 
 addgroup --gid ${USER_GID} build
 adduser --uid ${USER_UID} --gid ${USER_GID} --shell /bin/bash --gecos "Build User" --disabled-password build

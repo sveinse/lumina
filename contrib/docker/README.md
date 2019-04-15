@@ -6,10 +6,7 @@ in Docker containers, named *lub* (Lumina Build).
 Currently the supported build environments:
 
   * **xenial** - Ubuntu native Xenial (16.04)
-  * **xu** - Ubuntu armhf Xenial (16.04)
   * **rpi** - Raspberry Pi Raspbian
-
-(The name *xu* comes from a Odroid XU device which runs Ubuntu armhf.)
 
 **Note:** The author is running Ubuntu, so all these procedures and package
 names refer to Ubuntu package names. Your mileage might vary for other distros.
@@ -40,9 +37,6 @@ Contributions are very welcome.
    ```
    # Raspberry Pi Build image (lub:rpi)
    ./setup-docker-lub-rpi <IMAGE.img>
-
-   # Ubuntu armhf 16.04 Xenial build image (lub:xu)
-   ./setup-docker-lub-xu
 
    # Ubuntu native 16.04 Xenial build image (lub:xenial)
    ./setup-docker-lub-xenial

@@ -5,6 +5,6 @@
     "port": 5326,
 
     "oppo.port": "/dev/ttyUSB0",
-    "avr.host": "avr.sol",
-    "amp1.host": "amp.sol"
+    "avr.host": "avr.sol"
+    //"amp1.host": "amp.sol"
 }

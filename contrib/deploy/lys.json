@@ -72,16 +72,15 @@
         "led/blue/dim"     : [ "led/set{0,0,$1,0}" ],
         "led/off"          : [ "led/set{0,0,0,0}" ],
 
-        "amps/on"          : [ "avr/on", "amp1/on", "amp2/on", "amp1/pure_direct", "amp2/pure_direct" ],
-        "amps/off"         : [ "avr/off", "amp1/off", "amp2/off" ],
+        "amps/on"          : [ "avr/on", "amp2/on", "amp2/pure_direct" ],
+        "amps/off"         : [ "avr/off", "amp2/off" ],
 
         // Shows (on multimedia)
         "show/elec-off"    : [ "hw50/off", "oppo/off", "amps/off" ],
         "show/music"       : [                       "amps/on" ],
-        "show/netflix"     : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/netflix", "hw50/preset/tv"    ],
-        "show/youtube"     : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/youtube", "hw50/preset/tv"    ],
-        "show/chrome"      : [ "hw50/on",            "amps/on", "avr/input{AV2}",                 "hw50/preset/tv"    ],
-        "show/tv"          : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home",    "hw50/preset/tv"    ],
-        "show/movie"       : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home",    "hw50/preset/film1" ]
+        "show/oppo"        : [ "hw50/on", "oppo/on", "amps/on", "avr/input{AV1}", "oppo/home",    "hw50/preset/tv"    ],
+        "show/wii"         : [ "hw50/on",            "amps/on", "avr/input{AV2}",                 "hw50/preset/tv"    ],
+        "show/tv"          : [ "hw50/on",            "amps/on", "avr/input{AV3}",                 "hw50/preset/tv"    ],
+        "show/movie"       : [ "hw50/on",            "amps/on", "avr/input{AV3}",                 "hw50/preset/film1" ]
     }
 }

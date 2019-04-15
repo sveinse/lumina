@@ -1,5 +1,0 @@
-#!/bin/sh -ex
-
-sudo mkdir -p /etc/lumina/
-sudo cp contrib/deploy/hus.json /etc/lumina/lumina.json
-sudo service lumina restart

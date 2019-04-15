@@ -27,12 +27,11 @@ angular.module('LuminaApp')
 
                 buttons: [ [
                     {  type: 'danger',  icon: 'fa-bell-slash-o',  text: 'Anlegg av', cmd: 'show/elec-off' },
-                    {  type: 'default', icon: 'fa-music',         text: 'Musikk',    cmd: 'show/music' },
-                    {  type: 'default', icon: 'fa-play-circle-o', text: 'Netflix',   cmd: 'show/netflix' },
-                    {  type: 'default', icon: 'fa-youtube',       text: 'Youtube',   cmd: 'show/youtube' },
-                    {  type: 'default', icon: 'fa-chrome',        text: 'Chrome',    cmd: 'show/chrome' },
                     {  type: 'info',    icon: 'fa-television',    text: 'TV',        cmd: 'show/tv'  },
                     {  type: 'success', icon: 'fa-film',          text: 'Film',      cmd: 'show/movie'  },
+                    {  type: 'default', icon: 'fa-music',         text: 'Musikk',    cmd: 'show/music' },
+                    {  type: 'default', icon: 'fa-gamepad',       text: 'Wii',       cmd: 'show/wii' },
+                    {  type: 'default', icon: 'fa-play-circle',   text: 'Oppo',      cmd: 'show/oppo' },
                 ] ]
             },
             {
@@ -62,18 +61,13 @@ angular.module('LuminaApp')
                     {  type: 'default', icon: 'fa-circle-o',  text: 'Av', cmd: 'avr/off'  },
                     {  type: 'default', icon: 'fa-minus fa-rotate-90', text: 'På', cmd: 'avr/on'  },
                 ], [
-                    {  type: 'default', icon: 'fa-circle-o',  text: 'Av', cmd: 'amp1/off'  },
-                    {  type: 'default', icon: 'fa-minus fa-rotate-90', text: 'På', cmd: 'amp1/on'  },
-                ], [
                     {  type: 'default', icon: 'fa-circle-o',  text: 'Av', cmd: 'amp2/off'  },
                     {  type: 'default', icon: 'fa-minus fa-rotate-90', text: 'På', cmd: 'amp2/on'  },
                 ], [
                     {  type: 'default', icon: 'fa-bell-slash', text: '', cmd: 'avr/mute'   },
-                    {  type: 'default', icon: 'fa-bell-slash', text: '', cmd: 'amp1/mute'  },
                     {  type: 'default', icon: 'fa-bell-slash', text: '', cmd: 'amp2/mute'  },
                 ], [
                     {  type: 'default', icon: '', text: 'P', cmd: 'avr/pure_direct'   },
-                    {  type: 'default', icon: '', text: 'P', cmd: 'amp1/pure_direct'  },
                     {  type: 'default', icon: '', text: 'P', cmd: 'amp2/pure_direct'  },
                 ] ]
             },

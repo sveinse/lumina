@@ -129,6 +129,14 @@ class RestInfo(LuminaResource):
         return self.web_command(request, Message.create('command'. path))
 
 
+# Fix issue with asset caching. Not elegant, but works for now
+class LumFile(File):
+    def render_GET(self, request):
+        request.setHeader(b'Cache-Control', b'no-cache, no-store, must-revalidate, post-check=0, pre-check=0, max-age=0')
+        request.setHeader(b'Expires', b'0')
+        request.setHeader(b'Pragma', b'no-cache')
+        return File.render_GET(self, request)
+
 
 class Web(Plugin):
     ''' Lumina Web interface.
@@ -149,7 +157,7 @@ class Web(Plugin):
         self.logpath = self.master.config.get('log', name=self.name)
 
         # Creste the root object
-        root = File(self.webroot)
+        root = LumFile(self.webroot)
         root.noisy = False
         root.putChild('', Redirect('lumina.html'))
 

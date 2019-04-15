@@ -15,8 +15,9 @@ versionfile=lumina/__init__.py
 this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 base := $(patsubst %/,%,$(dir $(this_file)))
 
-ifeq ($(lumina_version),)
-lumina_version:=$(shell python bin/lumina-build.py version $(versionfile))
+# Use shell functions rather than the python script, as this is executed on target
+ifeq ($(version),)
+version := $(shell cat $(base)/lumina/__init__.py | sed -n "s/__version__\s*=\s*'\(.*\)'/\1/p")
 endif
 
 define builddeb
@@ -40,13 +41,13 @@ docker-debs:
 	$(call builddeb,$(build)-$(t),$(output)-$(t),$(base)/contrib/docker/run-docker $(t) --)
 
 docker-image:
-	docker build -t lumina:$(lumina_version) .
+	docker build -t lumina:$(version) .
 
 httpd:
 	cd www && ../venv/bin/twistd -n web --listen=tcp:8888 --path .
 
 version:
-	@python bin/lumina-build.py version $(versionfile)
+	@echo $(version)
 
 newversion:
 	@test $${v:?"usage: make $@ v=<version>"}
