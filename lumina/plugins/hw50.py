@@ -2,7 +2,11 @@
 """ Sony VPL-HW50 projector interface plugin """
 from __future__ import absolute_import, division, print_function
 
-from Queue import Queue
+try:
+    from queue import Queue
+except ImportError:
+    # Py2
+    from Queue import Queue
 
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import Protocol

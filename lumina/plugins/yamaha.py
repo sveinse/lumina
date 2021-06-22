@@ -3,7 +3,11 @@
 from __future__ import absolute_import, division, print_function
 
 import re
-from Queue import Queue
+try:
+    from queue import Queue
+except ImportError:
+    # Py2
+    from Queue import Queue
 import xml.etree.ElementTree as ET
 import socket
 

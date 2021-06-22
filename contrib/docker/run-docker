@@ -96,7 +96,7 @@ if [[ "$privileged" ]]; then
 fi
 
 set -x
-exec docker run \
+exec sudo docker run \
        --tty=true \
        --interactive \
        --rm=true \

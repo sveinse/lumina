@@ -12,5 +12,5 @@ external equipment, targeting lighting and AV electronics.
 from __future__ import absolute_import, division, print_function
 
 
-__version__ = '0.6.1'
+__version__ = '0.6.2'
 __build__ = '4'

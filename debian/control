@@ -3,17 +3,21 @@ Maintainer: Svein Seldal <sveinse@seldal.com>
 Section: python
 Priority: optional
 X-Python-Version: >= 2.7
+X-Python3-Version: >= 3.6
 Build-Depends: python (>= 2.7.3),
-               debhelper (>= 7),
+               debhelper (>= 11~),
                dh-python,
                dh-systemd (>= 1.5),
-               python-setuptools
+               python-all,
+               python3-all,
+               python-setuptools,
+               python3-setuptools
 Standards-Version: 3.9.1
 
 Package: lumina
 Architecture: all
 Depends: ${misc:Depends},
-         python-lumina (= ${binary:Version})
+         python-lumina (= ${binary:Version}) | python3-lumina (= ${binary:Version})
 Description: Home cinema automation controller
  This package provides the home cinema automation controller.
 
@@ -21,6 +25,16 @@ Package: python-lumina
 Architecture: all
 Depends: ${misc:Depends},
          ${python:Depends}
+Recommends: telldus-core,
+            ola-python
+Description: Python library for home cinema automation controller
+ This package provides the python libraries for the home cinema
+ automation controller
+
+Package: python3-lumina
+Architecture: all
+Depends: ${misc:Depends},
+         ${python3:Depends}
 Recommends: telldus-core,
             ola-python
 Description: Python library for home cinema automation controller

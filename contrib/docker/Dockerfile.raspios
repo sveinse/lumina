@@ -1,0 +1,28 @@
+FROM scratch
+
+ADD rootfs/ /
+
+RUN set -ex; \
+    dpkg -P \
+    raspberrypi-sys-mods \
+    raspberrypi-kernel \
+    raspberrypi-bootloader \
+    libraspberrypi0 \
+    libraspberrypi-bin \
+    libraspberrypi-dev \
+    libraspberrypi-doc \
+    firmware-atheros \
+    firmware-brcm80211 \
+    firmware-libertas \
+    firmware-realtek \
+    pi-bluetooth \
+    rpi-eeprom \
+    rpi-update \
+    raspinfo \
+    raspberrypi-net-mods \
+    raspi-config \
+    raspi-gpio \
+    && \
+    apt autoremove -y
+
+CMD ["/bin/bash"]

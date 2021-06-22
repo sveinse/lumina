@@ -1,9 +1,10 @@
 #!/usr/bin/make -f
 
 #export DH_VERBOSE:=1
+export PYBUILD_NAME = lumina
 
 %:
-	dh $@ --with python2 --buildsystem=python_distutils --with systemd
+	dh $@ --with python2,python3 --buildsystem=pybuild --with systemd
 
 override_dh_installinit:
 	dh_installinit --name=lumina

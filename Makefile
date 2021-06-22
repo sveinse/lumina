@@ -8,7 +8,9 @@
 build?=build
 output?=dist
 
-debfiles=lumina_*.deb python-lumina_*.deb lumina_*.changes
+python=$(if $(shell which python),python,python3)
+
+debfiles=lumina_*.deb lumina_*.changes lumina_*.buildinfo python-lumina_*.deb python3-lumina_*.deb
 versionfile=lumina/__init__.py
 
 # Get the path to the directory which this script sits in
@@ -51,7 +53,7 @@ version:
 
 newversion:
 	@test $${v:?"usage: make $@ v=<version>"}
-	@python bin/lumina-build.py newversion $(versionfile) $(v)
+	@$(python) bin/lumina-build.py newversion $(versionfile) $(v)
 
 mk-venv:
 	virtualenv venv
@@ -60,18 +62,18 @@ mk-venv:
 
 debian/changelog: debian/changelog.in
 	set -e; \
-		cmd_version='python bin/lumina-build.py version $(versionfile)' \
+		cmd_version='$(python) bin/lumina-build.py version $(versionfile)' \
 		cmd_date='git log -n1 --format="%aD"' \
 		cmd_author='git log -n1 --format="%an"' \
 		cmd_email='git log -n1 --format="%ae"' \
 		cmd_subject='git log -n1 --format="%B"' \
-		python bin/lumina-build.py parse $< >$@
+		$(python) bin/lumina-build.py parse $< >$@
 
 sdist:
-	python setup.py sdist
+	$(python) setup.py sdist
 
 bdist:
-	python setup.py bdist
+	$(python) setup.py bdist
 
 clean::
 	rm -rf *.egg-info *.buildinfo $(build) debian/changelog dist

@@ -1,12 +1,9 @@
-FROM scratch
-MAINTAINER Svein Seldal <sveinse@seldal.com>
-
-ADD rootfs/ /
+FROM lub:raspios
 
 ENV \
     DEBIAN_FRONTEND=noninteractive \
     DOCKER=1
 
-RUN /tmp/init-lub-rpi
+COPY init-lub-rpi /tmp/init-lub-rpi
 
-CMD ["/bin/bash"]
+RUN /tmp/init-lub-rpi

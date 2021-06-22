@@ -84,7 +84,7 @@ cat "$base/Dockerfile.xenial" | sed \
 
 cp "$base/init-lub-xenial" $t/init-lub-xenial
 
-docker build -t lub:xenial $t
+sudo docker build -t lub:xenial $t
 
 cleanup
 exit 0

@@ -11,34 +11,20 @@ APT {
 };
 EOF
 
-chmod 4755 /usr/bin/sudo
-
-dpkg -P \
-    raspberrypi-sys-mods \
-    raspberrypi-kernel \
-    raspberrypi-bootloader \
-    libraspberrypi0 \
-    libraspberrypi-bin \
-    libraspberrypi-dev \
-    libraspberrypi-doc \
-    firmware-atheros \
-    firmware-brcm80211 \
-    firmware-libertas \
-    firmware-ralink \
-    firmware-realtek \
-    pi-bluetooth
-
 # Update installation
-apt-get update
-apt-get dist-upgrade -y
-apt-get install -y \
+apt update
+#apt dist-upgrade -y
+apt install -y \
     build-essential \
     debhelper \
-    fakeroot \
-    wget \
-    \
-    python \
     dh-python \
     dh-systemd \
-    python-setuptools
-apt-get clean
+    fakeroot \
+    wget \
+    python-setuptools \
+    python3-setuptools \
+    python-all \
+    python3-all
+
+apt autoremove -y
+apt clean

@@ -65,6 +65,9 @@ had to be changed:
   * `ola-espnet.conf` 
   * `ola-e131.conf`
 
+Alternative script:
+    (for f in *.conf; do echo $f; sed -i -e 's/enabled = true/enabled = false/' $f; done)
+
 To verify run:
 
 ```

@@ -3,7 +3,11 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-from Queue import Queue, Empty
+try:
+    from queue import Queue, Empty
+except ImportError:
+    # Py2
+    from Queue import Queue, Empty
 from binascii import hexlify
 
 from twisted.internet.defer import Deferred

@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python3
+from __future__ import print_function
 import os
 import re
 import argparse
@@ -41,14 +41,14 @@ def set_version(fname, version):
 
 def cmd_version(args):
     fname = os.path.join(base, args.file)
-    print get_version(fname)
+    print(get_version(fname))
 
 
 def cmd_newversion(args):
     fname = os.path.join(base, args.file)
     version = get_version(fname)
 
-    print "Setting version '%s' in '%s' (Old version: '%s')" %(args.version, args.file, version)
+    print("Setting version '%s' in '%s' (Old version: '%s')" %(args.version, args.file, version))
     set_version(fname, args.version)
 
 
@@ -80,7 +80,7 @@ def cmd_parse(args):
         errcode = exe.wait()
         if errcode:
             raise Exception("Command '%s' failed with error code %s" %(cmd, errcode))
-        out = out.strip('\n')
+        out = out.decode().strip('\n')
 
         pardict[k] = out
 
@@ -113,7 +113,7 @@ def cmd_parse(args):
         if extra:
             out += ''.join(extra)
 
-    print out,
+    print(out, end='')
 
 
 
